@@ -52,6 +52,10 @@ const TEFAS_CACHE_TTL = 60 * 60 * 1000; // 1 hour for TEFAS
 import { db } from './firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
 
+// Import local data (Back to imported for now)
+import tefasDataRaw from '../data/tefas_data.json';
+const tefasData = tefasDataRaw as { lastUpdated: string; count: number; data: Record<string, { code: string; price: number; date: string }> };
+
 // In-Memory cache for TEFAS data (populated from Firebase)
 let tefasDataCache: {
     lastUpdated: string;
@@ -537,11 +541,9 @@ export const MarketDataService = {
     getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
         const upperCode = code.toUpperCase();
 
-        // 1. Try Firebase Cloud Data first (Fast & Automated)
-        const cloudData = await fetchTefasSnapshot();
-
-        if (cloudData && cloudData.data && cloudData.data[upperCode]) {
-            const fund = cloudData.data[upperCode];
+        // 1. Try Local JSON first (Fast, Reliable for listed funds)
+        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
+            const fund = tefasData.data[upperCode];
             return {
                 symbol: upperCode,
                 name: upperCode,

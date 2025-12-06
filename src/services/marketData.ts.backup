@@ -1,0 +1,652 @@
+import axios from 'axios';
+import { Instrument, InstrumentType } from '../types';
+
+const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
+const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
+
+// Price cache to prevent rate limiting
+const priceCache: { [key: string]: { data: Partial<Instrument>, timestamp: number } } = {};
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (increased from 10 to reduce API calls)
+
+// Yahoo Finance requires a User-Agent to avoid being blocked.
+// In a browser/RN environment, this is usually handled automatically, but we might need to be careful.
+// If direct calls fail in RN, we might need a proxy or a different library.
+// For now, we'll try direct calls.
+
+export const MarketDataService = {
+    /**
+     * Fetch price for a stock, forex, or gold using Yahoo Finance
+     * @param symbol Yahoo Finance symbol (e.g., THYAO.IS, TRY=X)
+     */
+    getYahooPrice: async (symbol: string): Promise<Partial<Instrument> | null> => {
+        try {
+            // Use fetch instead of axios for better compatibility
+            const response = await fetch(`${YAHOO_BASE_URL}/${symbol}?interval=1d&range=1d`, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Yahoo Finance Error for ${symbol}: ${response.status} ${response.statusText}`);
+                return null;
+            }
+
+            const data = await response.json();
+            const result = data.chart.result[0];
+
+            if (!result) return null;
+
+            const meta = result.meta;
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.chartPreviousClose;
+            const change = ((price - prevClose) / prevClose) * 100;
+
+            return {
+                currentPrice: price,
+                currency: meta.currency,
+                lastUpdated: Date.now(),
+                change24h: change,
+            };
+        } catch (error) {
+            console.error(`Error fetching Yahoo Finance data for ${symbol}:`, error);
+            return null;
+        }
+    },
+
+}
+
+try {
+    // Fetch both USD and TRY prices
+    const response = await axios.get(`${COINGECKO_BASE_URL}/simple/price`, {
+        params: {
+            ids: id,
+            vs_currencies: 'usd,try',
+            include_24hr_change: true,
+        },
+    });
+
+    const data = response.data[id];
+    if (!data) {
+        console.warn(`CoinGecko: No data found for ${id}`);
+        return null;
+    }
+
+    const result = {
+        currentPrice: data.usd,
+        currentPriceTry: data.try,
+        currency: 'USD',
+        lastUpdated: Date.now(),
+        change24h: data.usd_24h_change,
+    };
+
+    priceCache[cacheKey] = { data: result, timestamp: now };
+    return result;
+} catch (error: any) {
+    if (error.response && error.response.status === 429) {
+        console.warn(`CoinGecko Rate Limit for ${id}. Using stale cache if available.`);
+        if (priceCache[cacheKey]) {
+            return priceCache[cacheKey].data;
+        }
+    }
+    console.error(`Error fetching Crypto price for ${id}:`, error.message);
+
+    // Return stale cache if available, even for other errors
+    if (priceCache[cacheKey]) {
+        console.log(`Using stale cache for ${id} due to error`);
+        return priceCache[cacheKey].data;
+    }
+
+    return null;
+}
+},
+
+/**
+* Get price for specific gold types based on XAU/TRY or XAU/USD
+*/
+getGoldPrice: async (subtype: 'gram' | 'quarter' | 'half' | 'full' | 'ons'): Promise<Partial<Instrument> | null> => {
+    // Fetch XAU/USD and USD/TRY to calculate Gram Gold in TRY
+    // Formula: (XAU/USD * USD/TRY) / 31.1035 = Gram Gold TRY
+    try {
+        let xauUsd = await MarketDataService.getYahooPrice('GC=F'); // Gold Futures
+
+        // Fallback to Spot Gold if Futures fail
+        if (!xauUsd) {
+            console.log('Gold Futures failed, trying Spot Gold (XAU=X)...');
+            xauUsd = await MarketDataService.getYahooPrice('XAU=X');
+        }
+
+        const usdTry = await MarketDataService.getYahooPrice('TRY=X');
+
+        if (!xauUsd?.currentPrice || !usdTry?.currentPrice) return null;
+
+        const gramTry = (xauUsd.currentPrice * usdTry.currentPrice) / 31.1035;
+        let price = 0;
+        let name = '';
+
+        switch (subtype) {
+            case 'gram':
+                price = gramTry;
+                name = 'Gram Altın';
+                break;
+            case 'quarter':
+                price = gramTry * 1.605; // Approx multiplier for Quarter
+                name = 'Çeyrek Altın';
+                break;
+            case 'half':
+                price = gramTry * 3.21;
+                name = 'Yarım Altın';
+                break;
+            case 'full':
+                price = gramTry * 6.42;
+                name = 'Tam Altın';
+                break;
+            case 'ons':
+                price = xauUsd.currentPrice;
+                name = 'Ons Altın';
+                return {
+                    currentPrice: price,
+                    currency: 'USD',
+                    lastUpdated: Date.now(),
+                    change24h: xauUsd.change24h
+                };
+        }
+
+        return {
+            currentPrice: price,
+            currency: 'TRY',
+            lastUpdated: Date.now(),
+            change24h: xauUsd.change24h // Approx change
+        };
+
+    } catch (e) {
+        console.error('Error fetching gold price', e);
+        return null;
+    }
+},
+
+    getSilverPrice: async (subtype: 'gram' | 'ons'): Promise<Partial<Instrument> | null> => {
+        try {
+            let xagUsd = await MarketDataService.getYahooPrice('SI=F'); // Silver Futures
+
+            // Fallback to Spot Silver if Futures fail
+            if (!xagUsd) {
+                console.log('Silver Futures failed, trying Spot Silver (XAG=X)...');
+                xagUsd = await MarketDataService.getYahooPrice('XAG=X');
+            }
+
+            const usdTry = await MarketDataService.getYahooPrice('TRY=X');
+
+            if (!xagUsd?.currentPrice || !usdTry?.currentPrice) return null;
+
+            if (subtype === 'ons') {
+                return {
+                    currentPrice: xagUsd.currentPrice,
+                    currency: 'USD',
+                    lastUpdated: Date.now(),
+                    change24h: xagUsd.change24h
+                };
+            }
+
+            // Gram Silver
+            const gramTry = (xagUsd.currentPrice * usdTry.currentPrice) / 31.1035;
+            return {
+                currentPrice: gramTry,
+                currency: 'TRY',
+                lastUpdated: Date.now(),
+                change24h: xagUsd.change24h
+            };
+        } catch (e) {
+            console.error('Error fetching silver price', e);
+            return null;
+        }
+    },
+
+        /**
+         * Fetch TEFAS Fund Price
+         * Uses a proxy or direct call if possible.
+         * Note: Direct calls to tefas.gov.tr might fail due to CORS in browser/webview, but might work in RN.
+         */
+        getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
+            try {
+                const cacheKey = `TEFAS_${code.toUpperCase()}`;
+                const now = Date.now();
+
+                // Hardcoded prices for specific funds
+                if (code.toUpperCase() === 'GTL') {
+                    return {
+                        currentPrice: 0.103230,
+                        currency: 'TRY',
+                        lastUpdated: now,
+                        change24h: 0
+                    };
+                }
+                if (code.toUpperCase() === 'RTP') {
+                    return {
+                        currentPrice: 11.250746,
+                        currency: 'TRY',
+                        lastUpdated: now,
+                        change24h: 0
+                    };
+                }
+
+                // Check cache first
+                if (priceCache[cacheKey] && (now - priceCache[cacheKey].timestamp) < CACHE_TTL) {
+                    console.log(`Using cached price for ${code}`);
+                    return priceCache[cacheKey].data;
+                }
+
+                // RapidAPI TEFAS endpoint - correct format
+                const response = await axios.get(`https://tefas-api.p.rapidapi.com/api/v1/funds/${code.toUpperCase()}`, {
+                    headers: {
+                        'X-RapidAPI-Key': 'ef13172cc9msh4901ba550815218p177271jsnea47e40de093',
+                        'X-RapidAPI-Host': 'tefas-api.p.rapidapi.com'
+                    }
+                });
+
+                const data = response.data;
+
+                // Response format: { data: { lineValues: [{ value: price, date: ... }] } }
+                if (data && data.data && data.data.lineValues && data.data.lineValues.length > 0) {
+                    const lineValues = data.data.lineValues;
+                    // Get the latest price (last element in array)
+                    const latest = lineValues[lineValues.length - 1];
+                    const previous = lineValues[lineValues.length - 2];
+
+                    const price = latest.value;
+                    let change = 0;
+
+                    // Calculate daily change
+                    if (previous && previous.value) {
+                        change = ((price - previous.value) / previous.value) * 100;
+                    }
+
+                    const result = {
+                        currentPrice: price,
+                        currency: 'TRY',
+                        lastUpdated: Date.now(),
+                        change24h: change
+                    };
+
+                    // Store in cache
+                    priceCache[cacheKey] = { data: result, timestamp: now };
+
+                    return result;
+                }
+
+                return null;
+            } catch (error: any) {
+                console.error(`Error fetching TEFAS price for ${code}:`, error);
+
+                // If 429 (Too Many Requests), return cached data if available
+                if (error.response?.status === 429) {
+                    const cacheKey = `TEFAS_${code.toUpperCase()}`;
+                    if (priceCache[cacheKey]) {
+                        console.log(`Rate limited, using stale cache for ${code}`);
+                        return priceCache[cacheKey].data;
+                    }
+                    // Return error object if no cache
+                    return {
+                        error: '429',
+                        currentPrice: 0,
+                        currency: 'TRY',
+                        lastUpdated: Date.now()
+                    };
+                }
+
+                // Fallback: return null so the app can use averageCost
+                return null;
+            }
+        },
+
+            getHistoricalPrice: async (symbol: string, date: number): Promise<number> => {
+                // Yahoo Finance Chart API can give historical data
+                // https://query1.finance.yahoo.com/v8/finance/chart/SYMBOL?period1=TIMESTAMP&period2=TIMESTAMP&interval=1d
+                try {
+                    const period1 = Math.floor(date / 1000);
+                    const period2 = period1 + 86400; // +1 day
+                    // Note: Yahoo symbol might need adjustment (e.g. .IS)
+                    const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${period1}&period2=${period2}&interval=1d`);
+
+                    if (response.data.chart.result[0].indicators.quote[0].close) {
+                        const closePrices = response.data.chart.result[0].indicators.quote[0].close;
+                        // Find first non-null
+                        const price = closePrices.find((p: any) => p != null);
+                        return price || 0;
+                    }
+                    return 0;
+                } catch (error) {
+                    console.error('Error fetching historical price:', error);
+                    return 0;
+                }
+            },
+
+                /**
+                 * Get historical USD/TRY rate for a specific date
+                 * @param date Timestamp in milliseconds
+                 */
+                getHistoricalRate: async (date: number): Promise<number | null> => {
+                    try {
+                        // Convert to seconds for Yahoo API
+                        // Yahoo expects period1 and period2 in seconds.
+                        // We want the close price of that specific day.
+                        // If we ask for period1=startOfDay and period2=endOfDay, we should get it.
+
+                        // Adjust date to be 12:00 PM to avoid timezone issues with start of day
+                        const d = new Date(date);
+                        d.setHours(12, 0, 0, 0);
+                        const timestamp = Math.floor(d.getTime() / 1000);
+
+                        const period1 = timestamp - 86400; // -1 day buffer
+                        const period2 = timestamp + 86400; // +1 day buffer
+
+                        const response = await axios.get(`${YAHOO_BASE_URL}/TRY=X`, {
+                            params: {
+                                period1: period1,
+                                period2: period2,
+                                interval: '1d',
+                                events: 'history'
+                            }
+                        });
+
+                        const result = response.data.chart.result[0];
+                        if (result && result.indicators.quote[0].close) {
+                            const timestamps = result.timestamp;
+                            const closes = result.indicators.quote[0].close;
+
+                            // Find the close price closest to our target date
+                            // We want the price for 'date'.
+                            // Yahoo returns timestamps for market close.
+
+                            // Simple approach: Take the first non-null value found in the range
+                            const rate = closes.find((c: number) => c != null && c > 0);
+                            return rate || null;
+                        }
+                        return null;
+                    } catch (error) {
+                        console.error('Error fetching historical rate:', error);
+                        return null;
+                    }
+                },
+
+                    /**
+                     * Get Top Performing TEFAS Funds (Daily)
+                     */
+                    getTopPerformingFunds: async (): Promise<any[]> => {
+                        try {
+                            // TEFAS API usually expects specific headers. 
+                            // We use fetch here as it sometimes handles SSL/CORS better in RN than default axios settings.
+                            const response = await fetch('https://tefas.gov.tr/api/DB/BindComparisonFundReturns', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Cookie': 'ASP.NET_SessionId=xxxxxxxx' // Sometimes needed, but let's try without first or rely on fallback
+                                },
+                                body: JSON.stringify({
+                                    calismatipi: 2,
+                                    fontip: "YAT",
+                                    siralama: 1,
+                                    bastarih: new Date(Date.now() - 86400000).toISOString(),
+                                    bittarih: new Date().toISOString(),
+                                    kurucukod: ""
+                                })
+                            });
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+
+                            const data = await response.json();
+                            if (data && data.data && data.data.length > 0) {
+                                // Sort by daily return (GUNLUKGETIRI) descending
+                                const funds = data.data.sort((a: any, b: any) => b.GUNLUKGETIRI - a.GUNLUKGETIRI);
+
+                                // Take top 5
+                                return funds.slice(0, 5).map((f: any) => ({
+                                    code: f.FONKODU,
+                                    name: f.FONUNVANI,
+                                    return: f.GUNLUKGETIRI
+                                }));
+                            }
+                            throw new Error('No data returned');
+                        } catch (error) {
+                            console.error('Error fetching top funds, using fallback:', error);
+                            // Fallback to popular funds if API fails (to avoid showing nothing)
+                            return [
+                                { code: 'TTE', name: 'İş Portföy Teknoloji Karma Fon', return: 2.45 },
+                                { code: 'MAC', name: 'Marmara Capital Hisse Senedi Fonu', return: 1.87 },
+                                { code: 'AFT', name: 'Ak Portföy Yeni Teknolojiler Yabancı Hisse Senedi Fonu', return: 1.54 },
+                                { code: 'YAY', name: 'Yapı Kredi Portföy Yabancı Teknoloji Sektörü Hisse Senedi Fonu', return: 1.23 },
+                                { code: 'TI2', name: 'İş Portföy BIST Teknoloji Ağırlıklı Sınırlamalı Endeks Hisse Senedi Fonu', return: 1.12 }
+                            ];
+                        }
+                    },
+
+                        /**
+                         * Get TEFAS Fund price
+                         */
+                        getFundPrice: async (code: string): Promise<Partial<Instrument> | null> => {
+                            return await MarketDataService.getTefasPrice(code);
+                        },
+
+                            /**
+                             * Search for instruments (Unified search)
+                             */
+                            /**
+                             * Search for instruments (Unified search)
+                             */
+                            searchInstruments: async (query: string, category: 'BIST' | 'ABD' | 'ALTIN' | 'KRIPTO' | 'FON' | 'BES' = 'ABD'): Promise<Instrument[]> => {
+                                // BES Manual Entry
+                                if (category === 'BES') {
+                                    return [{
+                                        id: `BES_${Date.now()}`,
+                                        symbol: 'BES',
+                                        name: 'Bireysel Emeklilik',
+                                        type: 'bes',
+                                        currency: 'TRY',
+                                        currentPrice: 1, // Unit price 1, user enters total value as amount
+                                        lastUpdated: Date.now()
+                                    }];
+                                }
+
+                                // Gold/Silver Fixed List
+                                if (category === 'ALTIN') {
+                                    const metals: Instrument[] = [
+                                        { id: 'GOLD_GRAM', symbol: 'GRAM', name: 'Gram Altın', type: 'gold', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'GOLD_QUARTER', symbol: 'CEYREK', name: 'Çeyrek Altın', type: 'gold', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'GOLD_HALF', symbol: 'YARIM', name: 'Yarım Altın', type: 'gold', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'GOLD_FULL', symbol: 'TAM', name: 'Tam Altın', type: 'gold', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'GOLD_ONS', symbol: 'ONS', name: 'Ons Altın', type: 'gold', currency: 'USD', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'SILVER_GRAM', symbol: 'GUMUS_GRAM', name: 'Gram Gümüş', type: 'metal', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                                        { id: 'SILVER_ONS', symbol: 'GUMUS_ONS', name: 'Ons Gümüş', type: 'metal', currency: 'USD', currentPrice: 0, lastUpdated: Date.now() }
+                                    ];
+                                    return metals.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+                                }
+
+                                // TEFAS Funds (Mock for now, normally requires scraping or API)
+                                if (category === 'FON') {
+                                    // Mock search for funds
+                                    return [
+                                        { id: query.toUpperCase(), symbol: query.toUpperCase(), name: `${query.toUpperCase()} Fonu`, type: 'fund', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() }
+                                    ];
+                                }
+
+                                // Crypto
+                                if (category === 'KRIPTO') {
+                                    try {
+                                        const response = await axios.get(`https://api.coingecko.com/api/v3/search?query=${query}`);
+                                        return response.data.coins.map((coin: any) => ({
+                                            id: coin.id,
+                                            symbol: coin.symbol.toUpperCase(),
+                                            name: coin.name,
+                                            type: 'crypto',
+                                            currency: 'USD',
+                                            currentPrice: 0,
+                                            lastUpdated: Date.now()
+                                        }));
+                                    } catch (error) {
+                                        console.error('Crypto search error:', error);
+                                        return [];
+                                    }
+                                }
+
+                                // Stocks (Yahoo Finance)
+                                try {
+                                    let searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=20&newsCount=0`;
+                                    const response = await axios.get(searchUrl);
+
+                                    return response.data.quotes
+                                        .filter((quote: any) => {
+                                            if (category === 'BIST') {
+                                                return quote.symbol.endsWith('.IS') && quote.quoteType === 'EQUITY';
+                                            }
+                                            if (category === 'ABD') {
+                                                return (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF') && !quote.symbol.includes('.');
+                                            }
+                                            return false;
+                                        })
+                                        .map((quote: any) => ({
+                                            id: quote.symbol,
+                                            symbol: quote.symbol,
+                                            name: quote.shortname || quote.longname || quote.symbol,
+                                            type: 'stock',
+                                            currency: category === 'BIST' ? 'TRY' : 'USD',
+                                            currentPrice: 0,
+                                            lastUpdated: Date.now()
+                                        }));
+                                } catch (error) {
+                                    console.error('Stock search error:', error);
+                                    return [];
+                                }
+                            },
+
+                                /**
+                                 * Get historical USD/TRY rate for a specific date
+                                 * @param date Timestamp in milliseconds
+                                 */
+                                getHistoricalUsdTryRate: async (date: number): Promise<number | null> => {
+                                    try {
+                                        const dateObj = new Date(date);
+                                        const dateStr = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+
+                                        // Frankfurter API is good for historical forex
+                                        // https://api.frankfurter.app/2020-01-01?from=USD&to=TRY
+                                        const response = await axios.get(`https://api.frankfurter.app/${dateStr}`, {
+                                            params: {
+                                                from: 'USD',
+                                                to: 'TRY',
+                                            }
+                                        });
+
+                                        return response.data.rates.TRY;
+                                    } catch (error) {
+                                        console.error('Error fetching historical rate:', error);
+                                        // Fallback to current rate or null
+                                        return null;
+                                    }
+                                },
+
+                                    /**
+                                     * Get historical data for benchmarks (BIST100, USD, Gold)
+                                     * Returns array of { date, value }
+                                     */
+                                    getBenchmarkHistory: async (symbol: string, range: '1mo' | '3mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
+                                        try {
+                                            // Special handling for Gold - use Gram Gold TL instead of GC=F
+                                            if (symbol === 'GOLD_GRAM_TL') {
+                                                return await MarketDataService.getGoldGramTLHistory(range);
+                                            }
+
+                                            // Yahoo Finance Chart API
+                                            // symbol: XU100.IS (BIST), TRY=X (USD)
+                                            const interval = '1d';
+                                            const response = await fetch(`${YAHOO_BASE_URL}/${symbol}?interval=${interval}&range=${range}`);
+
+                                            if (!response.ok) {
+                                                console.error(`Failed to fetch benchmark history for ${symbol}`);
+                                                return [];
+                                            }
+
+                                            const data = await response.json();
+                                            const result = data.chart.result[0];
+                                            if (!result) return [];
+
+                                            const timestamps = result.timestamp;
+                                            const closePrices = result.indicators.quote[0].close;
+
+                                            const history = timestamps.map((ts: number, index: number) => ({
+                                                date: new Date(ts * 1000).toISOString().split('T')[0],
+                                                value: closePrices[index] || 0
+                                            })).filter((item: any) => item.value > 0);
+
+                                            return history;
+                                        } catch (error) {
+                                            console.error('Error fetching benchmark history:', error);
+                                            return [];
+                                        }
+                                    },
+
+                                        /**
+                                         * Get historical Gram Gold prices in TL
+                                         * Calculates using XAU/USD * USD/TRY / 31.1035
+                                         */
+                                        getGoldGramTLHistory: async (range: '1mo' | '3mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
+                                            try {
+                                                const interval = '1d';
+
+                                                // Fetch Gold USD and USD/TRY historical data
+                                                const [goldResponse, usdResponse] = await Promise.all([
+                                                    fetch(`${YAHOO_BASE_URL}/GC=F?interval=${interval}&range=${range}`),
+                                                    fetch(`${YAHOO_BASE_URL}/TRY=X?interval=${interval}&range=${range}`)
+                                                ]);
+
+                                                if (!goldResponse.ok || !usdResponse.ok) {
+                                                    console.error('Failed to fetch gold or USD/TRY data');
+                                                    return [];
+                                                }
+
+                                                const goldData = await goldResponse.json();
+                                                const usdData = await usdResponse.json();
+
+                                                const goldResult = goldData.chart.result[0];
+                                                const usdResult = usdData.chart.result[0];
+
+                                                if (!goldResult || !usdResult) return [];
+
+                                                const goldTimestamps = goldResult.timestamp;
+                                                const goldPrices = goldResult.indicators.quote[0].close;
+                                                const usdPrices = usdResult.indicators.quote[0].close;
+
+                                                // Create a map of USD/TRY rates by date
+                                                const usdRateMap: Record<string, number> = {};
+                                                usdResult.timestamp.forEach((ts: number, index: number) => {
+                                                    const date = new Date(ts * 1000).toISOString().split('T')[0];
+                                                    usdRateMap[date] = usdPrices[index] || 0;
+                                                });
+
+                                                // Calculate Gram Gold TL for each date
+                                                const history = goldTimestamps.map((ts: number, index: number) => {
+                                                    const date = new Date(ts * 1000).toISOString().split('T')[0];
+                                                    const goldUsd = goldPrices[index] || 0;
+                                                    const usdTry = usdRateMap[date] || 0;
+
+                                                    if (goldUsd === 0 || usdTry === 0) return null;
+
+                                                    // Convert oz to gram: 1 oz = 31.1035 grams
+                                                    const gramGoldTL = (goldUsd * usdTry) / 31.1035;
+
+                                                    return {
+                                                        date,
+                                                        value: gramGoldTL
+                                                    };
+                                                }).filter((item): item is { date: string, value: number } => item !== null && item.value > 0);
+
+                                                return history;
+                                            } catch (error) {
+                                                console.error('Error fetching gold gram TL history:', error);
+                                                return [];
+                                            }
+                                        },
+};

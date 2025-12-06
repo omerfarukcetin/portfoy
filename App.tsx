@@ -1,20 +1,25 @@
+import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PortfolioProvider } from './src/context/PortfolioContext';
+import { ThemeProvider } from './src/context/ThemeContext';
+import { SettingsProvider } from './src/context/SettingsContext';
+import { FavoritesProvider } from './src/context/FavoritesContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <SettingsProvider>
+          <FavoritesProvider>
+            <PortfolioProvider>
+              <AppNavigator />
+              <StatusBar style="auto" />
+            </PortfolioProvider>
+          </FavoritesProvider>
+        </SettingsProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

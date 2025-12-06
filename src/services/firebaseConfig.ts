@@ -1,0 +1,17 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBveE3UNK5GaPcrtEh-eMgoa1Icuc18L6A",
+    authDomain: "portfoy-otomasyon-58025.firebaseapp.com",
+    projectId: "portfoy-otomasyon-58025",
+    storageBucket: "portfoy-otomasyon-58025.firebasestorage.app",
+    messagingSenderId: "289897807628",
+    appId: "1:289897807628:web:6318fb8620635a02bc9329",
+    measurementId: "G-P68FEJX9FT"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);

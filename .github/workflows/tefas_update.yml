@@ -2,8 +2,8 @@ name: Update TEFAS Data
 
 on:
   schedule:
-    # 09:00 TRT (06:00 UTC) and 13:00 TRT (10:00 UTC)
-    - cron: '0 6,10 * * *'
+    # 09:00 TRT (06:00 UTC) and 12:00 TRT (09:00 UTC)
+    - cron: '0 6,9 * * *'
   workflow_dispatch: # Allows manual run
 
 jobs:

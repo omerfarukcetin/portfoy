@@ -5,22 +5,25 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { SettingsProvider } from './src/context/SettingsContext';
 import { FavoritesProvider } from './src/context/FavoritesContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <FavoritesProvider>
-              <PortfolioProvider>
-                <AppNavigator />
-              </PortfolioProvider>
-            </FavoritesProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <FavoritesProvider>
+                <PortfolioProvider>
+                  <AppNavigator />
+                </PortfolioProvider>
+              </FavoritesProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

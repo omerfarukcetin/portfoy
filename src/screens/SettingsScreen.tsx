@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, Mo
 import { useTheme } from '../context/ThemeContext';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useSettings, AVAILABLE_INSTRUMENTS } from '../context/SettingsContext';
+import { useLanguage } from '../context/LanguageContext';
 import { exportPortfolioData, importPortfolioData } from '../utils/exportImport';
 import { uploadBackup, downloadBackup } from '../services/cloudService';
 import { useNavigation } from '@react-navigation/native';
@@ -10,8 +11,10 @@ import { useAuth } from '../context/AuthContext';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 export const SettingsScreen = () => {
     const { colors, theme, fontSize, heroSize, setTheme, setFontSize, setHeroSize, fontScale } = useTheme();
+    const { language, setLanguage } = useLanguage();
     const { resetData, clearHistory, portfolios, activePortfolioId, importData } = usePortfolio();
     const { user, logout } = useAuth();
     const navigation = useNavigation<any>();
@@ -189,6 +192,13 @@ export const SettingsScreen = () => {
 
                 {/* 2. Appearance */}
                 <Section title="Görünüm">
+                    <Item
+                        label="🌐 Dil / Language"
+                        value={language === 'tr' ? 'Türkçe' : 'English'}
+                        onPress={() => {
+                            setLanguage(language === 'tr' ? 'en' : 'tr');
+                        }}
+                    />
                     <Item
                         label="Tema"
                         value={theme === 'light' ? 'Açık' : theme === 'dark' ? 'Koyu' : theme === 'gray' ? 'Gri' : 'Lacivert'}

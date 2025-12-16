@@ -74,14 +74,11 @@ export const TransactionsScreen = () => {
         }
     };
 
-    const handleDelete = (item: PortfolioItem) => {
-        const confirmDelete = () => {
-            deleteAsset(item.id);
-        };
-
+    const handleDelete = async (item: PortfolioItem) => {
         if (Platform.OS === 'web') {
             if (window.confirm(`${item.instrumentId} silinecek. Emin misiniz?`)) {
-                confirmDelete();
+                console.log('🔴 User confirmed delete for:', item.id);
+                await deleteAsset(item.id);
             }
         } else {
             Alert.alert(
@@ -89,7 +86,7 @@ export const TransactionsScreen = () => {
                 `${item.instrumentId} silinecek. Emin misiniz?`,
                 [
                     { text: 'İptal', style: 'cancel' },
-                    { text: 'Sil', style: 'destructive', onPress: confirmDelete }
+                    { text: 'Sil', style: 'destructive', onPress: () => deleteAsset(item.id) }
                 ]
             );
         }

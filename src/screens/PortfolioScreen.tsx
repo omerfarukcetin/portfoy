@@ -98,11 +98,18 @@ export const PortfolioScreen = () => {
         ]);
     };
 
-    const confirmDelete = (item: PortfolioItem) => {
-        Alert.alert("Varlığı Sil", `${item.instrumentId} silinecek.`, [
-            { text: "İptal", style: "cancel" },
-            { text: "Sil", style: "destructive", onPress: () => deleteAsset(item.id) }
-        ]);
+    const confirmDelete = async (item: PortfolioItem) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`${item.instrumentId} silinecek. Emin misiniz?`)) {
+                console.log('🔴 Portfolio: User confirmed delete for:', item.id);
+                await deleteAsset(item.id);
+            }
+        } else {
+            Alert.alert("Varlığı Sil", `${item.instrumentId} silinecek.`, [
+                { text: "İptal", style: "cancel" },
+                { text: "Sil", style: "destructive", onPress: () => deleteAsset(item.id) }
+            ]);
+        }
     };
 
     const openEditModal = (item: PortfolioItem) => {

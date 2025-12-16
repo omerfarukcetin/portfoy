@@ -423,8 +423,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const deleteAsset = async (id: string) => {
+        console.log('🗑️ deleteAsset called for id:', id);
+        console.log('📊 Current portfolio count:', portfolio.length);
         const updatedPortfolio = portfolio.filter(item => item.id !== id);
+        console.log('📊 New portfolio count:', updatedPortfolio.length);
         await updateActivePortfolio({ items: updatedPortfolio });
+        console.log('✅ deleteAsset completed');
     };
 
     const addToPortfolio = async (

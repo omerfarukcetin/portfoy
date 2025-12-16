@@ -553,8 +553,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await updateActivePortfolio({ items: newPortfolio });
     };
 
-    const sellAsset = async (id: string, amountToSell: number, sellPrice: number) => {
-        console.log('🔴 sellAsset called:', { id, amountToSell, sellPrice });
+    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number) => {
+        console.log('🔴 sellAsset called:', { id, amountToSell, sellPrice, sellDate, historicalRate });
 
         const itemIndex = portfolio.findIndex(p => p.id === id);
         if (itemIndex === -1) {
@@ -574,17 +574,20 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const saleProceeds = sellPrice * amountToSell;
         const profit = saleProceeds - costBasis;
 
+        // Use historical rate if provided, otherwise use current rate
+        const rateToUse = historicalRate || currentUsdRate;
+
         let profitUsd = 0;
         let profitTry = 0;
         let proceedsTry = 0;
 
         if (item.currency === 'USD') {
             profitUsd = profit;
-            profitTry = profit * currentUsdRate;
-            proceedsTry = saleProceeds * currentUsdRate;
+            profitTry = profit * rateToUse;
+            proceedsTry = saleProceeds * rateToUse;
         } else {
             profitTry = profit;
-            profitUsd = profit / currentUsdRate;
+            profitUsd = profit / rateToUse;
             proceedsTry = saleProceeds;
         }
 
@@ -595,7 +598,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sellPrice,
             buyPrice: item.averageCost,
             currency: item.currency,
-            date: Date.now(),
+            date: sellDate || Date.now(),
             profit,
             profitUsd,
             profitTry,

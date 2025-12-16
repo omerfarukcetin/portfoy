@@ -18,14 +18,38 @@ export const SellAssetScreen = () => {
     const item = portfolio.find(p => p.id === assetId);
     const [amount, setAmount] = useState('');
     const [price, setPrice] = useState('');
+    const [sellDate, setSellDate] = useState('');
+    const [historicalRate, setHistoricalRate] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isLoadingRate, setIsLoadingRate] = useState(false);
 
     useEffect(() => {
         if (item) {
             setAmount(item.amount.toString());
+            // Set today's date as default
+            const today = new Date();
+            setSellDate(today.toISOString().split('T')[0]);
             fetchCurrentPrice();
         }
     }, [item]);
+
+    // Fetch historical rate when date changes
+    useEffect(() => {
+        const fetchRate = async () => {
+            if (sellDate.length === 10) {
+                const date = new Date(sellDate).getTime();
+                if (!isNaN(date)) {
+                    setIsLoadingRate(true);
+                    const rate = await MarketDataService.getHistoricalRate(date);
+                    if (rate) {
+                        setHistoricalRate(rate.toFixed(4));
+                    }
+                    setIsLoadingRate(false);
+                }
+            }
+        };
+        fetchRate();
+    }, [sellDate]);
 
     const fetchCurrentPrice = async () => {
         if (!item) return;
@@ -53,6 +77,8 @@ export const SellAssetScreen = () => {
 
         const amountNum = parseFloat(amount);
         const priceNum = parseFloat(price);
+        const rateNum = historicalRate ? parseFloat(historicalRate) : undefined;
+        const dateNum = sellDate ? new Date(sellDate).getTime() : undefined;
 
         if (amountNum > (item?.amount || 0)) {
             showAlert('Hata', 'Sahip olduğunuzdan fazlasını satamazsınız');
@@ -60,7 +86,7 @@ export const SellAssetScreen = () => {
         }
 
         try {
-            await sellAsset(assetId, amountNum, priceNum);
+            await sellAsset(assetId, amountNum, priceNum, dateNum, rateNum);
             showAlert('Başarılı', 'Satış gerçekleşti');
             navigation.goBack();
         } catch (error) {
@@ -69,6 +95,25 @@ export const SellAssetScreen = () => {
     };
 
     if (!item) return <View style={[styles.container, { backgroundColor: colors.background }]}><Text style={{ color: colors.text }}>Varlık bulunamadı</Text></View>;
+
+    // Calculate profit preview
+    const priceNum = parseFloat(price) || 0;
+    const amountNum = parseFloat(amount) || 0;
+    const rateNum = parseFloat(historicalRate) || 1;
+
+    // TRY based
+    const sellValueTry = priceNum * amountNum;
+    const costTry = item.averageCost * amountNum;
+    const profitTry = sellValueTry - costTry;
+    const profitPercentTry = costTry > 0 ? (profitTry / costTry) * 100 : 0;
+
+    // USD based
+    const sellValueUsd = item.currency === 'USD' ? priceNum : priceNum / rateNum;
+    const costUsd = item.currency === 'USD' ? item.averageCost : item.averageCost / rateNum;
+    const sellTotalUsd = sellValueUsd * amountNum;
+    const costTotalUsd = costUsd * amountNum;
+    const profitUsd = sellTotalUsd - costTotalUsd;
+    const profitPercentUsd = costTotalUsd > 0 ? (profitUsd / costTotalUsd) * 100 : 0;
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -101,6 +146,51 @@ export const SellAssetScreen = () => {
                 />
                 {loading && <ActivityIndicator style={{ marginLeft: 10 }} color={colors.primary} />}
             </View>
+
+            <Text style={[styles.label, { color: colors.subText }]}>Satış Tarihi (YYYY-MM-DD)</Text>
+            <TextInput
+                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, borderWidth: 1 }]}
+                value={sellDate}
+                onChangeText={setSellDate}
+                placeholder="2024-01-15"
+                placeholderTextColor={colors.subText}
+            />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={[styles.label, { color: colors.subText, marginBottom: 0, flex: 1 }]}>
+                    USD/TRY Kuru (o günkü)
+                </Text>
+                {isLoadingRate && <ActivityIndicator size="small" color={colors.primary} />}
+            </View>
+            <TextInput
+                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, borderWidth: 1 }]}
+                keyboardType="numeric"
+                value={historicalRate}
+                onChangeText={setHistoricalRate}
+                placeholder="Otomatik yüklenecek"
+                placeholderTextColor={colors.subText}
+            />
+
+            {/* Profit Preview */}
+            {priceNum > 0 && amountNum > 0 && (
+                <View style={[styles.infoCard, { backgroundColor: colors.cardBackground, marginTop: 8, borderWidth: 1, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
+                    <Text style={[styles.infoText, { color: colors.text, fontWeight: '700', marginBottom: 8 }]}>Kar/Zarar Önizleme</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ color: colors.subText, fontSize: 13 }}>🇹🇷 TRY Kar/Zarar:</Text>
+                        <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
+                            {formatCurrency(profitTry, 'TRY')} ({profitPercentTry >= 0 ? '+' : ''}{profitPercentTry.toFixed(2)}%)
+                        </Text>
+                    </View>
+                    {historicalRate && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: colors.subText, fontSize: 13 }}>🇺🇸 USD Kar/Zarar:</Text>
+                            <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
+                                {formatCurrency(profitUsd, 'USD')} ({profitPercentUsd >= 0 ? '+' : ''}{profitPercentUsd.toFixed(2)}%)
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            )}
 
             <TouchableOpacity style={[styles.sellButton, { backgroundColor: colors.danger }]} onPress={handleSell}>
                 <Text style={styles.buttonText}>Satışı Onayla</Text>

@@ -1189,9 +1189,9 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     statItem: {
-        width: '31%', // 3 columns with gap
-        minWidth: 120,
-        padding: 12,
+        width: '24%', // 4 columns - smaller cards
+        minWidth: 100,
+        padding: 8,
         borderRadius: 12,
         alignItems: 'center',
     },

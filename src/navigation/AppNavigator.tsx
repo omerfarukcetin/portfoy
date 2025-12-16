@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { NavigationContainer, useNavigation, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SummaryScreen } from '../screens/SummaryScreen';
@@ -20,6 +20,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../context/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Sidebar } from '../components/web/Sidebar';
+
+// Turkish page titles for web
+const PAGE_TITLES: Record<string, string> = {
+    'Summary': 'Özet - Portföy Cepte',
+    'Portfolio': 'Portföy - Portföy Cepte',
+    'Transactions': 'İşlemler - Portföy Cepte',
+    'Favorites': 'Favoriler - Portföy Cepte',
+    'Settings': 'Ayarlar - Portföy Cepte',
+    'AddInstrument': 'Varlık Ekle - Portföy Cepte',
+    'SellAsset': 'Varlık Sat - Portföy Cepte',
+    'CashManagement': 'Yedek Akçe - Portföy Cepte',
+    'AssetDetail': 'Varlık Detayı - Portföy Cepte',
+    'Login': 'Giriş Yap - Portföy Cepte',
+    'Register': 'Kayıt Ol - Portföy Cepte',
+};
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -278,6 +293,23 @@ const MainNavigator = () => {
 export const AppNavigator = () => {
     const { colors, theme } = useTheme();
     const { user, isLoading } = useAuth();
+    const navigationRef = useNavigationContainerRef();
+
+    // Update document title on web when route changes
+    useEffect(() => {
+        if (Platform.OS === 'web' && navigationRef.current) {
+            const unsubscribe = navigationRef.current.addListener('state', () => {
+                const currentRoute = navigationRef.current?.getCurrentRoute();
+                if (currentRoute) {
+                    const title = PAGE_TITLES[currentRoute.name] || 'Portföy Cepte';
+                    if (typeof document !== 'undefined') {
+                        document.title = title;
+                    }
+                }
+            });
+            return unsubscribe;
+        }
+    }, []);
 
     // Show loading indicator while checking auth state
     if (isLoading) {
@@ -300,7 +332,7 @@ export const AppNavigator = () => {
                 translucent={false}
             />
             <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
-                <NavigationContainer>
+                <NavigationContainer ref={navigationRef}>
                     {AppContent}
                 </NavigationContainer>
             </SafeAreaView>

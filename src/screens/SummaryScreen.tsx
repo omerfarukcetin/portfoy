@@ -450,7 +450,7 @@ export const SummaryScreen = () => {
 
                                 {/* Portfolio Chart */}
                                 {!isInitialLoading && portfolioChartVisible && (
-                                    <View style={{ height: 280, width: '100%', overflow: 'hidden' }}>
+                                    <View style={{ height: 320, width: '100%', overflow: 'hidden' }}>
                                         <PortfolioChart currentValue={totalPortfolioTry} history={history} />
                                     </View>
                                 )}
@@ -538,10 +538,10 @@ export const SummaryScreen = () => {
                                                     <View style={{ marginBottom: 20 }}>
                                                         <DonutChart
                                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                            size={240}
-                                                            strokeWidth={28}
+                                                            size={280}
+                                                            strokeWidth={32}
                                                             centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                            centerTextFontSize={24}
+                                                            centerTextFontSize={26}
                                                             centerSubtext="₺"
                                                             colors={colors}
                                                         />
@@ -572,38 +572,41 @@ export const SummaryScreen = () => {
                             <View style={{ flex: 1, gap: 16 }}>
                                 {/* Market Insights */}
                                 <View style={{ gap: 12 }}>
-                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.success }]} contentStyle={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (bestPerformer.id && bestPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
+                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.success }]} contentStyle={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (bestPerformer.id && bestPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Feather name="trending-up" size={16} color={colors.success} />
-                                            <Text style={[styles.insightTitle, { color: colors.success, marginBottom: 0 }]}>En İyi</Text>
+                                            <Feather name="trending-up" size={20} color={colors.success} />
+                                            <Text style={[styles.insightTitle, { color: colors.success, marginBottom: 0, fontSize: 17 }]}>En İyi</Text>
                                         </View>
-                                        <Text style={[styles.insightText, { color: colors.text }]}>{bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}</Text>
+                                        <Text style={[styles.insightText, { color: colors.text, fontSize: 16, fontWeight: '600' }]}>{bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}</Text>
                                     </GradientCard>
 
-                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.danger }]} contentStyle={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (worstPerformer.id && worstPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
+                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.danger }]} contentStyle={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (worstPerformer.id && worstPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Feather name="trending-down" size={16} color={colors.danger} />
-                                            <Text style={[styles.insightTitle, { color: colors.danger, marginBottom: 0 }]}>En Kötü</Text>
+                                            <Feather name="trending-down" size={20} color={colors.danger} />
+                                            <Text style={[styles.insightTitle, { color: colors.danger, marginBottom: 0, fontSize: 17 }]}>En Kötü</Text>
                                         </View>
-                                        <Text style={[styles.insightText, { color: colors.text }]}>{worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}</Text>
+                                        <Text style={[styles.insightText, { color: colors.text, fontSize: 16, fontWeight: '600' }]}>{worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}</Text>
                                     </GradientCard>
                                 </View>
 
                                 {/* Market Summary Ticker (Compact List) */}
                                 {marketSummaryVisible && (
                                     <View style={[styles.section, { marginTop: 0 }]}>
-                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 14, marginBottom: 8, marginLeft: 0 }]}>Piyasa Özeti</Text>
-                                        <View style={{ gap: 8 }}>
+                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 18, marginBottom: 10, marginLeft: 0, fontWeight: '700' }]}>Piyasa Özeti</Text>
+                                        <View style={{ gap: 10 }}>
                                             {[
                                                 { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
                                                 { id: 'Gram Altın', label: 'Gram Altın', value: goldPrice, change: 0.5, currency: 'TRY' },
                                                 { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
+                                                { id: 'Gram Gümüş', label: 'Gram Gümüş', value: silverPrice, change: 0, currency: 'TRY' },
+                                                { id: 'BTC', label: 'Bitcoin', value: btcPrice?.price, change: btcPrice?.change || 0, currency: 'USD' },
+                                                { id: 'ETH', label: 'Ethereum', value: ethPrice?.price, change: ethPrice?.change || 0, currency: 'USD' },
                                             ].filter(item => selectedMarketInstruments.includes(item.id)).map((item, index) => (
-                                                <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 8, backgroundColor: colors.cardBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Text style={{ color: colors.subText, fontSize: 12 }}>{item.label}</Text>
-                                                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                                                        <Text style={{ color: colors.text, fontWeight: '600', fontSize: 12 }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
-                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger, fontSize: 11 }}>%{Math.abs(item.change).toFixed(2)}</Text>
+                                                <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, backgroundColor: colors.cardBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Text style={{ color: colors.subText, fontSize: 15, fontWeight: '500' }}>{item.label}</Text>
+                                                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
+                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger, fontSize: 15, fontWeight: '600' }}>%{Math.abs(item.change).toFixed(2)}</Text>
                                                     </View>
                                                 </View>
                                             ))}

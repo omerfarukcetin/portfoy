@@ -1,5 +1,13 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    Easing,
+} from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
 
 interface SkeletonProps {
@@ -9,50 +17,66 @@ interface SkeletonProps {
     borderRadius?: number;
 }
 
-export const Skeleton = ({ width = '100%', height = 20, style, borderRadius = 4 }: SkeletonProps) => {
-    const { colors } = useTheme();
-    const opacity = useRef(new Animated.Value(0.3)).current;
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+export const Skeleton = ({ width = '100%', height = 20, style, borderRadius = 8 }: SkeletonProps) => {
+    const { colors, theme } = useTheme();
+    const translateX = useSharedValue(-1);
 
     useEffect(() => {
-        const animation = Animated.loop(
-            Animated.sequence([
-                Animated.timing(opacity, {
-                    toValue: 0.7,
-                    duration: 800,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(opacity, {
-                    toValue: 0.3,
-                    duration: 800,
-                    useNativeDriver: true,
-                }),
-            ])
+        translateX.value = withRepeat(
+            withTiming(1, {
+                duration: 1500,
+                easing: Easing.ease,
+            }),
+            -1,
+            false
         );
+    }, []);
 
-        animation.start();
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [
+                {
+                    translateX: translateX.value * (typeof width === 'number' ? width : 300),
+                },
+            ],
+        };
+    });
 
-        return () => animation.stop();
-    }, [opacity]);
+    // Dynamic colors based on theme
+    const baseColor = theme === 'light' ? '#E1E9EE' : colors.border;
+    const shimmerColor = theme === 'light' ? '#F6F7F8' : colors.cardBackground;
 
     return (
-        <Animated.View
+        <View
             style={[
-                styles.skeleton,
+                styles.container,
                 {
                     width,
                     height,
                     borderRadius,
-                    backgroundColor: colors.border, // Using border color as base skeleton color
-                    opacity,
+                    backgroundColor: baseColor,
+                    overflow: 'hidden',
                 },
                 style,
             ]}
-        />
+        >
+            <AnimatedLinearGradient
+                colors={[baseColor, shimmerColor, baseColor]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                    StyleSheet.absoluteFillObject,
+                    animatedStyle,
+                ]}
+            />
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    skeleton: {
-        // Base styles if needed
+    container: {
+        overflow: 'hidden',
     },
 });

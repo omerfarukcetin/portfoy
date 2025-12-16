@@ -8,7 +8,6 @@ import { formatCurrency } from '../utils/formatting';
 import { Feather } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { TickerIcon } from '../components/TickerIcon';
-import { AssetPriceChart } from '../components/AssetPriceChart';
 import { TransactionTimeline } from '../components/TransactionTimeline';
 import { SmartInsightCard } from '../components/SmartInsightCard';
 import { generateAssetInsight } from '../services/advisorService';
@@ -315,86 +314,86 @@ export const AssetDetailScreen = () => {
                     )}
                 </View>
 
-                {/* Price Chart */}
-                {!loading && (
-                    <AssetPriceChart
-                        currentPrice={isPricedInUsd ? priceInUsd : priceInTry}
-                        currency={isPricedInUsd ? 'USD' : 'TRY'}
-                        assetName={formatSymbol(item.instrumentId)}
-                    />
-                )}
-
-                {/* Transaction History */}
-                {!loading && (
-                    <TransactionTimeline
-                        currentAmount={item.amount}
-                        averageCost={item.averageCost}
-                        currency={item.currency === 'USD' ? 'USD' : 'TRY'}
-                    />
-                )}
-
-                {/* TRY Statistics */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🇹🇷 Türk Lirası Bazında</Text>
-                <View style={styles.grid}>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
-                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueTry, 'TRY')}</Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
-                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostTry, 'TRY')}</Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
-                        <Text style={[styles.cardValue, { color: profitTry >= 0 ? colors.success : colors.danger }]}>
-                            {formatCurrency(profitTry, 'TRY')}
-                        </Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
-                        <Text style={[styles.cardValue, { color: profitPercentTry >= 0 ? colors.success : colors.danger }]}>
-                            %{profitPercentTry.toFixed(2)}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* USD Statistics */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🇺🇸 Dolar Bazında</Text>
-                <View style={styles.grid}>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
-                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueUsd, 'USD')}</Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
-                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostUsd, 'USD')}</Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
-                        <Text style={[styles.cardValue, { color: profitUsd >= 0 ? colors.success : colors.danger }]}>
-                            {formatCurrency(profitUsd, 'USD')}
-                        </Text>
-                    </View>
-                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
-                        <Text style={[styles.cardValue, { color: profitPercentUsd >= 0 ? colors.success : colors.danger }]}>
-                            %{profitPercentUsd.toFixed(2)}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* AI Smart Insight */}
-                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8 }]}>🤖 Akıllı Analiz</Text>
-                {!loading && (
-                    <SmartInsightCard
-                        insight={generateAssetInsight(
-                            isPricedInUsd ? priceInUsd : priceInTry,
-                            item.averageCost,
-                            change24h,
-                            item.amount
+                {/* 3-COLUMN GRID LAYOUT FOR WEB */}
+                <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
+                    {/* COLUMN 1: Transaction Timeline */}
+                    <View style={{ flex: 1, gap: 16 }}>
+                        {!loading && (
+                            <TransactionTimeline
+                                currentAmount={item.amount}
+                                averageCost={item.averageCost}
+                                currency={item.currency === 'USD' ? 'USD' : 'TRY'}
+                            />
                         )}
-                    />
-                )}
+                    </View>
+
+                    {/* COLUMN 2: TRY Statistics */}
+                    <View style={{ flex: 1, gap: 16 }}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>🇹🇷 Türk Lirası Bazında</Text>
+                        <View style={{ gap: 12 }}>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
+                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueTry, 'TRY')}</Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
+                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostTry, 'TRY')}</Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
+                                <Text style={[styles.cardValue, { color: profitTry >= 0 ? colors.success : colors.danger }]}>
+                                    {formatCurrency(profitTry, 'TRY')}
+                                </Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
+                                <Text style={[styles.cardValue, { color: profitPercentTry >= 0 ? colors.success : colors.danger }]}>
+                                    %{profitPercentTry.toFixed(2)}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* COLUMN 3: USD Statistics + AI Insights */}
+                    <View style={{ flex: 1, gap: 16 }}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>🇺🇸 Dolar Bazında</Text>
+                        <View style={{ gap: 12 }}>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
+                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueUsd, 'USD')}</Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
+                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostUsd, 'USD')}</Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
+                                <Text style={[styles.cardValue, { color: profitUsd >= 0 ? colors.success : colors.danger }]}>
+                                    {formatCurrency(profitUsd, 'USD')}
+                                </Text>
+                            </View>
+                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
+                                <Text style={[styles.cardValue, { color: profitPercentUsd >= 0 ? colors.success : colors.danger }]}>
+                                    %{profitPercentUsd.toFixed(2)}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* AI Smart Insight */}
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8 }]}>🤖 Akıllı Analiz</Text>
+                        {!loading && (
+                            <SmartInsightCard
+                                insight={generateAssetInsight(
+                                    isPricedInUsd ? priceInUsd : priceInTry,
+                                    item.averageCost,
+                                    change24h,
+                                    item.amount
+                                )}
+                            />
+                        )}
+                    </View>
+                </View>
 
                 {/* Actions */}
                 <TouchableOpacity

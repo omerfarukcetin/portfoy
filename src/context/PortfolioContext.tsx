@@ -125,6 +125,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const savePortfolios = async (newPortfolios: Portfolio[], newActiveId?: string) => {
         const activeId = newActiveId || activePortfolioId;
         try {
+            console.log('💾 Saving portfolios to storage...');
             // Always save to AsyncStorage as backup
             await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
             await AsyncStorage.setItem('activePortfolioId', activeId);
@@ -132,10 +133,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             // If user is logged in, sync to Firestore
             if (user?.uid) {
+                console.log('☁️ Syncing specific active portfolio to Firestore:', activeId);
                 await saveUserPortfolios(user.uid, newPortfolios, activeId);
+                console.log('✅ Firestore sync completed successfully');
+            } else {
+                console.log('⚠️ User not logged in, skipping Firestore sync');
             }
         } catch (e) {
-            console.error('Failed to save portfolios', e);
+            console.error('❌ Failed to save portfolios:', e);
+            // Only show alert for critical errors to avoid spamming
+            // if (Platform.OS === 'web') {
+            //     console.error('Web save error details:', e);
+            //     window.alert('Veriler kaydedilirken bir hata oluştu! Lütfen internet bağlantınızı kontrol edin.');
+            // }
         }
     };
 

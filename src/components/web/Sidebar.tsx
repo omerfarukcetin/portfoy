@@ -5,11 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-interface SidebarProps {
-    isCollapsed?: boolean;
-}
-
-export const Sidebar = ({ isCollapsed = false }: SidebarProps) => {
+export const Sidebar = () => {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const { user, logout } = useAuth();
@@ -70,15 +66,7 @@ export const Sidebar = ({ isCollapsed = false }: SidebarProps) => {
     };
 
     return (
-        <View style={[
-            styles.sidebar,
-            {
-                backgroundColor: colors.cardBackground,
-                borderRightColor: colors.border,
-                width: isCollapsed ? 0 : 200,
-                overflow: 'hidden'
-            }
-        ]}>
+        <View style={[styles.sidebar, { backgroundColor: colors.cardBackground, borderRightColor: colors.border }]}>
             {/* Logo */}
             <View style={styles.logo}>
                 <Text style={[styles.logoText, { color: colors.primary }]}>Portföy</Text>

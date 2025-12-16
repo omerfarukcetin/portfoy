@@ -21,3 +21,14 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 export const db = getFirestore(app);
+
+// Use this if you want to ignore undefined properties globally
+// @ts-ignore
+if (db._settings) {
+    // @ts-ignore
+    db._settings.ignoreUndefinedProperties = true;
+} else {
+    // For newer SDK versions, it might be passed in initializeFirestore or accessed differently
+    // Checking if we can set it on the instance
+    // NOTE: In modular SDK, proper way is usually initializeFirestore(app, { ignoreUndefinedProperties: true })
+}

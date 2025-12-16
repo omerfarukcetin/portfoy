@@ -649,7 +649,7 @@ export const SummaryScreen = () => {
                         }
 
                         {/* Stats Grid */}
-                        <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 6 }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 6 }}>
                             <GradientCard
                                 variant="secondary"
                                 style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}

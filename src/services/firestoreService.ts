@@ -74,11 +74,14 @@ export const saveUserPortfolios = async (userId: string, portfolios: Portfolio[]
  */
 export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: Portfolio[], activePortfolioId: string }> => {
     try {
+        console.log(`📥 Firestore: Loading portfolios for user ${userId}`);
+
         // Get user metadata
         const userDocRef = getUserDocRef(userId);
         const userDoc = await getDoc(userDocRef);
         const userData = userDoc.data();
         const activePortfolioId = userData?.activePortfolioId || '';
+        console.log(`📥 Firestore: User doc activePortfolioId = ${activePortfolioId}`);
 
         // Get all portfolios
         const portfoliosSnapshot = await getDocs(getUserPortfoliosRef(userId));
@@ -86,6 +89,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
 
         portfoliosSnapshot.forEach((doc) => {
             const data = doc.data();
+            console.log(`📥 Firestore: Found portfolio ${doc.id} with ${data.items?.length || 0} items`);
             portfolios.push({
                 id: data.id || doc.id,
                 name: data.name || 'Portföy',
@@ -100,7 +104,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
             });
         });
 
-        console.log(`✅ Loaded ${portfolios.length} portfolios from Firestore`);
+        console.log(`✅ Firestore: Loaded ${portfolios.length} portfolios`);
         return { portfolios, activePortfolioId };
     } catch (error) {
         console.error('❌ Error loading portfolios from Firestore:', error);

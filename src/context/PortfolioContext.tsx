@@ -181,35 +181,44 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const loadData = async () => {
         try {
             setIsLoading(true);
+            console.log('📥 loadData: Starting...');
 
             // If user is logged in, try to load from Firestore first
             if (user?.uid) {
+                console.log('📥 loadData: User logged in, trying Firestore:', user.uid);
                 try {
                     const firestoreData = await loadUserPortfolios(user.uid);
+                    console.log('📥 loadData: Firestore returned', firestoreData.portfolios.length, 'portfolios');
 
                     if (firestoreData.portfolios.length > 0) {
                         // User has data in Firestore
+                        const portfolio = firestoreData.portfolios.find(p => p.id === (firestoreData.activePortfolioId || firestoreData.portfolios[0].id));
+                        console.log('📥 loadData: Active portfolio has', portfolio?.items?.length || 0, 'items');
+
                         setPortfolios(firestoreData.portfolios);
                         setActivePortfolioId(firestoreData.activePortfolioId || firestoreData.portfolios[0].id);
-                        console.log('✅ Loaded portfolios from Firestore');
+                        console.log('✅ loadData: Loaded portfolios from Firestore');
                         return;
                     } else {
+                        console.log('📥 loadData: No Firestore data, checking AsyncStorage...');
                         // Check if there's local data to migrate
                         const storedPortfolios = await AsyncStorage.getItem('portfolios');
                         if (storedPortfolios) {
                             const parsedPortfolios = JSON.parse(storedPortfolios);
                             const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
+                            console.log('📥 loadData: Found AsyncStorage data with', parsedPortfolios.length, 'portfolios');
 
                             // Migrate to Firestore
                             await migrateToFirestore(user.uid, parsedPortfolios, storedActiveId || 'default');
                             setPortfolios(parsedPortfolios);
                             setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
-                            console.log('✅ Migrated local data to Firestore');
+                            console.log('✅ loadData: Migrated local data to Firestore');
                             return;
                         }
                     }
 
                     // No data anywhere - create default portfolio
+                    console.log('📥 loadData: No data anywhere, creating default');
                     const defaultPortfolio: Portfolio = {
                         id: 'default',
                         name: 'Ana Portföy',
@@ -226,8 +235,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     setActivePortfolioId('default');
                     return;
                 } catch (firestoreError) {
-                    console.error('Firestore load error, falling back to local:', firestoreError);
+                    console.error('❌ loadData: Firestore load error, falling back to local:', firestoreError);
                 }
+            } else {
+                console.log('📥 loadData: User NOT logged in, using AsyncStorage only');
             }
 
             // Fallback: Load from AsyncStorage (for non-logged-in users or on error)

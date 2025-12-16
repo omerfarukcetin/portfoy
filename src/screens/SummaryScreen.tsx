@@ -1189,7 +1189,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     statItem: {
-        flex: 1,
+        width: '32%', // 3 columns
         padding: 12,
         borderRadius: 12,
         alignItems: 'center',

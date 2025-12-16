@@ -60,7 +60,11 @@ export const TransactionsScreen = () => {
             const date = editDate ? new Date(editDate).getTime() : undefined;
 
             if (isNaN(amount) || isNaN(cost)) {
-                Alert.alert("Hata", "Geçersiz değerler.");
+                if (Platform.OS === 'web') {
+                    window.alert('Hata: Geçersiz değerler.');
+                } else {
+                    Alert.alert('Hata', 'Geçersiz değerler.');
+                }
                 return;
             }
 
@@ -71,14 +75,24 @@ export const TransactionsScreen = () => {
     };
 
     const handleDelete = (item: PortfolioItem) => {
-        Alert.alert(
-            "Varlığı Sil",
-            `${item.instrumentId} silinecek. Emin misiniz?`,
-            [
-                { text: "İptal", style: "cancel" },
-                { text: "Sil", style: "destructive", onPress: () => deleteAsset(item.id) }
-            ]
-        );
+        const confirmDelete = () => {
+            deleteAsset(item.id);
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`${item.instrumentId} silinecek. Emin misiniz?`)) {
+                confirmDelete();
+            }
+        } else {
+            Alert.alert(
+                'Varlığı Sil',
+                `${item.instrumentId} silinecek. Emin misiniz?`,
+                [
+                    { text: 'İptal', style: 'cancel' },
+                    { text: 'Sil', style: 'destructive', onPress: confirmDelete }
+                ]
+            );
+        }
     };
 
     const renderItem = (data: { item: PortfolioItem }) => {
@@ -112,7 +126,7 @@ export const TransactionsScreen = () => {
                         </View>
                     </View>
 
-                    {/* Right: Amount + Total */}
+                    {/* Center: Amount + Total */}
                     <View style={styles.rightContainer}>
                         <Text style={[styles.value, { color: colors.text }]}>
                             {item.amount} Adet
@@ -121,6 +135,42 @@ export const TransactionsScreen = () => {
                             {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                         </Text>
                     </View>
+
+                    {/* Web: Show edit/delete buttons inline */}
+                    {Platform.OS === 'web' && (
+                        <View style={{ flexDirection: 'row', gap: 8, marginLeft: 16 }}>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: colors.primary,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4
+                                }}
+                                onPress={() => openEditModal(item)}
+                            >
+                                <Ionicons name="create-outline" size={18} color="#fff" />
+                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Düzenle</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: colors.danger,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4
+                                }}
+                                onPress={() => handleDelete(item)}
+                            >
+                                <Ionicons name="trash-outline" size={18} color="#fff" />
+                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Sil</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             </View>
         );

@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { PortfolioItem } from '../types';
 import { formatCurrency } from '../utils/formatting';
 import { TickerIcon } from './TickerIcon';
+import { Feather } from '@expo/vector-icons';
 
 interface AssetRowProps {
     item: PortfolioItem;
@@ -14,6 +15,7 @@ interface AssetRowProps {
     onPress: () => void;
     onLongPress: () => void;
     color?: string; // Theme color for the icon
+    onSell?: () => void; // Optional sell action for web
 }
 
 export const AssetRow: React.FC<AssetRowProps> = ({
@@ -24,7 +26,8 @@ export const AssetRow: React.FC<AssetRowProps> = ({
     usdRate,
     onPress,
     onLongPress,
-    color
+    color,
+    onSell
 }) => {
     const { colors } = useTheme();
 
@@ -101,6 +104,26 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     </Text>
                 </View>
             </View>
+
+            {/* Web: Show Sell button inline */}
+            {Platform.OS === 'web' && onSell && (
+                <TouchableOpacity
+                    style={{
+                        backgroundColor: colors.danger,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        marginLeft: 12
+                    }}
+                    onPress={onSell}
+                >
+                    <Feather name="trending-down" size={16} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Satış Yap</Text>
+                </TouchableOpacity>
+            )}
         </TouchableOpacity>
     );
 };

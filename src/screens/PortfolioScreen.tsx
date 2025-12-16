@@ -253,7 +253,7 @@ export const PortfolioScreen = () => {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
+            <View style={[styles.header, { backgroundColor: colors.cardBackground, paddingTop: Platform.OS === 'web' ? 20 : 10 }]}>
                 <PortfolioSwitcher />
                 <View style={styles.headerRight}>
                     <TouchableOpacity onPress={onRefresh} disabled={isRefreshing}>
@@ -266,7 +266,7 @@ export const PortfolioScreen = () => {
                         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>{displayCurrency}</Text>
                     </TouchableOpacity>
                 </View>
-            </View >
+            </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
                 {Object.keys(categoryValues).map(category => {
@@ -354,6 +354,7 @@ export const PortfolioScreen = () => {
                                                         onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                         onLongPress={() => handleLongPress(item)}
                                                         color={getIconColor(category)}
+                                                        onSell={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
                                                     />
                                                     {index < items.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                                                 </View>

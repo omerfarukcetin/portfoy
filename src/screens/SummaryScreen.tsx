@@ -409,7 +409,7 @@ export const SummaryScreen = () => {
                 {isLargeScreen ? (
                     <View style={{ paddingHorizontal: 20, gap: 20 }}>
                         {/* WEB HEADER (Full Width) */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
                             <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
                             <TouchableOpacity
                                 onPress={() => (navigation as any).navigate('Settings')}

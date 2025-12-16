@@ -652,7 +652,7 @@ export const SummaryScreen = () => {
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, justifyContent: 'flex-start' }}>
                             <GradientCard
                                 variant="secondary"
-                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}
+                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}
                                 contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
                             >
                                 <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
@@ -677,7 +677,7 @@ export const SummaryScreen = () => {
 
                             <GradientCard
                                 variant="secondary"
-                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]}
+                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]}
                                 contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
                             >
                                 <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
@@ -702,7 +702,7 @@ export const SummaryScreen = () => {
 
                             <GradientCard
                                 variant="secondary"
-                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}
+                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}
                                 contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
                             >
                                 <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen</Text>
@@ -719,7 +719,7 @@ export const SummaryScreen = () => {
 
                             <GradientCard
                                 variant="secondary"
-                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.warning }]}
+                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.warning }]}
                                 contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
                             >
                                 <Text style={[styles.statLabel, { color: colors.subText }]}>Riskteki Para</Text>

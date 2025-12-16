@@ -716,6 +716,31 @@ export const SummaryScreen = () => {
                                     </View>
                                 )}
                             </GradientCard>
+
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.warning }]}
+                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Text style={[styles.statLabel, { color: colors.subText }]}>Riskteki Para</Text>
+                                {isInitialLoading ? (
+                                    <View style={{ gap: 4 }}>
+                                        <Skeleton width="80%" height={16} />
+                                        <Skeleton width="60%" height={12} />
+                                    </View>
+                                ) : (
+                                    <>
+                                        <View style={styles.statValueRow}>
+                                            <Text style={[styles.statValue, { color: colors.warning }]}>
+                                                {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.statPercent, { color: colors.subText, fontSize: 10 }]}>
+                                            {isHidden ? '•••' : `Anapara: ${formatCurrency(totalCostBasisTry, 'TRY')}`}
+                                        </Text>
+                                    </>
+                                )}
+                            </GradientCard>
                         </View>
 
                         {/* Market Insights Cards */}

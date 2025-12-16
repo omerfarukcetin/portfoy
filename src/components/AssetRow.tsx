@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { PortfolioItem } from '../types';
 import { formatCurrency } from '../utils/formatting';
 import { TickerIcon } from './TickerIcon';
+import { Ionicons } from '@expo/vector-icons';
 
 interface AssetRowProps {
     item: PortfolioItem;
@@ -13,6 +14,9 @@ interface AssetRowProps {
     usdRate: number;
     onPress: () => void;
     onLongPress: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    isLargeScreen?: boolean;
     color?: string; // Theme color for the icon
 }
 
@@ -24,6 +28,9 @@ export const AssetRow: React.FC<AssetRowProps> = ({
     usdRate,
     onPress,
     onLongPress,
+    onEdit,
+    onDelete,
+    isLargeScreen = false,
     color
 }) => {
     const { colors } = useTheme();
@@ -101,6 +108,18 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     </Text>
                 </View>
             </View>
+
+            {/* Web Action Buttons */}
+            {isLargeScreen && onEdit && onDelete && (
+                <View style={{ flexDirection: 'row', gap: 12, marginLeft: 16 }}>
+                    <TouchableOpacity onPress={onEdit} style={{ padding: 4 }}>
+                        <Ionicons name="create-outline" size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onDelete} style={{ padding: 4 }}>
+                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                    </TouchableOpacity>
+                </View>
+            )}
         </TouchableOpacity>
     );
 };

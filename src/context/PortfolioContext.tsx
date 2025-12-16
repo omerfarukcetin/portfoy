@@ -88,13 +88,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
         if (currentPortfolio) {
-            console.log('🔄 Portfolio switch - syncing state for:', activePortfolioId);
+            console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items.length);
             setPortfolio(currentPortfolio.items);
             setRealizedTrades(currentPortfolio.realizedTrades);
             setHistory(currentPortfolio.history || []);
             setCashItems(currentPortfolio.cashItems);
         }
-    }, [activePortfolioId]); // ONLY on portfolio ID change
+    }, [activePortfolioId, portfolios]); // Sync when ID OR data changes
 
     // Calculate total cash balance from cash items
     const cashBalance = cashItems.reduce((sum, item) => {

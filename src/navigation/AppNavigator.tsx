@@ -15,6 +15,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Text, ActivityIndicator, View, StatusBar, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../context/SettingsContext';
@@ -293,7 +294,39 @@ const MainNavigator = () => {
 export const AppNavigator = () => {
     const { colors, theme } = useTheme();
     const { user, isLoading } = useAuth();
+    const { language } = useLanguage();
     const navigationRef = useNavigationContainerRef();
+
+    // Get page titles based on language
+    const getPageTitle = (routeName: string) => {
+        const APP_NAME = language === 'tr' ? 'Portföy Cepte' : 'Portfolio Pocket';
+        const titles: Record<string, string> = language === 'tr' ? {
+            'Summary': `Özet - ${APP_NAME}`,
+            'Portfolio': `Portföy - ${APP_NAME}`,
+            'Transactions': `İşlemler - ${APP_NAME}`,
+            'Favorites': `Favoriler - ${APP_NAME}`,
+            'Settings': `Ayarlar - ${APP_NAME}`,
+            'AddInstrument': `Varlık Ekle - ${APP_NAME}`,
+            'SellAsset': `Varlık Sat - ${APP_NAME}`,
+            'CashManagement': `Yedek Akçe - ${APP_NAME}`,
+            'AssetDetail': `Varlık Detayı - ${APP_NAME}`,
+            'Login': `Giriş Yap - ${APP_NAME}`,
+            'Register': `Kayıt Ol - ${APP_NAME}`,
+        } : {
+            'Summary': `Summary - ${APP_NAME}`,
+            'Portfolio': `Portfolio - ${APP_NAME}`,
+            'Transactions': `Transactions - ${APP_NAME}`,
+            'Favorites': `Favorites - ${APP_NAME}`,
+            'Settings': `Settings - ${APP_NAME}`,
+            'AddInstrument': `Add Asset - ${APP_NAME}`,
+            'SellAsset': `Sell Asset - ${APP_NAME}`,
+            'CashManagement': `Cash Reserve - ${APP_NAME}`,
+            'AssetDetail': `Asset Detail - ${APP_NAME}`,
+            'Login': `Login - ${APP_NAME}`,
+            'Register': `Register - ${APP_NAME}`,
+        };
+        return titles[routeName] || APP_NAME;
+    };
 
     // Update document title on web when route changes
     useEffect(() => {
@@ -301,7 +334,7 @@ export const AppNavigator = () => {
             const unsubscribe = navigationRef.current.addListener('state', () => {
                 const currentRoute = navigationRef.current?.getCurrentRoute();
                 if (currentRoute) {
-                    const title = PAGE_TITLES[currentRoute.name] || 'Portföy Cepte';
+                    const title = getPageTitle(currentRoute.name);
                     if (typeof document !== 'undefined') {
                         document.title = title;
                     }
@@ -309,7 +342,7 @@ export const AppNavigator = () => {
             });
             return unsubscribe;
         }
-    }, []);
+    }, [language]);
 
     // Show loading indicator while checking auth state
     if (isLoading) {

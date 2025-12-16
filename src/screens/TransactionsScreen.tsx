@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { formatCurrency } from '../utils/formatting';
 import { PortfolioItem } from '../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import { MarketDataService } from '../services/marketData';
 export const TransactionsScreen = () => {
     const { realizedTrades, portfolio, updateAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
 
     // Edit Modal State
@@ -201,7 +203,7 @@ export const TransactionsScreen = () => {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>İşlemler</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{t('transactions.title')}</Text>
             </View>
 
             {/* Tab Control */}
@@ -210,13 +212,13 @@ export const TransactionsScreen = () => {
                     style={[styles.tab, activeTab === 'open' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                     onPress={() => setActiveTab('open')}
                 >
-                    <Text style={[styles.tabText, { color: activeTab === 'open' ? colors.primary : colors.subText }]}>Açık İşlemler</Text>
+                    <Text style={[styles.tabText, { color: activeTab === 'open' ? colors.primary : colors.subText }]}>{t('transactions.openPositions')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'closed' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                     onPress={() => setActiveTab('closed')}
                 >
-                    <Text style={[styles.tabText, { color: activeTab === 'closed' ? colors.primary : colors.subText }]}>Kapalı İşlemler</Text>
+                    <Text style={[styles.tabText, { color: activeTab === 'closed' ? colors.primary : colors.subText }]}>{t('transactions.closedPositions')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -224,7 +226,7 @@ export const TransactionsScreen = () => {
                 // OPEN POSITIONS
                 portfolio.length === 0 ? (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text style={{ textAlign: 'center', color: colors.subText }}>Açık işlem yok.</Text>
+                        <Text style={{ textAlign: 'center', color: colors.subText }}>{t('transactions.noOpenTrades')}</Text>
                     </View>
                 ) : Platform.OS === 'web' ? (
                     // WEB: 3-COLUMN GRID LAYOUT

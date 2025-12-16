@@ -87,9 +87,13 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     <Text style={[styles.amount, { color: colors.subText }]}>
                         {formatCurrency(displayPrice, displayCurrency)} × {item.amount} Adet
                     </Text>
-                    <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
-                        {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
-                    </Text>
+                    {changePercent !== 0 ? (
+                        <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
+                            {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
+                        </Text>
+                    ) : (
+                        <Text style={[styles.dailyChange, { color: colors.subText }]}>-</Text>
+                    )}
                 </View>
             </View>
 

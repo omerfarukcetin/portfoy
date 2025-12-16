@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { MarketDataService } from '../services/marketData';
@@ -107,15 +107,19 @@ export const AddInstrumentScreen = () => {
     }, [cryptoQuery, category]);
 
     const handleSearch = async (text: string) => {
+        console.log('🔍 Search triggered:', text, 'Category:', category);
         setQuery(text);
         if (text.length > 0 || category === 'EMTIA' || category === 'BES') {
             setLoading(true);
             // Map EMTIA to ALTIN for MarketDataService compatibility
             const searchCategory = category === 'EMTIA' ? 'ALTIN' : category;
+            console.log('📡 Fetching data for category:', searchCategory);
             const data = await MarketDataService.searchInstruments(text, searchCategory as any);
+            console.log('📊 Search results:', data?.length || 0, 'items');
             setResults(data);
             setLoading(false);
         } else {
+            console.log('❌ Query too short, clearing results');
             setResults([]);
         }
     };
@@ -130,34 +134,43 @@ export const AddInstrumentScreen = () => {
         }
     };
 
+    // Platform-aware alert function
+    const showAlert = (title: string, message: string) => {
+        if (Platform.OS === 'web') {
+            window.alert(`${title}: ${message}`);
+        } else {
+            Alert.alert(title, message);
+        }
+    };
+
     const handleAdd = async () => {
         if (!selectedInstrument) {
-            Alert.alert('Hata', 'Lütfen bir varlık seçin');
+            showAlert('Hata', 'Lütfen bir varlık seçin');
             return;
         }
 
         // Validation for BES
         if (category === 'BES') {
             if (!besPrincipal || !besProfit) {
-                Alert.alert('Hata', 'Lütfen Ana Para ve Kâr alanlarını doldurun');
+                showAlert('Hata', 'Lütfen Ana Para ve Kâr alanlarını doldurun');
                 return;
             }
         } else if (category === 'DIGER') {
             // DIGER: Need amount, cost, and current unit price
             if (!amount || !cost || !customCurrentUnitPrice) {
-                Alert.alert('Hata', 'Lütfen adet, maliyet ve güncel birim fiyatı girin');
+                showAlert('Hata', 'Lütfen adet, maliyet ve güncel birim fiyatı girin');
                 return;
             }
         } else {
             if (!amount || !cost) {
-                Alert.alert('Hata', 'Lütfen miktar ve maliyet alanlarını doldurun');
+                showAlert('Hata', 'Lütfen miktar ve maliyet alanlarını doldurun');
                 return;
             }
         }
 
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) {
-            Alert.alert('Hata', 'Geçersiz tarih formatı');
+            showAlert('Hata', 'Geçersiz tarih formatı');
             return;
         }
 
@@ -210,7 +223,7 @@ export const AddInstrumentScreen = () => {
                 // If using cash reserve, deduct from cash balance
                 if (useFromCash && currency === 'TRY') {
                     if (totalCost > cashBalance) {
-                        Alert.alert('Hata', 'Yedek akçe bakiyesi yetersiz!');
+                        showAlert('Hata', 'Yedek akçe bakiyesi yetersiz!');
                         return;
                     }
                     await updateCash(-totalCost);
@@ -219,10 +232,10 @@ export const AddInstrumentScreen = () => {
                 await addToPortfolio(selectedInstrument, parseFloat(amount), parseFloat(cost), currency, dateTs, isNaN(rate) ? undefined : rate, undefined, customCat);
             }
 
-            Alert.alert('Başarılı', 'Varlık portföye eklendi');
+            showAlert('Başarılı', 'Varlık portföye eklendi');
             navigation.goBack();
         } catch (error) {
-            Alert.alert('Hata', 'Ekleme başarısız oldu');
+            showAlert('Hata', 'Ekleme başarısız oldu');
         }
     };
 
@@ -359,54 +372,58 @@ export const AddInstrumentScreen = () => {
                             {loading ? (
                                 <ActivityIndicator color={colors.primary} />
                             ) : (
-                                <FlatList
-                                    data={results}
-                                    keyExtractor={item => item.id}
-                                    renderItem={({ item }) => {
-                                        let icon = '📈'; // Default
-                                        if (item.type === 'crypto') icon = '₿';
-                                        else if (item.type === 'gold' || item.type === 'metal') icon = '🪙';
-                                        else if (item.type === 'fund') icon = '📊';
-                                        else if (item.type === 'bes') icon = '🏦';
-                                        else if (item.type === 'stock') icon = '📈';
+                                <View style={{ height: Platform.OS === 'web' ? 400 : undefined, flex: Platform.OS === 'web' ? undefined : 1 }}>
+                                    <FlatList
+                                        data={results}
+                                        keyExtractor={item => item.id}
+                                        nestedScrollEnabled={true}
+                                        style={{ flex: 1 }}
+                                        renderItem={({ item }) => {
+                                            let icon = '📈'; // Default
+                                            if (item.type === 'crypto') icon = '₿';
+                                            else if (item.type === 'gold' || item.type === 'metal') icon = '🪙';
+                                            else if (item.type === 'fund') icon = '📊';
+                                            else if (item.type === 'bes') icon = '🏦';
+                                            else if (item.type === 'stock') icon = '📈';
 
-                                        return (
-                                            <TouchableOpacity
-                                                style={[styles.item, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                                onPress={() => handleSelect(item)}
-                                            >
-                                                <View style={styles.itemLeft}>
-                                                    <Text style={{ fontSize: 24, marginRight: 12 }}>{icon}</Text>
-                                                    <View>
-                                                        <Text style={[styles.symbol, { color: colors.text }]}>{item.symbol}</Text>
-                                                        <Text style={[styles.name, { color: colors.subText }]}>{item.name}</Text>
+                                            return (
+                                                <TouchableOpacity
+                                                    style={[styles.item, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                                                    onPress={() => handleSelect(item)}
+                                                >
+                                                    <View style={styles.itemLeft}>
+                                                        <Text style={{ fontSize: 24, marginRight: 12 }}>{icon}</Text>
+                                                        <View>
+                                                            <Text style={[styles.symbol, { color: colors.text }]}>{item.symbol}</Text>
+                                                            <Text style={[styles.name, { color: colors.subText }]}>{item.name}</Text>
+                                                        </View>
                                                     </View>
-                                                </View>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                    <TouchableOpacity
-                                                        style={{ padding: 8, marginRight: 8 }}
-                                                        onPress={() => {
-                                                            if (isFavorite(item.id)) {
-                                                                removeFavorite(item.id);
-                                                            } else {
-                                                                addFavorite(item);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Ionicons
-                                                            name={isFavorite(item.id) ? "star" : "star-outline"}
-                                                            size={24}
-                                                            color={isFavorite(item.id) ? "#FFD700" : colors.subText}
-                                                        />
-                                                    </TouchableOpacity>
-                                                    <View style={[styles.typeBadge, { backgroundColor: colors.primary + '20' }]}>
-                                                        <Text style={[styles.type, { color: colors.primary }]}>{item.type.toUpperCase()}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                        <TouchableOpacity
+                                                            style={{ padding: 8, marginRight: 8 }}
+                                                            onPress={() => {
+                                                                if (isFavorite(item.id)) {
+                                                                    removeFavorite(item.id);
+                                                                } else {
+                                                                    addFavorite(item);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Ionicons
+                                                                name={isFavorite(item.id) ? "star" : "star-outline"}
+                                                                size={24}
+                                                                color={isFavorite(item.id) ? "#FFD700" : colors.subText}
+                                                            />
+                                                        </TouchableOpacity>
+                                                        <View style={[styles.typeBadge, { backgroundColor: colors.primary + '20' }]}>
+                                                            <Text style={[styles.type, { color: colors.primary }]}>{item.type.toUpperCase()}</Text>
+                                                        </View>
                                                     </View>
-                                                </View>
-                                            </TouchableOpacity>
-                                        );
-                                    }}
-                                />
+                                                </TouchableOpacity>
+                                            );
+                                        }}
+                                    />
+                                </View>
                             )}
                         </>
                     )}
@@ -492,12 +509,30 @@ export const AddInstrumentScreen = () => {
                             <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>Tarih</Text>
-                                    <TouchableOpacity
-                                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center', height: 44 }]}
-                                        onPress={() => setShowDatePicker(true)}
-                                    >
-                                        <Text style={{ color: colors.text, fontSize: 14 }}>{dateStr}</Text>
-                                    </TouchableOpacity>
+                                    {Platform.OS === 'web' ? (
+                                        <input
+                                            type="date"
+                                            value={dateStr}
+                                            onChange={(e: any) => setDateStr(e.target.value)}
+                                            style={{
+                                                padding: 10,
+                                                fontSize: 14,
+                                                borderRadius: 8,
+                                                border: `1px solid ${colors.border}`,
+                                                backgroundColor: colors.inputBackground,
+                                                color: colors.text,
+                                                height: 44,
+                                                width: '100%'
+                                            }}
+                                        />
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center', height: 44 }]}
+                                            onPress={() => setShowDatePicker(true)}
+                                        >
+                                            <Text style={{ color: colors.text, fontSize: 14 }}>{dateStr}</Text>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>USD/TRY Kuru</Text>
@@ -511,7 +546,7 @@ export const AddInstrumentScreen = () => {
                                     />
                                 </View>
                             </View>
-                            {showDatePicker && (
+                            {Platform.OS !== 'web' && showDatePicker && (
                                 <DateTimePicker
                                     value={new Date(dateStr)}
                                     mode="date"
@@ -551,24 +586,43 @@ export const AddInstrumentScreen = () => {
                             />
 
                             <Text style={[styles.label, { color: colors.subText }]}>Tarih</Text>
-                            <TouchableOpacity
-                                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
-                                onPress={() => setShowDatePicker(true)}
-                            >
-                                <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
-                            </TouchableOpacity>
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={new Date(dateStr)}
-                                    mode="date"
-                                    display="default"
-                                    onChange={(event, selectedDate) => {
-                                        setShowDatePicker(false);
-                                        if (selectedDate) {
-                                            setDateStr(selectedDate.toISOString().split('T')[0]);
-                                        }
+                            {Platform.OS === 'web' ? (
+                                <input
+                                    type="date"
+                                    value={dateStr}
+                                    onChange={(e: any) => setDateStr(e.target.value)}
+                                    style={{
+                                        padding: 12,
+                                        fontSize: 16,
+                                        borderRadius: 8,
+                                        border: `1px solid ${colors.border}`,
+                                        backgroundColor: colors.inputBackground,
+                                        color: colors.text,
+                                        width: '100%'
                                     }}
                                 />
+                            ) : (
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={new Date(dateStr)}
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event, selectedDate) => {
+                                                setShowDatePicker(false);
+                                                if (selectedDate) {
+                                                    setDateStr(selectedDate.toISOString().split('T')[0]);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </>
                             )}
 
                             <Text style={[styles.label, { color: colors.text }]}>O günkü Dolar Kuru (Opsiyonel)</Text>

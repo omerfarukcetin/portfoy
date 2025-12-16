@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
@@ -13,8 +13,6 @@ export const TransactionsScreen = () => {
     const { realizedTrades, portfolio, updateAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
-    const { width } = useWindowDimensions();
-    const isLargeScreen = width >= 768;
 
     // Edit Modal State
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -123,18 +121,6 @@ export const TransactionsScreen = () => {
                             {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                         </Text>
                     </View>
-
-                    {/* Web Action Buttons */}
-                    {isLargeScreen && (
-                        <View style={{ flexDirection: 'row', gap: 12, marginLeft: 20 }}>
-                            <TouchableOpacity onPress={() => openEditModal(item)} style={{ padding: 4 }}>
-                                <Ionicons name="create-outline" size={20} color={colors.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: 4 }}>
-                                <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </View>
             </View>
         );
@@ -200,7 +186,7 @@ export const TransactionsScreen = () => {
                         renderHiddenItem={renderHiddenItem}
                         keyExtractor={(item) => item.id}
                         rightOpenValue={-150}
-                        disableRightSwipe={isLargeScreen}
+                        disableRightSwipe
                         contentContainerStyle={styles.scrollContent}
                     />
                 )

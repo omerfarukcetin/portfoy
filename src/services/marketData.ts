@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Instrument, InstrumentType } from '../types';
+import { Platform } from 'react-native';
 
 const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
@@ -897,7 +898,59 @@ export const MarketDataService = {
             }
         }
 
-        // Stocks (Yahoo Finance)
+        // Stocks (Yahoo Finance or Netlify proxy)
+        // Web platformunda CORS problemi var, Netlify Functions proxy kullan
+        if (Platform.OS === 'web') {
+            try {
+                // Netlify Functions proxy URL
+                // Development: localhost:8888/.netlify/functions/yahoo-proxy
+                // Production: your-site.netlify.app/.netlify/functions/yahoo-proxy
+                const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+                    ? 'http://localhost:8888'
+                    : window.location.origin;
+
+                const proxyUrl = `${baseUrl}/.netlify/functions/yahoo-proxy?q=${encodeURIComponent(query)}&category=${category}`;
+
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error('Proxy request failed');
+                }
+
+                const data = await response.json();
+
+                return data.quotes.map((quote: any) => ({
+                    id: quote.symbol,
+                    symbol: quote.symbol,
+                    name: quote.shortname || quote.longname || quote.symbol,
+                    type: 'stock' as const,
+                    currency: category === 'BIST' ? 'TRY' : 'USD',
+                    currentPrice: 0,
+                    lastUpdated: Date.now()
+                }));
+            } catch (error) {
+                console.error('Web proxy search error:', error);
+                // Fallback to local data if proxy fails
+                const { BIST_STOCKS, US_STOCKS } = await import('../data/stocks');
+                const stockList = category === 'BIST' ? BIST_STOCKS : US_STOCKS;
+
+                return stockList
+                    .filter(stock =>
+                        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+                        stock.name.toLowerCase().includes(query.toLowerCase())
+                    )
+                    .map(stock => ({
+                        id: stock.symbol,
+                        symbol: stock.symbol,
+                        name: stock.name,
+                        type: 'stock' as const,
+                        currency: category === 'BIST' ? 'TRY' : 'USD',
+                        currentPrice: 0,
+                        lastUpdated: Date.now()
+                    }));
+            }
+        }
+
+        // Native: Yahoo Finance API kullan
         try {
             let searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=20&newsCount=0`;
             const response = await axios.get(searchUrl);

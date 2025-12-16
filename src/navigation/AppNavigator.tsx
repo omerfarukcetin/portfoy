@@ -275,32 +275,6 @@ const MainNavigator = () => {
     );
 };
 
-import * as Linking from 'expo-linking';
-
-const prefix = Linking.createURL('/');
-const linking = {
-    prefixes: [prefix, 'https://omerfarukcetin.github.io/portfoy'],
-    config: {
-        screens: {
-            // Auth Screens
-            Login: 'login',
-            Register: 'register',
-
-            // App Screens (Web uses flat stack, Mobile uses nested tabs)
-            // We map flat names for Web which effectively handles URL routing
-            Summary: '', // Root url
-            Portfolio: 'portfolio',
-            Transactions: 'transactions',
-            Favorites: 'favorites',
-            Settings: 'settings',
-            AssetDetail: 'asset/:id',
-            AddInstrument: 'add',
-            SellAsset: 'sell',
-            CashManagement: 'cash',
-        },
-    },
-};
-
 export const AppNavigator = () => {
     const { colors, theme } = useTheme();
     const { user, isLoading } = useAuth();
@@ -326,7 +300,7 @@ export const AppNavigator = () => {
                 translucent={false}
             />
             <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
-                <NavigationContainer linking={linking} fallback={<ActivityIndicator color={colors.primary} />}>
+                <NavigationContainer>
                     {AppContent}
                 </NavigationContainer>
             </SafeAreaView>

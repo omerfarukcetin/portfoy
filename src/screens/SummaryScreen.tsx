@@ -450,7 +450,7 @@ export const SummaryScreen = () => {
 
                                 {/* Portfolio Chart */}
                                 {!isInitialLoading && portfolioChartVisible && (
-                                    <View style={{ height: 300 }}>
+                                    <View style={{ height: 300, width: '100%', overflow: 'hidden' }}>
                                         <PortfolioChart currentValue={totalPortfolioTry} history={history} />
                                     </View>
                                 )}

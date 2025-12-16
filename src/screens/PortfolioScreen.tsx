@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,8 +18,6 @@ export const PortfolioScreen = () => {
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
     const navigation = useNavigation();
-    const { width } = useWindowDimensions();
-    const isLargeScreen = width >= 768;
 
     const [refreshing, setRefreshing] = useState(false);
     const [prices, setPrices] = useState<Record<string, number>>({});
@@ -355,9 +353,6 @@ export const PortfolioScreen = () => {
                                                         usdRate={usdRate}
                                                         onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                         onLongPress={() => handleLongPress(item)}
-                                                        onEdit={() => openEditModal(item)}
-                                                        onDelete={() => confirmDelete(item)}
-                                                        isLargeScreen={isLargeScreen}
                                                         color={getIconColor(category)}
                                                     />
                                                     {index < items.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}

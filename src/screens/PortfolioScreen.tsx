@@ -440,8 +440,8 @@ const styles = StyleSheet.create({
     },
     sectionContainer: { marginTop: 20 },
     sectionContainerWeb: {
-        width: '48%', // 2 columns
-        minWidth: 350,
+        width: '32%', // 3 columns
+        minWidth: 280,
         marginTop: 10,
     },
     sectionHeader: {

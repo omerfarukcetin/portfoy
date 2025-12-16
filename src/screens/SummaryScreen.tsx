@@ -460,7 +460,7 @@ export const SummaryScreen = () => {
                                     {/* Toplam K/Z */}
                                     <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
+                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Toplam K/Z</Text>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
                                                     {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
@@ -475,7 +475,7 @@ export const SummaryScreen = () => {
                                     {/* Günlük */}
                                     <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
+                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Günlük</Text>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
                                                     {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
@@ -490,7 +490,7 @@ export const SummaryScreen = () => {
                                     {/* Gerçekleşen Kâr */}
                                     <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen Kâr</Text>
+                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Gerçekleşen Kâr</Text>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
                                                     {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
@@ -502,7 +502,7 @@ export const SummaryScreen = () => {
                                     {/* Riskteki Para */}
                                     <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: colors.warning }]} contentStyle={{ padding: 16 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Riskteki Para</Text>
+                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Riskteki Para</Text>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={[styles.statValue, { color: colors.warning }]}>
                                                     {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}

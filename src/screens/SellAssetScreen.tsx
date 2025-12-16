@@ -109,9 +109,9 @@ export const SellAssetScreen = () => {
             <TouchableOpacity
                 style={[styles.deleteButton, { borderColor: colors.danger }]}
                 onPress={() => {
-                    Alert.alert(
+                    showAlert(
                         "Varlığı Sil",
-                        "Bu varlığı portföyden tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+                        "Bu varlığı portföyden tamamen silmek istediğinize emin misin iz? Bu işlem geri alınamaz.",
                         [
                             { text: "İptal", style: "cancel" },
                             {

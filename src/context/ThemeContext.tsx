@@ -79,14 +79,18 @@ const navyColors: ThemeColors = {
     inputBackground: '#1E293B',
 };
 
-// Base font sizes
+import { Platform } from 'react-native';
+
+// Base font sizes (Larger on web)
+const isWeb = Platform.OS === 'web';
+
 const baseFontSizes: FontSizes = {
-    xs: 11,
-    sm: 13,
-    base: 15,
-    lg: 18,
-    xl: 24,
-    '2xl': 32,
+    xs: isWeb ? 13 : 11,
+    sm: isWeb ? 15 : 13,
+    base: isWeb ? 17 : 15,
+    lg: isWeb ? 20 : 18,
+    xl: isWeb ? 26 : 24,
+    '2xl': isWeb ? 34 : 32,
 };
 
 // Font scale multipliers

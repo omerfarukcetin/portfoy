@@ -211,7 +211,7 @@ const WebNavigator = () => {
             <Sidebar />
             <View style={{ flex: 1, backgroundColor: colors.background }}>
                 {/* Content Container to limit width on large screens */}
-                <View style={{ flex: 1, maxWidth: 1200, width: '100%', alignSelf: 'center' }}>
+                <View style={{ flex: 1, maxWidth: 1800, width: '100%', alignSelf: 'center' }}>
                     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Summary">
                         <Stack.Screen name="Summary" component={SummaryScreen} />
                         <Stack.Screen name="Portfolio" component={PortfolioScreen} />

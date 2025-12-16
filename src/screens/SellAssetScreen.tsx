@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { showAlert } from '../utils/alerts';
 import { formatCurrency } from '../utils/formatting';
 import { MarketDataService } from '../services/marketData';
@@ -14,6 +15,7 @@ export const SellAssetScreen = () => {
     const { assetId } = route.params as { assetId: string };
     const { portfolio, sellAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
+    const { t } = useLanguage();
 
     const item = portfolio.find(p => p.id === assetId);
     const [amount, setAmount] = useState('');
@@ -71,7 +73,7 @@ export const SellAssetScreen = () => {
 
     const handleSell = async () => {
         if (!amount || !price) {
-            showAlert('Hata', 'Lütfen miktar ve fiyat girin');
+            showAlert(t('common.error') || 'Error', t('sellAsset.errorFields'));
             return;
         }
 
@@ -81,20 +83,20 @@ export const SellAssetScreen = () => {
         const dateNum = sellDate ? new Date(sellDate).getTime() : undefined;
 
         if (amountNum > (item?.amount || 0)) {
-            showAlert('Hata', 'Sahip olduğunuzdan fazlasını satamazsınız');
+            showAlert(t('common.error') || 'Error', t('sellAsset.errorAmount'));
             return;
         }
 
         try {
             await sellAsset(assetId, amountNum, priceNum, dateNum, rateNum);
-            showAlert('Başarılı', 'Satış gerçekleşti');
+            showAlert(t('common.success') || 'Success', t('sellAsset.saleSuccess'));
             navigation.goBack();
         } catch (error) {
-            showAlert('Hata', 'Satış işlemi başarısız');
+            showAlert(t('common.error') || 'Error', t('sellAsset.saleError'));
         }
     };
 
-    if (!item) return <View style={[styles.container, { backgroundColor: colors.background }]}><Text style={{ color: colors.text }}>Varlık bulunamadı</Text></View>;
+    if (!item) return <View style={[styles.container, { backgroundColor: colors.background }]}><Text style={{ color: colors.text }}>{t('common.notFound') || 'Asset not found'}</Text></View>;
 
     // Calculate profit preview
     const priceNum = parseFloat(price) || 0;
@@ -117,16 +119,16 @@ export const SellAssetScreen = () => {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Text style={[styles.title, { color: colors.text }]}>{item.instrumentId} Satış</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{item.instrumentId} {t('sellAsset.title')}</Text>
 
             <View style={[styles.infoCard, { backgroundColor: colors.cardBackground }]}>
-                <Text style={[styles.infoText, { color: colors.text }]}>Mevcut Miktar: {item.amount}</Text>
+                <Text style={[styles.infoText, { color: colors.text }]}>{t('sellAsset.currentAmount')}: {item.amount}</Text>
                 <Text style={[styles.infoText, { color: colors.text }]}>
-                    Ort. Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                    {t('sellAsset.averageCost')}: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                 </Text>
             </View>
 
-            <Text style={[styles.label, { color: colors.subText }]}>Satılacak Miktar</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('sellAsset.amountToSell')}</Text>
             <TextInput
                 style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, borderWidth: 1 }]}
                 keyboardType="numeric"
@@ -135,7 +137,7 @@ export const SellAssetScreen = () => {
                 placeholderTextColor={colors.subText}
             />
 
-            <Text style={[styles.label, { color: colors.subText }]}>Satış Fiyatı (Birim)</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('sellAsset.sellPrice')}</Text>
             <View style={styles.row}>
                 <TextInput
                     style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, borderWidth: 1 }]}
@@ -147,7 +149,7 @@ export const SellAssetScreen = () => {
                 {loading && <ActivityIndicator style={{ marginLeft: 10 }} color={colors.primary} />}
             </View>
 
-            <Text style={[styles.label, { color: colors.subText }]}>Satış Tarihi (YYYY-MM-DD)</Text>
+            <Text style={[styles.label, { color: colors.subText }]}>{t('sellAsset.sellDate')}</Text>
             <TextInput
                 style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, borderWidth: 1 }]}
                 value={sellDate}
@@ -158,7 +160,7 @@ export const SellAssetScreen = () => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={[styles.label, { color: colors.subText, marginBottom: 0, flex: 1 }]}>
-                    USD/TRY Kuru (o günkü)
+                    {t('sellAsset.usdRate')}
                 </Text>
                 {isLoadingRate && <ActivityIndicator size="small" color={colors.primary} />}
             </View>
@@ -167,23 +169,23 @@ export const SellAssetScreen = () => {
                 keyboardType="numeric"
                 value={historicalRate}
                 onChangeText={setHistoricalRate}
-                placeholder="Otomatik yüklenecek"
+                placeholder={t('sellAsset.autoLoaded')}
                 placeholderTextColor={colors.subText}
             />
 
             {/* Profit Preview */}
             {priceNum > 0 && amountNum > 0 && (
                 <View style={[styles.infoCard, { backgroundColor: colors.cardBackground, marginTop: 8, borderWidth: 1, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
-                    <Text style={[styles.infoText, { color: colors.text, fontWeight: '700', marginBottom: 8 }]}>Kar/Zarar Önizleme</Text>
+                    <Text style={[styles.infoText, { color: colors.text, fontWeight: '700', marginBottom: 8 }]}>{t('sellAsset.profitPreview')}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <Text style={{ color: colors.subText, fontSize: 13 }}>🇹🇷 TRY Kar/Zarar:</Text>
+                        <Text style={{ color: colors.subText, fontSize: 13 }}>{t('sellAsset.tryProfitLoss')}</Text>
                         <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
                             {formatCurrency(profitTry, 'TRY')} ({profitPercentTry >= 0 ? '+' : ''}{profitPercentTry.toFixed(2)}%)
                         </Text>
                     </View>
                     {historicalRate && (
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={{ color: colors.subText, fontSize: 13 }}>🇺🇸 USD Kar/Zarar:</Text>
+                            <Text style={{ color: colors.subText, fontSize: 13 }}>{t('sellAsset.usdProfitLoss')}</Text>
                             <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
                                 {formatCurrency(profitUsd, 'USD')} ({profitPercentUsd >= 0 ? '+' : ''}{profitPercentUsd.toFixed(2)}%)
                             </Text>
@@ -193,19 +195,19 @@ export const SellAssetScreen = () => {
             )}
 
             <TouchableOpacity style={[styles.sellButton, { backgroundColor: colors.danger }]} onPress={handleSell}>
-                <Text style={styles.buttonText}>Satışı Onayla</Text>
+                <Text style={styles.buttonText}>{t('sellAsset.confirmSale')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
                 style={[styles.deleteButton, { borderColor: colors.danger }]}
                 onPress={() => {
                     showAlert(
-                        "Varlığı Sil",
-                        "Bu varlığı portföyden tamamen silmek istediğinize emin misin iz? Bu işlem geri alınamaz.",
+                        t('sellAsset.deleteAsset'),
+                        t('sellAsset.deleteConfirm'),
                         [
-                            { text: "İptal", style: "cancel" },
+                            { text: t('common.cancel'), style: "cancel" },
                             {
-                                text: "Sil",
+                                text: t('common.delete'),
                                 style: "destructive",
                                 onPress: async () => {
                                     await deleteAsset(assetId);
@@ -216,7 +218,7 @@ export const SellAssetScreen = () => {
                     );
                 }}
             >
-                <Text style={[styles.deleteButtonText, { color: colors.danger }]}>Varlığı Tamamen Sil</Text>
+                <Text style={[styles.deleteButtonText, { color: colors.danger }]}>{t('sellAsset.deleteAsset')}</Text>
             </TouchableOpacity>
         </View>
     );

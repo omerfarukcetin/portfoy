@@ -21,6 +21,9 @@ export const translations = {
             back: 'Geri',
             search: 'Ara',
             add: 'Ekle',
+            error: 'Hata',
+            success: 'Başarılı',
+            notFound: 'Varlık bulunamadı',
         },
         // Summary Screen
         summary: {
@@ -140,6 +143,9 @@ export const translations = {
             back: 'Back',
             search: 'Search',
             add: 'Add',
+            error: 'Error',
+            success: 'Success',
+            notFound: 'Asset not found',
         },
         // Summary Screen
         summary: {

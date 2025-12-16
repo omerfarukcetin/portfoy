@@ -11,11 +11,11 @@ import { Feather } from '@expo/vector-icons';
 export const SellAssetScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
-    const { id } = route.params as { id: string };
+    const { assetId } = route.params as { assetId: string };
     const { portfolio, sellAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
 
-    const item = portfolio.find(p => p.id === id);
+    const item = portfolio.find(p => p.id === assetId);
     const [amount, setAmount] = useState('');
     const [price, setPrice] = useState('');
     const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export const SellAssetScreen = () => {
         }
 
         try {
-            await sellAsset(id, amountNum, priceNum);
+            await sellAsset(assetId, amountNum, priceNum);
             showAlert('Başarılı', 'Satış gerçekleşti');
             navigation.goBack();
         } catch (error) {
@@ -118,7 +118,7 @@ export const SellAssetScreen = () => {
                                 text: "Sil",
                                 style: "destructive",
                                 onPress: async () => {
-                                    await deleteAsset(id);
+                                    await deleteAsset(assetId);
                                     navigation.goBack();
                                 }
                             }

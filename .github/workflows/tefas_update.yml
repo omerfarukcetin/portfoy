@@ -1,0 +1,30 @@
+name: Update TEFAS Data
+
+on:
+  schedule:
+    # 09:00 TRT (06:00 UTC) and 12:00 TRT (09:00 UTC)
+    - cron: '0 6,9 * * *'
+  workflow_dispatch: # Allows manual run
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Run Fetch Script
+      env:
+        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+      run: |
+        python fetch_tefas_data.py

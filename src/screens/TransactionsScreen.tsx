@@ -221,12 +221,94 @@ export const TransactionsScreen = () => {
             </View>
 
             {activeTab === 'open' ? (
-                // OPEN POSITIONS (Current Portfolio) with SwipeListView
+                // OPEN POSITIONS
                 portfolio.length === 0 ? (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         <Text style={{ textAlign: 'center', color: colors.subText }}>Açık işlem yok.</Text>
                     </View>
+                ) : Platform.OS === 'web' ? (
+                    // WEB: 3-COLUMN GRID LAYOUT
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                            {portfolio.map((item) => {
+                                const getIconColor = (item: PortfolioItem) => {
+                                    if (item.type === 'gold') return '#FFD700';
+                                    if (item.type === 'crypto') return '#AF52DE';
+                                    if (item.type === 'stock') return '#007AFF';
+                                    if (item.type === 'fund') return '#FF2D55';
+                                    if (item.type === 'bes') return '#FF9500';
+                                    return '#8E8E93';
+                                };
+
+                                return (
+                                    <View key={item.id} style={[styles.cardContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, width: 'calc(33.333% - 11px)', minWidth: 300 }]}>
+                                        <View style={{ padding: 16 }}>
+                                            {/* Header with Icon */}
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                                                <TickerIcon
+                                                    symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : item.instrumentId}
+                                                    color={getIconColor(item)}
+                                                    size={40}
+                                                />
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[styles.symbol, { color: colors.text }]}>{item.customName || item.instrumentId}</Text>
+                                                    <Text style={[styles.details, { color: colors.subText }]}>
+                                                        {item.amount} Adet
+                                                    </Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Details */}
+                                            <View style={{ gap: 8, marginBottom: 12 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.subText, fontSize: 13 }}>Maliyet</Text>
+                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                                                        {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                                                    </Text>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.subText, fontSize: 13 }}>Toplam Değer</Text>
+                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                                                        {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                                                    </Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Action Buttons */}
+                                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor: colors.primary,
+                                                        paddingVertical: 10,
+                                                        borderRadius: 8,
+                                                        alignItems: 'center'
+                                                    }}
+                                                    onPress={() => openEditModal(item)}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Düzenle</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor: colors.danger,
+                                                        paddingVertical: 10,
+                                                        borderRadius: 8,
+                                                        alignItems: 'center'
+                                                    }}
+                                                    onPress={() => handleDelete(item)}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Sil</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </ScrollView>
                 ) : (
+                    // MOBILE: SWIPE LIST VIEW
                     <SwipeListView
                         data={portfolio}
                         renderItem={renderItem}

@@ -648,99 +648,69 @@ export const SummaryScreen = () => {
                             )
                         }
 
-                        {/* Stats Grid - 3 columns */}
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, justifyContent: 'flex-start' }}>
-                            <GradientCard
-                                variant="secondary"
-                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}
-                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
+                        {/* Stats Row 1: Toplam K/Z and Günlük */}
+                        <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 }}>
+                            <View style={{ flex: 1, backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }}>
+                                <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '500', marginBottom: 4 }}>Toplam K/Z</Text>
                                 {isInitialLoading ? (
-                                    <View style={{ gap: 4 }}>
-                                        <Skeleton width="80%" height={16} />
-                                        <Skeleton width="60%" height={12} />
-                                    </View>
+                                    <Skeleton width="80%" height={18} />
                                 ) : (
                                     <>
-                                        <View style={styles.statValueRow}>
-                                            <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                                {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
-                                            </Text>
-                                        </View>
-                                        <Text style={[styles.statPercent, { color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger, fontSize: 11 }]}>
-                                            {isHidden ? '•••' : `${(totalUnrealizedProfitTry / (usdRate || 1)) >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry / (usdRate || 1), 'USD')} | % ${totalUnrealizedProfitPercent.toFixed(2)} `}
+                                        <Text style={{ color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger, fontSize: 16, fontWeight: '700' }}>
+                                            {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')}`}
+                                        </Text>
+                                        <Text style={{ color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger, fontSize: 11, marginTop: 2 }}>
+                                            {isHidden ? '•••' : `%${totalUnrealizedProfitPercent.toFixed(2)}`}
                                         </Text>
                                     </>
                                 )}
-                            </GradientCard>
+                            </View>
 
-                            <GradientCard
-                                variant="secondary"
-                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]}
-                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
+                            <View style={{ flex: 1, backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }}>
+                                <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '500', marginBottom: 4 }}>Günlük</Text>
                                 {isInitialLoading ? (
-                                    <View style={{ gap: 4 }}>
-                                        <Skeleton width="80%" height={16} />
-                                        <Skeleton width="60%" height={12} />
-                                    </View>
+                                    <Skeleton width="80%" height={18} />
                                 ) : (
                                     <>
-                                        <View style={styles.statValueRow}>
-                                            <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
-                                                {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
-                                            </Text>
-                                        </View>
-                                        <Text style={[styles.statPercent, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
-                                            {isHidden ? '•••' : `% ${dailyProfitPercent.toFixed(2)} `}
+                                        <Text style={{ color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 16, fontWeight: '700' }}>
+                                            {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')}`}
+                                        </Text>
+                                        <Text style={{ color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 11, marginTop: 2 }}>
+                                            {isHidden ? '•••' : `%${dailyProfitPercent.toFixed(2)}`}
                                         </Text>
                                     </>
                                 )}
-                            </GradientCard>
+                            </View>
+                        </View>
 
-                            <GradientCard
-                                variant="secondary"
-                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}
-                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen</Text>
+                        {/* Stats Row 2: Gerçekleşen and Riskteki Para */}
+                        <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 }}>
+                            <View style={{ flex: 1, backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }}>
+                                <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '500', marginBottom: 4 }}>Gerçekleşen Kâr</Text>
                                 {isInitialLoading ? (
-                                    <Skeleton width="80%" height={16} />
+                                    <Skeleton width="80%" height={18} />
                                 ) : (
-                                    <View style={styles.statValueRow}>
-                                        <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                            {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
-                                        </Text>
-                                    </View>
+                                    <Text style={{ color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger, fontSize: 16, fontWeight: '700' }}>
+                                        {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')}`}
+                                    </Text>
                                 )}
-                            </GradientCard>
+                            </View>
 
-                            <GradientCard
-                                variant="secondary"
-                                style={[styles.statItem, { width: '24%', padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.warning }]}
-                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Text style={[styles.statLabel, { color: colors.subText }]}>Riskteki Para</Text>
+                            <View style={{ flex: 1, backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.warning }}>
+                                <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '500', marginBottom: 4 }}>Riskteki Para</Text>
                                 {isInitialLoading ? (
-                                    <View style={{ gap: 4 }}>
-                                        <Skeleton width="80%" height={16} />
-                                        <Skeleton width="60%" height={12} />
-                                    </View>
+                                    <Skeleton width="80%" height={18} />
                                 ) : (
                                     <>
-                                        <View style={styles.statValueRow}>
-                                            <Text style={[styles.statValue, { color: colors.warning }]}>
-                                                {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
-                                            </Text>
-                                        </View>
-                                        <Text style={[styles.statPercent, { color: colors.subText, fontSize: 10 }]}>
+                                        <Text style={{ color: colors.warning, fontSize: 16, fontWeight: '700' }}>
+                                            {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
+                                        </Text>
+                                        <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>
                                             {isHidden ? '•••' : `Anapara: ${formatCurrency(totalCostBasisTry, 'TRY')}`}
                                         </Text>
                                     </>
                                 )}
-                            </GradientCard>
+                            </View>
                         </View>
 
                         {/* Market Insights Cards */}

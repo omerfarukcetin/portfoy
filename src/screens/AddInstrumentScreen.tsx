@@ -218,7 +218,7 @@ export const AddInstrumentScreen = () => {
             } else {
                 // Pass the historical rate and custom category if available
                 const customCat = undefined;
-                const totalCost = parseFloat(amount) * parseFloat(cost);
+                const totalCost = parseFloat(amount.replace(',', '.')) * parseFloat(cost.replace(',', '.'));
 
                 // If using cash reserve, deduct from cash balance
                 if (useFromCash && currency === 'TRY') {
@@ -229,7 +229,7 @@ export const AddInstrumentScreen = () => {
                     await updateCash(-totalCost);
                 }
 
-                await addToPortfolio(selectedInstrument, parseFloat(amount), parseFloat(cost), currency, dateTs, isNaN(rate) ? undefined : rate, undefined, customCat);
+                await addToPortfolio(selectedInstrument, parseFloat(amount.replace(',', '.')), parseFloat(cost.replace(',', '.')), currency, dateTs, isNaN(rate) ? undefined : rate, undefined, customCat);
             }
 
             showAlert('Başarılı', 'Varlık portföye eklendi');

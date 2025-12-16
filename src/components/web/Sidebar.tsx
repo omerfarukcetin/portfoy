@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,10 +9,30 @@ export const Sidebar = () => {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const { user, logout } = useAuth();
+    const [currentRoute, setCurrentRoute] = useState('Summary');
 
-    // Get current route name safely with error handling
-    // FIX: Removing useNavigationState completely to prevent crash as per user experience
-    const currentRoute = 'Summary';
+    // Track route changes on web using navigation events
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            // Initial route detection
+            const path = window.location.hash || window.location.pathname;
+            const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings)/i);
+            if (routeMatch) {
+                setCurrentRoute(routeMatch[1]);
+            }
+
+            // Listen to navigation events
+            const unsubscribe = navigation.addListener('state', () => {
+                const path = window.location.hash || window.location.pathname;
+                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings)/i);
+                if (routeMatch) {
+                    setCurrentRoute(routeMatch[1]);
+                }
+            });
+
+            return unsubscribe;
+        }
+    }, [navigation]);
 
     const menuItems = [
         { name: 'Summary', label: 'Özet', icon: 'home' },

@@ -142,17 +142,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const updateActivePortfolio = async (updates: Partial<Portfolio>) => {
         if (!activePortfolio) return;
 
-        const updatedPortfolio = { ...activePortfolio, ...updates };
-        const newPortfolios = portfolios.map(p =>
-            p.id === activePortfolioId ? updatedPortfolio : p
-        );
-
-        await savePortfolios(newPortfolios);
-
-        // Also update local state immediately
+        // Update local state FIRST for immediate UI feedback
         if (updates.items !== undefined) {
             setPortfolio(updates.items);
-            console.log('✅ Portfolio items updated - count:', updates.items.length);
+            console.log('✅ Portfolio items updated immediately - count:', updates.items.length);
         }
         if (updates.realizedTrades !== undefined) {
             setRealizedTrades(updates.realizedTrades);
@@ -165,6 +158,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setCashItems(updates.cashItems);
             console.log('✅ Cash items updated - count:', updates.cashItems.length);
         }
+
+        // Then save to storage (async, won't block UI)
+        const updatedPortfolio = { ...activePortfolio, ...updates };
+        const newPortfolios = portfolios.map(p =>
+            p.id === activePortfolioId ? updatedPortfolio : p
+        );
+
+        await savePortfolios(newPortfolios);
     };
 
     const loadData = async () => {

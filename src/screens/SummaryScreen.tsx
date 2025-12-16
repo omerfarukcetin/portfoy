@@ -9,7 +9,7 @@ import { usePortfolio } from '../context/PortfolioContext';
 import { useSettings } from '../context/SettingsContext';
 import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
-import { DonutChart } from '../components/DonutChart';
+import { ShareableDonutChart } from '../components/ShareableDonutChart';
 import { PortfolioChart } from '../components/PortfolioChart';
 import { generateRecommendations, Recommendation } from '../services/advisorService';
 import { Skeleton } from '../components/Skeleton';
@@ -535,32 +535,32 @@ export const SummaryScreen = () => {
                                                 <Skeleton width="100%" height={300} />
                                             ) : (
                                                 <>
-                                                    <View style={{ marginBottom: 20 }}>
-                                                        <DonutChart
-                                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                            size={280}
-                                                            strokeWidth={32}
-                                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                            centerTextFontSize={26}
-                                                            centerSubtext="₺"
-                                                            colors={colors}
-                                                        />
-                                                    </View>
-                                                    <View style={{ width: '100%', gap: 4 }}>
-                                                        {pieData.map((item, index) => {
-                                                            const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                            const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-                                                            return (
-                                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-                                                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                                                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 10 }} />
-                                                                        <Text style={{ fontSize: 14 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
-                                                                    </View>
-                                                                    <Text style={{ fontSize: 14 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
-                                                                </View>
-                                                            );
-                                                        })}
-                                                    </View>
+                                                    <ShareableDonutChart
+                                                        data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                        size={280}
+                                                        strokeWidth={32}
+                                                        centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                        centerTextFontSize={26}
+                                                        centerSubtext="₺"
+                                                        colors={colors}
+                                                        legend={
+                                                            <View style={{ width: '100%', gap: 4 }}>
+                                                                {pieData.map((item, index) => {
+                                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                                    return (
+                                                                        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 10 }} />
+                                                                                <Text style={{ fontSize: 14 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                                                            </View>
+                                                                            <Text style={{ fontSize: 14 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
+                                                                        </View>
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        }
+                                                    />
                                                 </>
                                             )}
                                         </GradientCard>
@@ -896,7 +896,7 @@ export const SummaryScreen = () => {
                                             <>
                                                 {/* Left: Chart */}
                                                 <View style={{ marginRight: 20 }}>
-                                                    <DonutChart
+                                                    <ShareableDonutChart
                                                         data={pieData.map(item => ({
                                                             name: item.name,
                                                             value: item.population,
@@ -907,29 +907,29 @@ export const SummaryScreen = () => {
                                                         centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
                                                         centerSubtext="₺"
                                                         colors={colors}
-                                                    />
-                                                </View>
+                                                        legend={
+                                                            <View style={{ flex: 1, justifyContent: 'center' }}>
+                                                                {pieData.map((item, index) => {
+                                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
 
-                                                {/* Right: Legend List */}
-                                                <View style={{ flex: 1, justifyContent: 'center' }}>
-                                                    {pieData.map((item, index) => {
-                                                        const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                        const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-
-                                                        return (
-                                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
-                                                                    <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '500' }} numberOfLines={1}>
-                                                                        {item.name}
-                                                                    </Text>
-                                                                </View>
-                                                                <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '700' }}>
-                                                                    %{percentage}
-                                                                </Text>
+                                                                    return (
+                                                                        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
+                                                                                <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
+                                                                                    {item.name}
+                                                                                </Text>
+                                                                            </View>
+                                                                            <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>
+                                                                                %{percentage}
+                                                                            </Text>
+                                                                        </View>
+                                                                    );
+                                                                })}
                                                             </View>
-                                                        );
-                                                    })}
+                                                        }
+                                                    />
                                                 </View>
                                             </>
                                         )}

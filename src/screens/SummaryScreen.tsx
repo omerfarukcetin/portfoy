@@ -486,6 +486,33 @@ export const SummaryScreen = () => {
                                             </View>
                                         </View>
                                     </GradientCard>
+
+                                    {/* Gerçekleşen Kâr */}
+                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen Kâr</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                                    {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </GradientCard>
+
+                                    {/* Riskteki Para */}
+                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: colors.warning }]} contentStyle={{ padding: 16 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Riskteki Para</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.statValue, { color: colors.warning }]}>
+                                                    {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
+                                                </Text>
+                                                <Text style={[styles.statPercent, { color: colors.subText, fontSize: 11 }]}>
+                                                    {isHidden ? '•••' : `Anapara: ${formatCurrency(totalCostBasisTry, 'TRY')}`}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </GradientCard>
                                 </View>
 
                                 {/* Cash Management */}
@@ -499,7 +526,6 @@ export const SummaryScreen = () => {
                             <View style={{ flex: 1, gap: 16 }}>
                                 {portfolio.length > 0 && (
                                     <View style={[styles.section, { marginTop: 0 }]}>
-                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale, marginLeft: 0, marginBottom: 12 }]}>Portföy Dağılımı</Text>
                                         <GradientCard
                                             variant="secondary"
                                             style={{ borderWidth: 1, borderColor: colors.border }}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
+import { showAlert } from '../utils/alerts';
 import { Feather } from '@expo/vector-icons';
 import { CashItem } from '../types';
 import { MarketDataService } from '../services/marketData';
@@ -165,11 +166,11 @@ export const CashManagementScreen = () => {
             const avgCost = parseFloat(formData.averageCost);
 
             if (isNaN(units) || units <= 0) {
-                Alert.alert('Hata', 'Geçerli bir adet girin');
+                showAlert('Hata', 'Geçerli bir adet girin');
                 return;
             }
             if (isNaN(avgCost) || avgCost <= 0) {
-                Alert.alert('Hata', 'Geçerli bir maliyet girin');
+                showAlert('Hata', 'Geçerli bir maliyet girin');
                 return;
             }
 
@@ -193,12 +194,12 @@ export const CashManagementScreen = () => {
 
         const amount = parseFloat(formData.amount);
         if (isNaN(amount) || amount <= 0) {
-            Alert.alert('Hata', 'Geçerli bir miktar girin');
+            showAlert('Hata', 'Geçerli bir miktar girin');
             return;
         }
 
         if (!formData.name.trim()) {
-            Alert.alert('Hata', 'İsim boş olamaz');
+            showAlert('Hata', 'İsim boş olamaz');
             return;
         }
 
@@ -220,16 +221,19 @@ export const CashManagementScreen = () => {
         setModalVisible(false);
     };
 
-    const handleDelete = (item: CashItem) => {
-        Alert.alert(
+    const handleDelete = async (item: CashItem) => {
+        showAlert(
             'Sil',
-            `${item.name} silinecek.Emin misiniz ? `,
+            `${item.name} silinecek. Emin misiniz?`,
             [
                 { text: 'İptal', style: 'cancel' },
                 {
                     text: 'Sil',
                     style: 'destructive',
-                    onPress: () => deleteCashItem(item.id)
+                    onPress: async () => {
+                        console.log('🗑️ Deleting cash item:', item.id);
+                        await deleteCashItem(item.id);
+                    }
                 }
             ]
         );

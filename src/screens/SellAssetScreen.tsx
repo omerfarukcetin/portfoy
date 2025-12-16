@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
-import { MarketDataService } from '../services/marketData';
 import { useTheme } from '../context/ThemeContext';
-import { formatCurrency } from '../utils/formatting';
+import { showAlert } from '../utils/alerts';
+import { Feather } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const SellAssetScreen = () => {
     const route = useRoute();
@@ -45,7 +46,7 @@ export const SellAssetScreen = () => {
 
     const handleSell = async () => {
         if (!amount || !price) {
-            Alert.alert('Hata', 'Lütfen miktar ve fiyat girin');
+            showAlert('Hata', 'Lütfen miktar ve fiyat girin');
             return;
         }
 
@@ -53,16 +54,16 @@ export const SellAssetScreen = () => {
         const priceNum = parseFloat(price);
 
         if (amountNum > (item?.amount || 0)) {
-            Alert.alert('Hata', 'Sahip olduğunuzdan fazlasını satamazsınız');
+            showAlert('Hata', 'Sahip olduğunuzdan fazlasını satamazsınız');
             return;
         }
 
         try {
             await sellAsset(id, amountNum, priceNum);
-            Alert.alert('Başarılı', 'Satış gerçekleşti');
+            showAlert('Başarılı', 'Satış gerçekleşti');
             navigation.goBack();
         } catch (error) {
-            Alert.alert('Hata', 'Satış işlemi başarısız');
+            showAlert('Hata', 'Satış işlemi başarısız');
         }
     };
 

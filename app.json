@@ -32,9 +32,6 @@
       "eas": {
         "projectId": "d62bbcf7-cca8-4317-8ebd-762afd2c9fc6"
       }
-    },
-    "experiments": {
-      "baseUrl": "/portfoy"
     }
   }
 }

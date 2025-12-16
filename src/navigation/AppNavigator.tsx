@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../context/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Sidebar } from '../components/web/Sidebar';
+import { useSidebarState } from '../hooks/useSidebarState';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -205,11 +206,36 @@ const AuthNavigator = () => {
 // Web-specific Stack Navigator (no tabs, sidebar instead)
 const WebNavigator = () => {
     const { colors } = useTheme();
+    const { isCollapsed, toggleSidebar, isLoading } = useSidebarState();
+
+    if (isLoading) {
+        return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    }
 
     return (
         <View style={{ flex: 1, flexDirection: 'row', width: '100%', height: '100%' }}>
-            <Sidebar />
+            <Sidebar isCollapsed={isCollapsed} />
             <View style={{ flex: 1, backgroundColor: colors.background }}>
+                {/* Toggle Button */}
+                <View style={{ position: 'absolute', top: 20, left: isCollapsed ? 20 : 220, zIndex: 1000 }}>
+                    <TouchableOpacity
+                        onPress={toggleSidebar}
+                        style={{
+                            backgroundColor: colors.cardBackground,
+                            padding: 10,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                        }}
+                    >
+                        <Ionicons name={isCollapsed ? 'menu' : 'close'} size={24} color={colors.text} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Content Container to limit width on large screens */}
                 <View style={{ flex: 1, maxWidth: 1200, width: '100%', alignSelf: 'center' }}>
                     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Summary">

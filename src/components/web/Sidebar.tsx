@@ -5,34 +5,57 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-export const Sidebar = () => {
+interface SidebarProps {
+    isCollapsed?: boolean;
+}
+
+export const Sidebar = ({ isCollapsed = false }: SidebarProps) => {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const { user, logout } = useAuth();
     const [currentRoute, setCurrentRoute] = useState('Summary');
 
-    // Track route changes on web using navigation events
+    // Track route changes on web using multiple methods
     useEffect(() => {
-        if (Platform.OS === 'web') {
-            // Initial route detection
-            const path = window.location.hash || window.location.pathname;
-            const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings)/i);
-            if (routeMatch) {
-                setCurrentRoute(routeMatch[1]);
-            }
-
-            // Listen to navigation events
-            const unsubscribe = navigation.addListener('state', () => {
+        const updateCurrentRoute = () => {
+            // Method 1: Try window.location
+            if (Platform.OS === 'web') {
                 const path = window.location.hash || window.location.pathname;
                 const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings)/i);
                 if (routeMatch) {
-                    setCurrentRoute(routeMatch[1]);
+                    const newRoute = routeMatch[1];
+                    if (newRoute !== currentRoute) {
+                        console.log('📍 Sidebar: Route changed to:', newRoute);
+                        setCurrentRoute(newRoute);
+                    }
+                    return;
                 }
-            });
+            }
 
-            return unsubscribe;
-        }
-    }, [navigation]);
+            // Method 2: Fallback to navigation.getState()
+            try {
+                const state = navigation.getState();
+                const routes = state?.routes || [];
+                const currentRouteObj = routes[state.index];
+                if (currentRouteObj?.name) {
+                    const newRoute = currentRouteObj.name;
+                    if (newRoute !== currentRoute) {
+                        console.log('📍 Sidebar: Route changed to (from state):', newRoute);
+                        setCurrentRoute(newRoute);
+                    }
+                }
+            } catch (e) {
+                console.log('Could not get navigation state:', e);
+            }
+        };
+
+        // Initial detection
+        updateCurrentRoute();
+
+        // Listen to navigation events
+        const unsubscribe = navigation.addListener('state', updateCurrentRoute);
+        return unsubscribe;
+    }, [navigation, currentRoute]);
 
     const menuItems = [
         { name: 'Summary', label: 'Özet', icon: 'home' },
@@ -47,7 +70,15 @@ export const Sidebar = () => {
     };
 
     return (
-        <View style={[styles.sidebar, { backgroundColor: colors.cardBackground, borderRightColor: colors.border }]}>
+        <View style={[
+            styles.sidebar,
+            {
+                backgroundColor: colors.cardBackground,
+                borderRightColor: colors.border,
+                width: isCollapsed ? 0 : 200,
+                overflow: 'hidden'
+            }
+        ]}>
             {/* Logo */}
             <View style={styles.logo}>
                 <Text style={[styles.logoText, { color: colors.primary }]}>Portföy</Text>

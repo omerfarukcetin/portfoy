@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,6 +18,8 @@ export const PortfolioScreen = () => {
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
     const navigation = useNavigation();
+    const { width } = useWindowDimensions();
+    const isLargeScreen = Platform.OS === 'web' && width >= 768;
 
     const [refreshing, setRefreshing] = useState(false);
     const [prices, setPrices] = useState<Record<string, number>>({});
@@ -275,7 +277,7 @@ export const PortfolioScreen = () => {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+            <ScrollView contentContainerStyle={[styles.scrollContent, isLargeScreen && styles.scrollContentWeb]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
                 {Object.keys(categoryValues).map(category => {
                     if (category === 'Yedek Akçe' && categoryValues[category] <= 0) return null;
                     const items = portfolio.filter(i => getCategory(i) === category);
@@ -290,7 +292,7 @@ export const PortfolioScreen = () => {
                     const isProfitable = currentCategoryPL >= 0;
 
                     return (
-                        <View key={category} style={styles.sectionContainer}>
+                        <View key={category} style={[styles.sectionContainer, isLargeScreen && styles.sectionContainerWeb]}>
                             <TouchableOpacity onPress={() => toggleCategory(category)} style={styles.sectionHeader}>
                                 <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
                                 <View style={{ alignItems: 'flex-end' }}>
@@ -430,7 +432,18 @@ const styles = StyleSheet.create({
     },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     scrollContent: { paddingBottom: 100, paddingHorizontal: 16 },
+    scrollContentWeb: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 16,
+    },
     sectionContainer: { marginTop: 20 },
+    sectionContainerWeb: {
+        width: '48%', // 2 columns
+        minWidth: 350,
+        marginTop: 10,
+    },
     sectionHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 10, paddingHorizontal: 4

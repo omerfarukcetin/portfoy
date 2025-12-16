@@ -18,7 +18,7 @@ export const AddInstrumentScreen = () => {
     const [cost, setCost] = useState('');
     const [currency, setCurrency] = useState<'USD' | 'TRY'>('TRY');
     const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
-    const [category, setCategory] = useState<'BIST' | 'ABD' | 'ALTIN' | 'KRIPTO' | 'FON' | 'BES'>('BIST');
+    const [category, setCategory] = useState<'BIST' | 'ABD' | 'EMTIA' | 'KRIPTO' | 'FON' | 'BES' | 'DIGER'>('BIST');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [historicalRate, setHistoricalRate] = useState('');
 
@@ -27,20 +27,26 @@ export const AddInstrumentScreen = () => {
     const [cryptoResults, setCryptoResults] = useState<any[]>([]);
     const [isSearchingCrypto, setIsSearchingCrypto] = useState(false);
 
-    // BES States
+    // BES States (simplified: principal and profit only)
     const [besPrincipal, setBesPrincipal] = useState('');
-    const [besStateContrib, setBesStateContrib] = useState('');
-    const [besStateContribYield, setBesStateContribYield] = useState('');
-    const [besPrincipalYield, setBesPrincipalYield] = useState('');
+    const [besProfit, setBesProfit] = useState('');
 
-    const { addToPortfolio } = usePortfolio();
+    // Custom category states (for DIGER)
+    const [customAssetName, setCustomAssetName] = useState('');
+    const [customCategoryName, setCustomCategoryName] = useState('');
+    const [customCurrentUnitPrice, setCustomCurrentUnitPrice] = useState(''); // Current unit price for DIGER
+
+    // Cash source toggle
+    const [useFromCash, setUseFromCash] = useState(false);
+
+    const { addToPortfolio, updateCash, cashBalance } = usePortfolio();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-    const { colors } = useTheme();
+    const { colors, fonts } = useTheme();
     const navigation = useNavigation();
 
-    // Auto-load for Gold/BES/Crypto when tab changes
+    // Auto-load for Emtia/BES when tab changes
     useEffect(() => {
-        if (category === 'ALTIN' || category === 'BES') {
+        if (category === 'EMTIA' || category === 'BES') {
             handleSearch('');
         } else {
             setResults([]);
@@ -102,9 +108,11 @@ export const AddInstrumentScreen = () => {
 
     const handleSearch = async (text: string) => {
         setQuery(text);
-        if (text.length > 0 || category === 'ALTIN' || category === 'BES') {
+        if (text.length > 0 || category === 'EMTIA' || category === 'BES') {
             setLoading(true);
-            const data = await MarketDataService.searchInstruments(text, category);
+            // Map EMTIA to ALTIN for MarketDataService compatibility
+            const searchCategory = category === 'EMTIA' ? 'ALTIN' : category;
+            const data = await MarketDataService.searchInstruments(text, searchCategory as any);
             setResults(data);
             setLoading(false);
         } else {
@@ -130,8 +138,14 @@ export const AddInstrumentScreen = () => {
 
         // Validation for BES
         if (category === 'BES') {
-            if (!besPrincipal || !besStateContrib || !besStateContribYield || !besPrincipalYield) {
-                Alert.alert('Hata', 'Lütfen tüm BES alanlarını doldurun');
+            if (!besPrincipal || !besProfit) {
+                Alert.alert('Hata', 'Lütfen Ana Para ve Kâr alanlarını doldurun');
+                return;
+            }
+        } else if (category === 'DIGER') {
+            // DIGER: Need amount, cost, and current unit price
+            if (!amount || !cost || !customCurrentUnitPrice) {
+                Alert.alert('Hata', 'Lütfen adet, maliyet ve güncel birim fiyatı girin');
                 return;
             }
         } else {
@@ -153,27 +167,56 @@ export const AddInstrumentScreen = () => {
         try {
             if (category === 'BES') {
                 const principal = parseFloat(besPrincipal.replace(',', '.'));
-                const state = parseFloat(besStateContrib.replace(',', '.'));
-                const stateYield = parseFloat(besStateContribYield.replace(',', '.'));
-                const principalYield = parseFloat(besPrincipalYield.replace(',', '.'));
+                const profit = parseFloat(besProfit.replace(',', '.'));
+                const totalValue = principal + profit; // Current total value
 
                 await addToPortfolio(
                     selectedInstrument,
                     1, // Amount is 1 for BES
-                    principal, // Cost is principal
+                    principal, // Cost is principal (ana para)
                     'TRY',
                     dateTs,
                     undefined,
                     {
                         principal,
-                        stateContrib: state,
-                        stateContribYield: stateYield,
-                        principalYield: principalYield
+                        stateContrib: 0, // Not tracked separately
+                        stateContribYield: 0,
+                        principalYield: profit // Total profit
                     }
                 );
+            } else if (category === 'DIGER') {
+                // DIGER: Use amount, cost (averageCost), and customCurrentUnitPrice
+                const customCat = customCategoryName || 'Diğer';
+                const amountVal = parseFloat(amount.replace(',', '.'));
+                const costVal = parseFloat(cost.replace(',', '.')); // This is averageCost per unit
+                const currentPriceVal = parseFloat(customCurrentUnitPrice.replace(',', '.'));
+
+                await addToPortfolio(
+                    selectedInstrument,
+                    amountVal,
+                    costVal, // averageCost per unit
+                    'TRY',
+                    dateTs,
+                    isNaN(rate) ? undefined : rate,
+                    undefined, // no besData
+                    customCat,
+                    { name: customAssetName, currentPrice: currentPriceVal } // customData
+                );
             } else {
-                // Pass the historical rate if available
-                await addToPortfolio(selectedInstrument, parseFloat(amount), parseFloat(cost), currency, dateTs, isNaN(rate) ? undefined : rate);
+                // Pass the historical rate and custom category if available
+                const customCat = undefined;
+                const totalCost = parseFloat(amount) * parseFloat(cost);
+
+                // If using cash reserve, deduct from cash balance
+                if (useFromCash && currency === 'TRY') {
+                    if (totalCost > cashBalance) {
+                        Alert.alert('Hata', 'Yedek akçe bakiyesi yetersiz!');
+                        return;
+                    }
+                    await updateCash(-totalCost);
+                }
+
+                await addToPortfolio(selectedInstrument, parseFloat(amount), parseFloat(cost), currency, dateTs, isNaN(rate) ? undefined : rate, undefined, customCat);
             }
 
             Alert.alert('Başarılı', 'Varlık portföye eklendi');
@@ -190,11 +233,11 @@ export const AddInstrumentScreen = () => {
             {!selectedInstrument ? (
                 <>
                     <View style={styles.tabContainer}>
-                        {['BIST', 'ABD', 'ALTIN', 'KRIPTO', 'FON', 'BES'].map((cat) => (
+                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DİĞER'].map((cat) => (
                             <TouchableOpacity
                                 key={cat}
-                                style={[styles.tab, category === cat && { backgroundColor: colors.primary }]}
-                                onPress={() => setCategory(cat as any)}
+                                style={[styles.tab, category === (cat === 'DİĞER' ? 'DIGER' : cat) && { backgroundColor: colors.primary }]}
+                                onPress={() => setCategory((cat === 'DİĞER' ? 'DIGER' : cat) as any)}
                             >
                                 <Text style={[styles.tabText, { color: category === cat ? '#fff' : colors.subText }]}>{cat}</Text>
                             </TouchableOpacity>
@@ -216,40 +259,99 @@ export const AddInstrumentScreen = () => {
                                 <FlatList
                                     data={cryptoResults}
                                     keyExtractor={item => item.id}
-                                    renderItem={({ item }) => (
-                                        <TouchableOpacity
-                                            style={[styles.cryptoItem, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                            onPress={() => {
-                                                // Use CoinGecko ID for both id and instrumentId
-                                                setSelectedInstrument({
-                                                    id: item.id,  // CoinGecko ID (e.g., "worldcoin")
-                                                    symbol: item.symbol.toUpperCase(),  // Display symbol (e.g., "WLD")
-                                                    name: item.name,  // Display name (e.g., "Worldcoin")
-                                                    type: 'crypto',
-                                                    instrumentId: item.id  // IMPORTANT: Use CoinGecko ID, not symbol!
-                                                } as Instrument);
-                                                setCryptoQuery('');
-                                                setCurrency('USD');
-                                            }}
-                                        >
-                                            <Image source={{ uri: item.thumb }} style={styles.cryptoLogo} />
-                                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                                <Text style={[styles.cryptoName, { color: colors.text }]}>{item.name}</Text>
-                                                <Text style={[styles.cryptoSymbol, { color: colors.subText }]}>{item.symbol.toUpperCase()}</Text>
-                                            </View>
-                                            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                                        </TouchableOpacity>
-                                    )}
+                                    renderItem={({ item }) => {
+                                        const cryptoInstrument = {
+                                            id: item.id,
+                                            symbol: item.symbol.toUpperCase(),
+                                            name: item.name,
+                                            type: 'crypto' as const,
+                                            instrumentId: item.id
+                                        };
+
+                                        return (
+                                            <TouchableOpacity
+                                                style={[styles.cryptoItem, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                                                onPress={() => {
+                                                    setSelectedInstrument(cryptoInstrument as Instrument);
+                                                    setCryptoQuery('');
+                                                    setCurrency('USD');
+                                                }}
+                                            >
+                                                <Image source={{ uri: item.thumb }} style={styles.cryptoLogo} />
+                                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                                    <Text style={[styles.cryptoName, { color: colors.text }]}>{item.name}</Text>
+                                                    <Text style={[styles.cryptoSymbol, { color: colors.subText }]}>{item.symbol.toUpperCase()}</Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={{ padding: 8, marginRight: 8 }}
+                                                    onPress={() => {
+                                                        if (isFavorite(item.id)) {
+                                                            removeFavorite(item.id);
+                                                        } else {
+                                                            addFavorite(cryptoInstrument as Instrument);
+                                                        }
+                                                    }}
+                                                >
+                                                    <Ionicons
+                                                        name={isFavorite(item.id) ? "star" : "star-outline"}
+                                                        size={24}
+                                                        color={isFavorite(item.id) ? "#FFD700" : colors.subText}
+                                                    />
+                                                </TouchableOpacity>
+                                                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                                            </TouchableOpacity>
+                                        );
+                                    }}
                                 />
                             ) : cryptoQuery.length >= 2 ? (
                                 <Text style={[styles.emptyText, { color: colors.subText }]}>Sonuç bulunamadı</Text>
                             ) : null}
                         </>
+                    ) : category === 'DIGER' ? (
+                        <View style={{ padding: 20 }}>
+                            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 16 }]}>Özel Varlık Ekle</Text>
+
+                            <Text style={[styles.label, { color: colors.text }]}>Varlık Adı</Text>
+                            <TextInput
+                                style={[styles.searchInput, { backgroundColor: colors.inputBackground, color: colors.text, marginBottom: 16 }]}
+                                placeholder="Örn: Gayrimenkul, Araba, Tahvil"
+                                placeholderTextColor={colors.subText}
+                                value={customAssetName}
+                                onChangeText={setCustomAssetName}
+                            />
+
+                            <Text style={[styles.label, { color: colors.text }]}>Kategori Adı</Text>
+                            <TextInput
+                                style={[styles.searchInput, { backgroundColor: colors.inputBackground, color: colors.text, marginBottom: 16 }]}
+                                placeholder="Örn: Gayrimenkul, Araç, Tahvil"
+                                placeholderTextColor={colors.subText}
+                                value={customCategoryName}
+                                onChangeText={setCustomCategoryName}
+                            />
+
+                            {customAssetName && customCategoryName && (
+                                <TouchableOpacity
+                                    style={[styles.customAddButton, { backgroundColor: colors.primary }]}
+                                    onPress={() => {
+                                        const customInstrument: Instrument = {
+                                            id: `custom_${Date.now()}`,
+                                            symbol: customAssetName.toUpperCase(),
+                                            name: customAssetName,
+                                            type: 'custom' as any
+                                        };
+                                        setSelectedInstrument(customInstrument);
+                                        setCurrency('TRY');
+                                    }}
+                                >
+                                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Devam Et</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     ) : (
                         <>
                             <TextInput
                                 style={[styles.searchInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
-                                placeholder={`${category} Ara...`}
+                                placeholder={`${category === 'EMTIA' ? 'Altın / Gümüş' : category} Ara...`}
                                 placeholderTextColor={colors.subText}
                                 value={query}
                                 onChangeText={handleSearch}
@@ -315,45 +417,126 @@ export const AddInstrumentScreen = () => {
 
                     {category === 'BES' ? (
                         <>
-                            <Text style={[styles.label, { color: colors.subText }]}>Yatırılan Tutar (Ana Para)</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                keyboardType="numeric"
-                                value={besPrincipal}
-                                onChangeText={setBesPrincipal}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.subText}
-                            />
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText }]}>Ana Para (₺)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                        keyboardType="numeric"
+                                        value={besPrincipal}
+                                        onChangeText={setBesPrincipal}
+                                        placeholder="50.000"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText }]}>Kâr / Zarar (₺)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                        keyboardType="numeric"
+                                        value={besProfit}
+                                        onChangeText={setBesProfit}
+                                        placeholder="12.500"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                            </View>
 
-                            <Text style={[styles.label, { color: colors.subText }]}>Devlet Katkısı</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                keyboardType="numeric"
-                                value={besStateContrib}
-                                onChangeText={setBesStateContrib}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.subText}
-                            />
+                            {besPrincipal && besProfit && (
+                                <View style={{ marginTop: 8, padding: 12, backgroundColor: colors.background, borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={{ color: colors.subText, fontSize: 13 }}>Güncel Değer:</Text>
+                                    <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
+                                        ₺{(parseFloat(besPrincipal.replace(',', '.') || '0') + parseFloat(besProfit.replace(',', '.') || '0')).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                    </Text>
+                                </View>
+                            )}
+                        </>
+                    ) : category === 'DIGER' ? (
+                        <>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>Adet</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, height: 44 }]}
+                                        keyboardType="numeric"
+                                        value={amount}
+                                        onChangeText={setAmount}
+                                        placeholder="100"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>Maliyet (₺)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, height: 44 }]}
+                                        keyboardType="numeric"
+                                        value={cost}
+                                        onChangeText={setCost}
+                                        placeholder="100"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>Güncel (₺)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, height: 44 }]}
+                                        keyboardType="numeric"
+                                        value={customCurrentUnitPrice}
+                                        onChangeText={setCustomCurrentUnitPrice}
+                                        placeholder="120"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                            </View>
 
-                            <Text style={[styles.label, { color: colors.subText }]}>Devlet Katkısı Getirisi</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                keyboardType="numeric"
-                                value={besStateContribYield}
-                                onChangeText={setBesStateContribYield}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.subText}
-                            />
+                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>Tarih</Text>
+                                    <TouchableOpacity
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center', height: 44 }]}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 14 }}>{dateStr}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.label, { color: colors.subText, fontSize: 12 }]}>USD/TRY Kuru</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border, height: 44 }]}
+                                        keyboardType="numeric"
+                                        value={historicalRate}
+                                        onChangeText={setHistoricalRate}
+                                        placeholder="Oto"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </View>
+                            </View>
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={new Date(dateStr)}
+                                    mode="date"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowDatePicker(false);
+                                        if (selectedDate) {
+                                            setDateStr(selectedDate.toISOString().split('T')[0]);
+                                        }
+                                    }}
+                                />
+                            )}
+                            {loading && <ActivityIndicator size="small" style={{ marginTop: 8 }} />}
 
-                            <Text style={[styles.label, { color: colors.subText }]}>Yatırılan Tutarın Getirisi</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                keyboardType="numeric"
-                                value={besPrincipalYield}
-                                onChangeText={setBesPrincipalYield}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.subText}
-                            />
+                            {amount && cost && customCurrentUnitPrice && (
+                                <View style={{ marginTop: 12, padding: 10, backgroundColor: colors.background, borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View>
+                                        <Text style={{ color: colors.subText, fontSize: 11 }}>Maliyet: ₺{(parseFloat(amount || '0') * parseFloat(cost || '0')).toLocaleString('tr-TR')}</Text>
+                                        <Text style={{ color: colors.subText, fontSize: 11 }}>Değer: ₺{(parseFloat(amount || '0') * parseFloat(customCurrentUnitPrice || '0')).toLocaleString('tr-TR')}</Text>
+                                    </View>
+                                    <Text style={{ color: (parseFloat(customCurrentUnitPrice || '0') >= parseFloat(cost || '0')) ? '#22c55e' : '#ef4444', fontSize: 15, fontWeight: '700' }}>
+                                        {parseFloat(customCurrentUnitPrice || '0') >= parseFloat(cost || '0') ? '+' : ''}₺{((parseFloat(amount || '0') * parseFloat(customCurrentUnitPrice || '0')) - (parseFloat(amount || '0') * parseFloat(cost || '0'))).toLocaleString('tr-TR')}
+                                    </Text>
+                                </View>
+                            )}
                         </>
                     ) : (
                         <>
@@ -424,6 +607,29 @@ export const AddInstrumentScreen = () => {
                                 </View>
                             </View>
                         </>
+                    )}
+
+                    {/* Cash Source Toggle - Only for TRY purchases and non-BES */}
+                    {category !== 'BES' && currency === 'TRY' && (
+                        <View style={[styles.cashToggleContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.label, { color: colors.text, marginBottom: 2 }]}>Yedek Akçeden Kullan</Text>
+                                <Text style={{ color: colors.subText, fontSize: 12 }}>
+                                    Bakiye: {cashBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                style={[
+                                    styles.toggleButton,
+                                    { backgroundColor: useFromCash ? colors.primary : colors.background, borderColor: colors.border }
+                                ]}
+                                onPress={() => setUseFromCash(!useFromCash)}
+                            >
+                                <Text style={{ color: useFromCash ? '#fff' : colors.text, fontWeight: '600' }}>
+                                    {useFromCash ? 'Evet' : 'Hayır'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
 
                     <View style={styles.buttons}>
@@ -633,5 +839,30 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 40,
         fontSize: 14,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    customAddButton: {
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    cashToggleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 20,
+    },
+    toggleButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
     },
 });

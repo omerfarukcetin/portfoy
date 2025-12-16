@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { usePortfolio } from '../context/PortfolioContext';
+import { NewsService } from '../services/newsService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Message {
@@ -14,16 +15,16 @@ interface Message {
 }
 
 const SUGGESTED_COMMANDS = [
-    { id: 'analyze', text: 'Portföyümü Analiz Et', icon: 'pie-chart' },
+    { id: 'analyze', text: 'Analiz Et', icon: 'pie-chart' },
+    { id: 'news', text: 'Haberler', icon: 'newspaper' },
     { id: 'risk', text: 'Risk Durumum', icon: 'alert-circle' },
-    { id: 'advice', text: 'Yatırım Tavsiyesi', icon: 'bulb' },
-    { id: 'cash', text: 'Nakit Durumu', icon: 'wallet' },
-    { id: 'gold', text: 'Altın Oranı', icon: 'trending-up' },
+    { id: 'advice', text: 'Tavsiye Ver', icon: 'bulb' },
+    { id: 'cash', text: 'Nakit', icon: 'wallet' },
 ];
 
 export const AIAnalysisScreen = () => {
-    const { colors, fontScale } = useTheme();
-    const { getPortfolioTotalValue, getPortfolioDistribution, portfolios, activePortfolioId } = usePortfolio();
+    const { colors, fontScale, fonts } = useTheme();
+    const { getPortfolioTotalValue, getPortfolioDistribution, portfolios, activePortfolioId, history, portfolio } = usePortfolio();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -67,37 +68,57 @@ export const AIAnalysisScreen = () => {
     const processUserMessage = async (text: string) => {
         setIsTyping(true);
 
-        setTimeout(() => {
-            const lowerText = text.toLowerCase();
-            let responseText = '';
-            let analysisData = null;
-            let msgType: 'text' | 'analysis' = 'text';
+        // Simulate "thinking" time but allow async calls
+        const lowerText = text.toLowerCase();
+        let responseText = '';
+        let analysisData = null;
+        let msgType: 'text' | 'analysis' = 'text';
 
+        try {
             const analysis = generateDetailedAnalysis();
 
-            if (lowerText.includes('analiz') || lowerText.includes('durum') || lowerText.includes('özet')) {
-                responseText = formatAnalysisResponse(analysis);
+            if (lowerText.includes('haber') || lowerText.includes('gündem')) {
+                // Fetch News
+                const keywords = portfolio.length > 0
+                    ? portfolio.slice(0, 3).map(p => p.instrumentId.replace('.IS', ''))
+                    : ['Borsa İstanbul', 'Ekonomi'];
+                if (portfolio.length > 0) keywords.push('Borsa İstanbul');
+
+                const newsItems = await NewsService.fetchNews(keywords);
+                const relevantNews = newsItems.slice(0, 5);
+
+                if (relevantNews.length > 0) {
+                    responseText = `📰 **Piyasa Gündemi**\n\n` +
+                        relevantNews.map(n => `• ${n.title}`).join('\n\n') +
+                        `\n\n(Detaylar için ana sayfadaki piyasa raporuna bakabilirsin.)`;
+                } else {
+                    responseText = 'Şu an sizin için önemli bir haber bulamadım.';
+                }
+
+            } else if (lowerText.includes('analiz') || lowerText.includes('durum') || lowerText.includes('özet')) {
+                // Use Dynamic Response
+                responseText = generateDynamicResponse(analysis);
                 analysisData = analysis;
                 msgType = 'analysis';
             } else if (lowerText.includes('risk')) {
                 responseText = `📊 **Risk Analizi**\n\nRisk Skorun: **${analysis.riskScore}/10**\n\n${analysis.riskAssessment}`;
-            } else if (lowerText.includes('tavsiye') || lowerText.includes('öneri')) {
-                const suggestions = analysis.insights.filter(i => i.type === 'suggestion' || i.type === 'warning');
+            } else if (lowerText.includes('tavsiye') || lowerText.includes('öneri') || lowerText.includes('ne yapayım')) {
+                const suggestions = analysis.insights.filter((i: any) => i.type === 'suggestion' || i.type === 'warning' || i.type === 'opportunity');
                 if (suggestions.length > 0) {
-                    responseText = '💡 **Sana Özel Önerilerim:**\n\n' + suggestions.map(s => `• ${s.message}`).join('\n\n');
+                    responseText = '💡 **Sana Özel Önerilerim:**\n\n' + suggestions.map((s: any) => `• ${s.message}`).join('\n\n');
                 } else {
                     responseText = '✅ **Harika!**\n\nPortföyün şu an gayet dengeli görünüyor. Mevcut stratejine devam edebilirsin.';
                 }
             } else if (lowerText.includes('nakit')) {
-                const cashInfo = analysis.distribution.find(d => d.name === 'Nakit (TL)');
+                const cashInfo = analysis.distribution.find((d: any) => d.name === 'Nakit (TL)');
                 const ratio = cashInfo ? (cashInfo.value / analysis.totalValue * 100).toFixed(1) : '0';
                 responseText = `💰 **Nakit Durumu**\n\nPortföyünün **%${ratio}**'si nakitte.\n\n${Number(ratio) < 10 ? '⚠️ Nakit oranın düşük. Acil durumlar ve fırsatlar için en az %10 nakit tutmanı öneririm.' : '✅ Nakit oranın sağlıklı seviyede.'}`;
             } else if (lowerText.includes('altın')) {
-                const goldInfo = analysis.distribution.find(d => d.name === 'Altın');
+                const goldInfo = analysis.distribution.find((d: any) => d.name === 'Altın');
                 const ratio = goldInfo ? (goldInfo.value / analysis.totalValue * 100).toFixed(1) : '0';
                 responseText = `🥇 **Altın Durumu**\n\nPortföyünün **%${ratio}**'si altında.\n\n${Number(ratio) < 10 ? '⚠️ Enflasyona karşı koruma ("Hedge") için altın oranını %10-15 seviyesine çıkarabilirsin.' : '✅ Altın oranın gayet iyi.'}`;
             } else {
-                responseText = 'Anladığımdan emin değilim. Aşağıdaki butonları kullanarak portföyünü analiz etmemi isteyebilirsin.';
+                responseText = 'Anladığımdan emin değilim. Aşağıdaki butonları kullanarak portföyünü analiz etmemi veya haberleri sormamı isteyebilirsin.';
             }
 
             const aiMsg: Message = {
@@ -110,8 +131,61 @@ export const AIAnalysisScreen = () => {
             };
 
             addMessage(aiMsg);
+        } catch (error) {
+            console.error(error);
+            addMessage({
+                id: Date.now().toString(),
+                text: 'Bir hata oluştu, lütfen tekrar dene.',
+                sender: 'ai',
+                type: 'text',
+                timestamp: Date.now()
+            });
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
+    };
+
+    const generateDynamicResponse = (analysis: any) => {
+        // 1. Time-based Greeting
+        const hour = new Date().getHours();
+        let greeting = '';
+        if (hour < 11) greeting = ['Günaydın! ☀️', 'Sabah şeriflerin hayrolsun.', 'Güne güzel başlayalım!'].sort(() => 0.5 - Math.random())[0];
+        else if (hour > 18) greeting = ['İyi akşamlar. 🌙', 'Günün yorgunluğunu portföyünü inceleyerek atalım.', 'Akşam analizi hazır.'].sort(() => 0.5 - Math.random())[0];
+        else greeting = ['Selam! 👋', 'Merhabalar.', 'Portföy koçun iş başında.'].sort(() => 0.5 - Math.random())[0];
+
+        // 2. High Level Sentiment
+        const totalValueStr = analysis.totalValue.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
+        let sentiment = '';
+
+        // Find Best/Worst performers from distribution (this is simplified as distribution doesn't hold change, we need portfolio items or daily changes passed in)
+        // But we have insights generated from weekly changes.
+        const weeklyInsight = analysis.insights.find((i: any) => i.title.includes('Haftalık'));
+
+        if (analysis.riskScore >= 8) {
+            sentiment = `Portföyün oldukça yüksek riskli (${analysis.riskScore}/10). Adrenalin seviyorsun belli ki! 🎢`;
+        } else if (analysis.riskScore <= 3) {
+            sentiment = `Gayet sağlamcı ve defansif bir yapın var (${analysis.riskScore}/10). "Az olsun öz olsun" diyorsun. 🛡️`;
+        } else {
+            sentiment = `Dengeli bir portföy kurmuşsun (${analysis.riskScore}/10). Hem koruma hem büyüme odaklı. ⚖️`;
+        }
+
+        let specificComment = '';
+        // 3. Asset Specific Commentary (Randomized)
+        const assets = analysis.distribution.filter((d: any) => d.name !== 'Nakit (TL)');
+        if (assets.length > 0) {
+            const randomAsset = assets[Math.floor(Math.random() * assets.length)];
+            const ratio = (randomAsset.value / analysis.totalValue * 100).toFixed(0);
+
+            const comments = [
+                `${randomAsset.name} portföyünün %${ratio}'sini oluşturuyor. Bu varlığa güvenin tam gibi.`,
+                `Gözüm ${randomAsset.name} üzerinde, portföyündeki ağırlığı %${ratio}.`,
+                `${randomAsset.name} stratejinin önemli bir parçası (%${ratio}).`
+            ];
+            specificComment = comments[Math.floor(Math.random() * comments.length)];
+        }
+
+        // 4. Construct Response
+        return `${greeting}\n\nBugün toplam varlığın **${totalValueStr}** seviyesinde.\n\n${sentiment}\n\n${specificComment}\n\n${weeklyInsight ? `🗓️ **Özet:** ${weeklyInsight.message}` : ''}`;
     };
 
     const generateDetailedAnalysis = () => {
@@ -133,17 +207,17 @@ export const AIAnalysisScreen = () => {
         const cashRatio = cashDist ? (cashDist.value / totalValue) * 100 : 0;
         const stockRatio = stockDist ? (stockDist.value / totalValue) * 100 : 0;
 
-        // --- Risk Calculation ---
-        if (cryptoRatio > 60) riskScore += 9;
-        else if (cryptoRatio > 40) riskScore += 7;
-        else if (cryptoRatio > 20) riskScore += 5;
-        else if (cryptoRatio > 0) riskScore += 3;
+        // --- Risk Calculation (Refined) ---
+        // Base Score: 3 (Balanced)
+        riskScore = 3;
 
-        if (stockRatio > 50) riskScore += 2;
+        if (cryptoRatio > 50) riskScore += 5; // Very risky
+        else if (cryptoRatio > 25) riskScore += 3;
 
-        if (goldRatio > 20) riskScore -= 2;
-        if (cashRatio > 20) riskScore -= 2;
-        if (fundDist && (fundDist.value / totalValue * 100) > 30) riskScore -= 1;
+        if (stockRatio > 60) riskScore += 2;
+
+        if (goldRatio > 20) riskScore -= 1; // Hedge
+        if (cashRatio > 25) riskScore -= 2; // Liquid
 
         riskScore = Math.max(1, Math.min(10, riskScore));
 
@@ -156,21 +230,45 @@ export const AIAnalysisScreen = () => {
 
         // --- Insight Generation ---
 
+        // 0. Weekly Performance (History Analysis)
+        if (history && history.length >= 7) {
+            const weekAgo = history[history.length - 7];
+            const currentVal = history[history.length - 1]?.valueTry || totalValue;
+
+            if (weekAgo && weekAgo.valueTry > 0) {
+                const weeklyChange = ((currentVal - weekAgo.valueTry) / weekAgo.valueTry) * 100;
+
+                if (weeklyChange < -3) {
+                    insights.push({
+                        type: 'warning',
+                        title: 'Haftalık Düşüş',
+                        message: `Son 1 haftada %${Math.abs(weeklyChange).toFixed(1)} erime var. Piyasalar biraz tatsız.`
+                    });
+                } else if (weeklyChange > 5) {
+                    insights.push({
+                        type: 'suggestion',
+                        title: 'Güçlü Performans',
+                        message: `Son 1 hafta harika geçti! Portföyün %${weeklyChange.toFixed(1)} büyüdü. 🚀`
+                    });
+                }
+            }
+        }
+
         // 1. Crypto Analysis
         if (cryptoRatio > 50) {
             insights.push({
                 type: 'warning',
-                title: 'Yüksek Volatilite Riski',
-                message: `Portföyünün %${cryptoRatio.toFixed(0)}'ı kripto paralarda. Bu oran çok yüksek risk taşıyor. Ani düşüşlerde portföyün ciddi değer kaybedebilir. Kripto oranını %30'un altına çekmeyi düşünebilirsin.`
+                title: 'Yüksek Kripto Riski',
+                message: `Portföyünün yarısından fazlası (%${cryptoRatio.toFixed(0)}) kriptoda. Kalbin dayanıyorsa sorun yok ama dikkatli ol!`
             });
         }
 
         // 2. Gold Analysis
-        if (goldRatio < 10) {
+        if (goldRatio < 5) {
             insights.push({
                 type: 'suggestion',
-                title: 'Güvenli Liman Eksikliği',
-                message: 'Portföyünde yeterince Altın yok. Piyasa belirsizliklerinde ve enflasyona karşı korunmak için %10-15 oranında Altın bulundurmak sağlıklı bir stratejidir.'
+                title: 'Altın Eksikliği',
+                message: 'Hiç "yastık altı" yapmamışsın. Portföyüne biraz Altın eklemek fırtınalı günlerde sığınağın olabilir.'
             });
         }
 
@@ -178,30 +276,21 @@ export const AIAnalysisScreen = () => {
         if (cashRatio < 5) {
             insights.push({
                 type: 'critical',
-                title: 'Nakit (Yedek Akçe) Yetersiz',
-                message: 'Portföyünde neredeyse hiç nakit yok. Olası piyasa düşüşlerinde alım fırsatlarını değerlendiremezsin. Ayrıca acil durumlar için portföyünün en az %10\'unu likit fona veya nakitte tutmalısın.'
+                title: 'Nakit Sıkıntısı',
+                message: 'Cebinde neredeyse hiç nakit yok. Fırsat çıkarsa trene uzaktan bakarsın. Biraz nakit (veya likit fon) iyidir.'
             });
-        } else if (cashRatio > 50) {
+        } else if (cashRatio > 60) {
             insights.push({
                 type: 'info',
-                title: 'Aşırı Nakit Tutuyorsun',
-                message: 'Portföyünün yarısından fazlası nakitte. Enflasyon karşısında paran eriyor olabilir. Düşük riskli Yatırım Fonları veya Temettü hisseleri ile değerlendirebilirsin.'
-            });
-        }
-
-        // 4. Diversification Analysis
-        if (assetCount < 3) {
-            insights.push({
-                type: 'suggestion',
-                title: 'Çeşitlendirme Yapmalısın',
-                message: 'Yumurtaları aynı sepete koyuyorsun. Sadece 1-2 varlık sınıfına yatırım yapmak riski artırır. Fon, Döviz veya Yabancı Hisse Senetleri ekleyerek riski dağıtabilirsin.'
+                title: 'Nakit Kraldır (Ama Fazlası değil)',
+                message: 'Çok fazla nakitte bekliyorsun (%${cashRatio.toFixed(0)}). Enflasyon paranı kemiriyor olabilir.'
             });
         }
 
         let riskAssessment = '';
-        if (riskScore >= 8) riskAssessment = 'Portföyün **Çok Yüksek Riskli**. Agresif büyüme hedefliyorsan normal, ancak sermaye koruma önceliğin varsa bu yapı tehlikeli.';
-        else if (riskScore >= 5) riskAssessment = 'Portföyün **Orta Riskli**. Büyüme ve koruma arasında bir denge var.';
-        else riskAssessment = 'Portföyün **Düşük Riskli (Muhafazakar)**. Sermaye koruma odaklısın, ancak getiri potansiyelin sınırlı olabilir.';
+        if (riskScore >= 8) riskAssessment = 'Portföyün **Çok Yüksek Riskli**. Kemerleri bağla! 🎢';
+        else if (riskScore >= 5) riskAssessment = 'Portföyün **Orta Riskli**. Dengeli gidiyoruz.';
+        else riskAssessment = 'Portföyün **Düşük Riskli**. Sağlamcısın.';
 
         return {
             riskScore,
@@ -213,33 +302,7 @@ export const AIAnalysisScreen = () => {
         };
     };
 
-    const formatAnalysisResponse = (analysis: any) => {
-        let response = `📋 **Portföy Analiz Raporu**\n\n`;
 
-        response += `💰 **Genel Durum**\n`;
-        response += `Toplam Varlık: **${analysis.totalValue.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}**\n`;
-        response += `Risk Skoru: **${analysis.riskScore}/10** (${analysis.riskScore > 7 ? 'Yüksek' : analysis.riskScore > 4 ? 'Orta' : 'Düşük'})\n\n`;
-
-        response += `🔍 **Tespitler**\n`;
-        if (analysis.insights.length > 0) {
-            analysis.insights.forEach((insight: any) => {
-                const icon = insight.type === 'critical' ? '⛔' : insight.type === 'warning' ? '⚠️' : '💡';
-                response += `${icon} **${insight.title}**\n${insight.message}\n\n`;
-            });
-        } else {
-            response += `✅ Portföy dağılımın gayet dengeli ve sağlıklı görünüyor.\n\n`;
-        }
-
-        response += `⚖️ **Varlık Dağılımı**\n`;
-        analysis.distribution.forEach((d: any) => {
-            const ratio = (d.value / analysis.totalValue * 100).toFixed(1);
-            if (Number(ratio) > 1) {
-                response += `• ${d.name}: %${ratio}\n`;
-            }
-        });
-
-        return response;
-    };
 
     const renderMessage = ({ item }: { item: Message }) => {
         const isUser = item.sender === 'user';

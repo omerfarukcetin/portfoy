@@ -194,8 +194,18 @@ export const MarketDataService = {
                 let priceData: Partial<Instrument> | null = null;
 
                 try {
+                    // Skip custom assets - they have manual prices
+                    if (item.customCurrentPrice || item.instrumentId.startsWith('custom_')) {
+                        priceData = {
+                            symbol: item.instrumentId,
+                            name: item.customName || item.instrumentId,
+                            currentPrice: item.customCurrentPrice || item.averageCost,
+                            currency: 'TRY',
+                            lastUpdated: Date.now()
+                        };
+                    }
                     // Crypto - check by instrumentId or type
-                    if (item.type === 'crypto' || CRYPTO_ID_TO_SYMBOL[item.instrumentId]) {
+                    else if (item.type === 'crypto' || CRYPTO_ID_TO_SYMBOL[item.instrumentId]) {
                         priceData = await MarketDataService.getCryptoPrice(item.instrumentId.toLowerCase());
                     }
                     // Gold types
@@ -218,18 +228,30 @@ export const MarketDataService = {
                         const subtype = id.includes('ONS') ? 'ons' : 'gram';
                         priceData = await MarketDataService.getSilverPrice(subtype);
                     }
-                    // TEFAS Funds - TEMPORARILY DISABLED
+                    // TEFAS Funds
                     else if (item.type === 'fund') {
-                        // console.log(`🔍 Fetching TEFAS price for ${item.instrumentId}`);
                         priceData = await MarketDataService.getTefasPrice(item.instrumentId);
+                    }
+                    // BES (Individual Pension) - Fixed Price
+                    else if (item.type === 'bes') {
+                        priceData = {
+                            symbol: 'BES',
+                            name: 'Bireysel Emeklilik',
+                            currentPrice: 1.0, // Unit price is 1
+                            currency: 'TRY',
+                            lastUpdated: Date.now()
+                        };
                     }
                     // Stocks and others
                     else {
                         priceData = await MarketDataService.getYahooPrice(item.instrumentId);
-                        // Fallback to crypto if Yahoo fails (only if not already crypto)
+                        // Fallback to crypto if Yahoo fails (only if not already crypto, BES, or Fund)
                         if (!priceData || !priceData.currentPrice) {
-                            if (!CRYPTO_ID_TO_SYMBOL[item.instrumentId] && item.type !== 'crypto') {
-                                console.log(`🔍 Trying crypto for: ${item.symbol} (ID: ${item.instrumentId})`);
+                            if (!CRYPTO_ID_TO_SYMBOL[item.instrumentId] &&
+                                item.type !== 'crypto' &&
+                                item.type !== 'bes' &&
+                                item.type !== 'fund') {
+                                // console.log(`🔍 Trying crypto for: ${item.symbol} (ID: ${item.instrumentId})`);
                                 const cryptoData = await MarketDataService.getCryptoPrice(item.instrumentId.toLowerCase());
                                 if (cryptoData && cryptoData.currentPrice) {
                                     priceData = cryptoData;
@@ -278,9 +300,19 @@ export const MarketDataService = {
      */
     getYahooPrice: async (symbol: string): Promise<Partial<Instrument> | null> => {
         try {
-            // Use fetch instead of axios for better compatibility
-            const response = await fetch(`${YAHOO_BASE_URL}/${symbol}?interval=1d&range=1d`, {
-                headers: {
+            // Detect web platform for CORS proxy
+            const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+            let url = `${YAHOO_BASE_URL}/${symbol}?interval=1d&range=1d`;
+
+            // Use CORS proxy for web - try multiple proxies
+            if (isWeb) {
+                // Try cors.eu.org first
+                url = `https://cors.eu.org/${url}`;
+            }
+
+            const response = await fetch(url, {
+                headers: isWeb ? {} : {
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
                 }
             });
@@ -541,9 +573,11 @@ export const MarketDataService = {
     getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
         const upperCode = code.toUpperCase();
 
-        // 1. Try Local JSON first (Fast, Reliable for listed funds)
-        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
-            const fund = tefasData.data[upperCode];
+        // 1. Try Firebase Cloud Data first (Fast & Automated)
+        const cloudData = await fetchTefasSnapshot();
+
+        if (cloudData && cloudData.data && cloudData.data[upperCode]) {
+            const fund = cloudData.data[upperCode];
             return {
                 symbol: upperCode,
                 name: upperCode,
@@ -553,7 +587,20 @@ export const MarketDataService = {
             };
         }
 
-        // 2. Fallback to Direct API (Slow, but covers non-indexed funds)
+        // 2. Fallback to Local JSON (Backup if Cloud fails)
+        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
+            const fund = tefasData.data[upperCode];
+            // console.log(`✅ Using local TEFAS data for ${upperCode}`);
+            return {
+                symbol: upperCode,
+                name: upperCode,
+                currentPrice: Number(fund.price),
+                change24h: 0,
+                lastUpdated: new Date(fund.date).getTime()
+            };
+        }
+
+        // 3. Fallback to Direct API (Slow, but covers non-indexed funds)
         const cacheKey = `TEFAS_${upperCode}`;
 
         return getCachedOrFetch(cacheKey, async () => {
@@ -608,6 +655,17 @@ export const MarketDataService = {
     },
 
     getHistoricalPrice: async (symbol: string, date: number): Promise<number> => {
+        // Skip for BES and Funds (User request: No historical data needed)
+        // Check if it's BES
+        if (symbol === 'BES' || symbol.startsWith('BES_')) return 0;
+
+        // Check if it is a TEFAS Fund
+        const upperCode = symbol.toUpperCase();
+        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
+            // It is a fund, don't use Yahoo
+            return 0;
+        }
+
         // Yahoo Finance Chart API can give historical data
         // https://query1.finance.yahoo.com/v8/finance/chart/SYMBOL?period1=TIMESTAMP&period2=TIMESTAMP&interval=1d
         try {
@@ -622,7 +680,7 @@ export const MarketDataService = {
 
             return 0;
         } catch (error) {
-            console.error(`Error fetching historical price for ${symbol}:`, error);
+            // Silently fail for historical price - not critical
             return 0;
         }
     },
@@ -847,7 +905,7 @@ export const MarketDataService = {
             return response.data.quotes
                 .filter((quote: any) => {
                     if (category === 'BIST') {
-                        return quote.symbol.endsWith('.IS') && quote.quoteType === 'EQUITY';
+                        return quote.symbol.endsWith('.IS') && (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF');
                     }
                     if (category === 'ABD') {
                         return (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF') && !quote.symbol.includes('.');

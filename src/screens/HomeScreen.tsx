@@ -19,7 +19,7 @@ export const HomeScreen = () => {
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [usdRate, setUsdRate] = useState(0);
     const [goldPrice, setGoldPrice] = useState(0);
-    const { colors, toggleTheme, theme } = useTheme();
+    const { colors, toggleTheme, theme, fonts } = useTheme();
 
     const onRefresh = async () => {
         setRefreshing(true);

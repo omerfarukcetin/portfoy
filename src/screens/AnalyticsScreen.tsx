@@ -8,7 +8,7 @@ import { LineChart } from 'react-native-chart-kit';
 const screenWidth = Dimensions.get('window').width;
 
 export const AnalyticsScreen = () => {
-    const { colors } = useTheme();
+    const { colors, fonts } = useTheme();
     const { history, portfolio } = usePortfolio();
     const [loading, setLoading] = useState(false);
     const [period, setPeriod] = useState<'1W' | '1M' | '3M' | '1Y'>('1M');

@@ -6,10 +6,11 @@ import { useTheme } from '../context/ThemeContext';
 import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
 import { Ionicons } from '@expo/vector-icons';
+import { TickerIcon } from '../components/TickerIcon';
 
 export const FavoritesScreen = () => {
     const { favorites, removeFavorite } = useFavorites();
-    const { colors, fontScale } = useTheme();
+    const { colors, fontScale, fonts } = useTheme();
     const navigation = useNavigation();
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [changes, setChanges] = useState<Record<string, number>>({});
@@ -53,7 +54,16 @@ export const FavoritesScreen = () => {
             if (priceData && priceData.currentPrice) {
                 newPrices[fav.id] = priceData.currentPrice;
                 newChanges[fav.id] = (priceData as any).change24h || 0;
-                newCurrencies[fav.id] = priceData.currency || 'USD';
+                let currency = priceData.currency;
+                if (!currency) {
+                    // Auto-detect currency if API doesn't return it
+                    if (fav.symbol.endsWith('.IS') || (fav.type as any) === 'fund' || fav.type === 'gold') {
+                        currency = 'TRY';
+                    } else {
+                        currency = 'USD';
+                    }
+                }
+                newCurrencies[fav.id] = currency;
             }
         }
 
@@ -105,29 +115,56 @@ export const FavoritesScreen = () => {
                         const change = changes[item.id];
                         const currency = currencies[item.id] || item.currency || 'USD';
 
+                        // Determine icon color based on type
+                        const getIconColor = (type: string) => {
+                            switch (type) {
+                                case 'gold': return '#FFD700';
+                                case 'stock': return '#007AFF';
+                                case 'crypto': return '#AF52DE';
+                                case 'forex': return '#34C759';
+                                case 'fund': return '#FF2D55';
+                                default: return '#8E8E93';
+                            }
+                        };
+
                         return (
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <View style={styles.row}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Text style={[styles.symbol, { color: colors.text }]}>{item.symbol}</Text>
+                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                <View style={styles.itemRow}>
+                                    {/* Left Side: Icon + Symbol */}
+                                    <View style={styles.leftContainer}>
+                                        <TickerIcon
+                                            symbol={item.symbol}
+                                            color={getIconColor(item.type)}
+                                            size={40}
+                                        />
+                                        <View style={styles.textContainer}>
+                                            <Text style={[styles.symbol, { color: colors.text }]}>{item.symbol}</Text>
+                                            <Text style={[styles.type, { color: colors.subText }]}>{item.type}</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Right Side: Price + Change + Delete */}
+                                    <View style={styles.rightContainer}>
+                                        <View style={{ alignItems: 'flex-end' }}>
+                                            <Text style={[styles.price, { color: colors.text }]}>
+                                                {price !== undefined ? formatCurrency(price, currency as any) : '...'}
+                                            </Text>
+                                            {change !== undefined && (
+                                                <View style={[styles.changeTag, { backgroundColor: change >= 0 ? colors.success + '15' : colors.danger + '15' }]}>
+                                                    <Text style={[styles.change, { color: change >= 0 ? colors.success : colors.danger }]}>
+                                                        {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
                                         <TouchableOpacity
                                             style={styles.deleteButton}
                                             onPress={() => removeFavorite(item.id)}
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                         >
-                                            <Ionicons name="close-circle" size={20} color={colors.danger} />
+                                            <Ionicons name="close-circle" size={24} color={colors.danger} />
                                         </TouchableOpacity>
                                     </View>
-                                    <Text style={[styles.price, { color: colors.text }]}>
-                                        {price !== undefined ? formatCurrency(price, currency as any) : '...'}
-                                    </Text>
-                                </View>
-                                <View style={styles.row}>
-                                    <Text style={[styles.name, { color: colors.subText }]}>{item.name}</Text>
-                                    {change !== undefined && (
-                                        <Text style={[styles.change, { color: change >= 0 ? colors.success : colors.danger }]}>
-                                            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-                                        </Text>
-                                    )}
                                 </View>
                             </View>
                         );
@@ -162,12 +199,40 @@ const createStyles = (fontScale: number) => StyleSheet.create({
         elevation: 3,
     },
     headerTitle: {
-        fontSize: 28 * fontScale,
+        fontSize: 24,
         fontWeight: '700',
     },
     list: {
         padding: 16,
     },
+    // Modern card container (iOS style)
+    cardContainer: {
+        borderRadius: 16,
+        marginBottom: 12,
+        overflow: 'hidden',
+    },
+    itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+    },
+    leftContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    textContainer: {
+        justifyContent: 'center',
+    },
+    rightContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    // Legacy card (can be removed later)
     card: {
         borderRadius: 12,
         padding: 12,
@@ -181,23 +246,34 @@ const createStyles = (fontScale: number) => StyleSheet.create({
         marginBottom: 4,
     },
     symbol: {
-        fontSize: 18 * fontScale,
+        fontSize: 16,
         fontWeight: '700',
+        marginBottom: 2,
+    },
+    type: {
+        fontSize: 13,
+        textTransform: 'capitalize',
     },
     name: {
         fontSize: 14 * fontScale,
     },
     price: {
-        fontSize: 18 * fontScale,
+        fontSize: 16,
         fontWeight: '700',
+        marginBottom: 4,
+    },
+    changeTag: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginTop: 2,
     },
     change: {
-        fontSize: 14 * fontScale,
+        fontSize: 12,
         fontWeight: '600',
     },
     deleteButton: {
-        marginLeft: 8,
-        padding: 2,
+        padding: 4,
     },
     emptyContainer: {
         flex: 1,

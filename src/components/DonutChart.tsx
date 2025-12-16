@@ -12,6 +12,7 @@ interface DonutChartProps {
     strokeWidth: number;
     centerText?: string;
     centerSubtext?: string;
+    centerTextFontSize?: number;
     colors: any;
 }
 
@@ -21,6 +22,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
     strokeWidth,
     centerText,
     centerSubtext,
+    centerTextFontSize = 18,
     colors
 }) => {
     const radius = (size - strokeWidth) / 2;
@@ -67,14 +69,14 @@ export const DonutChart: React.FC<DonutChartProps> = ({
             }}>
                 {centerText && (
                     <>
-                        <Text style={{ fontSize: 11, color: colors.subText, fontWeight: '600' }}>
+                        <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '600' }}>
                             Toplam
                         </Text>
-                        <Text style={{ fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                        <Text style={{ fontSize: centerTextFontSize, color: colors.text, fontWeight: '700', marginTop: 2 }}>
                             {centerText}
                         </Text>
                         {centerSubtext && (
-                            <Text style={{ fontSize: 10, color: colors.subText, marginTop: 1 }}>
+                            <Text style={{ fontSize: 11, color: colors.subText, marginTop: 1 }}>
                                 {centerSubtext}
                             </Text>
                         )}

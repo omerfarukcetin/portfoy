@@ -1,7 +1,9 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio } from '../types';
 import { MarketDataService } from '../services/marketData';
+import { useAuth } from './AuthContext';
+import { saveUserPortfolios, loadUserPortfolios, migrateToFirestore } from '../services/firestoreService';
 
 interface HistoryPoint {
     date: string;
@@ -36,9 +38,9 @@ interface PortfolioContextType {
     updatePortfolioIcon: (id: string, icon: string) => Promise<void>;
 
     // Portfolio functions (aktif portföy için)
-    addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }) => Promise<void>;
+    addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
-    updateAsset: (id: string, newAmount: number, newAverageCost: number) => Promise<void>;
+    updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number }) => Promise<void>;
     sellAsset: (id: string, amount: number, sellPrice: number) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
@@ -54,6 +56,7 @@ interface PortfolioContextType {
     updateTotalValue: (valTry: number, valUsd: number) => void;
     resetData: () => Promise<void>;
     clearHistory: () => Promise<void>;
+    importData: (portfolios: Portfolio[], activePortfolioId: string) => Promise<void>;
     getPortfolioTotalValue: () => number;
     getPortfolioDistribution: () => { name: string; value: number; color: string }[];
 }
@@ -61,6 +64,8 @@ interface PortfolioContextType {
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { user } = useAuth();
+
     // Multi-portfolio state
     const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
     const [activePortfolioId, setActivePortfolioId] = useState<string>('');
@@ -79,15 +84,17 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Derived active portfolio
     const activePortfolio = portfolios.find(p => p.id === activePortfolioId) || null;
 
-    // Sync legacy state with active portfolio
+    // Sync legacy state ONLY when switching portfolios (not on data changes)
     useEffect(() => {
-        if (activePortfolio) {
-            setPortfolio(activePortfolio.items);
-            setRealizedTrades(activePortfolio.realizedTrades);
-            setHistory(activePortfolio.history || []);
-            setCashItems(activePortfolio.cashItems);
+        const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
+        if (currentPortfolio) {
+            console.log('🔄 Portfolio switch - syncing state for:', activePortfolioId);
+            setPortfolio(currentPortfolio.items);
+            setRealizedTrades(currentPortfolio.realizedTrades);
+            setHistory(currentPortfolio.history || []);
+            setCashItems(currentPortfolio.cashItems);
         }
-    }, [activePortfolio]);
+    }, [activePortfolioId]); // ONLY on portfolio ID change
 
     // Calculate total cash balance from cash items
     const cashBalance = cashItems.reduce((sum, item) => {
@@ -98,11 +105,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     }, 0);
 
-    // Load data on mount
+    // Load data on mount and when user changes (login/logout)
     useEffect(() => {
         loadData();
         fetchCurrentUsdRate();
-    }, []);
+    }, [user?.uid]);
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -115,10 +122,18 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     };
 
-    const savePortfolios = async (newPortfolios: Portfolio[]) => {
+    const savePortfolios = async (newPortfolios: Portfolio[], newActiveId?: string) => {
+        const activeId = newActiveId || activePortfolioId;
         try {
+            // Always save to AsyncStorage as backup
             await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
+            await AsyncStorage.setItem('activePortfolioId', activeId);
             setPortfolios(newPortfolios);
+
+            // If user is logged in, sync to Firestore
+            if (user?.uid) {
+                await saveUserPortfolios(user.uid, newPortfolios, activeId);
+            }
         } catch (e) {
             console.error('Failed to save portfolios', e);
         }
@@ -133,11 +148,78 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         );
 
         await savePortfolios(newPortfolios);
+
+        // Also update local state immediately
+        if (updates.items !== undefined) {
+            setPortfolio(updates.items);
+            console.log('✅ Portfolio items updated - count:', updates.items.length);
+        }
+        if (updates.realizedTrades !== undefined) {
+            setRealizedTrades(updates.realizedTrades);
+            console.log('✅ Realized trades updated - count:', updates.realizedTrades.length);
+        }
+        if (updates.history !== undefined) {
+            setHistory(updates.history);
+        }
+        if (updates.cashItems !== undefined) {
+            setCashItems(updates.cashItems);
+            console.log('✅ Cash items updated - count:', updates.cashItems.length);
+        }
     };
 
     const loadData = async () => {
         try {
             setIsLoading(true);
+
+            // If user is logged in, try to load from Firestore first
+            if (user?.uid) {
+                try {
+                    const firestoreData = await loadUserPortfolios(user.uid);
+
+                    if (firestoreData.portfolios.length > 0) {
+                        // User has data in Firestore
+                        setPortfolios(firestoreData.portfolios);
+                        setActivePortfolioId(firestoreData.activePortfolioId || firestoreData.portfolios[0].id);
+                        console.log('✅ Loaded portfolios from Firestore');
+                        return;
+                    } else {
+                        // Check if there's local data to migrate
+                        const storedPortfolios = await AsyncStorage.getItem('portfolios');
+                        if (storedPortfolios) {
+                            const parsedPortfolios = JSON.parse(storedPortfolios);
+                            const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
+
+                            // Migrate to Firestore
+                            await migrateToFirestore(user.uid, parsedPortfolios, storedActiveId || 'default');
+                            setPortfolios(parsedPortfolios);
+                            setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
+                            console.log('✅ Migrated local data to Firestore');
+                            return;
+                        }
+                    }
+
+                    // No data anywhere - create default portfolio
+                    const defaultPortfolio: Portfolio = {
+                        id: 'default',
+                        name: 'Ana Portföy',
+                        color: '#007AFF',
+                        icon: '💼',
+                        createdAt: Date.now(),
+                        items: [],
+                        cashBalance: 0,
+                        cashItems: [],
+                        realizedTrades: [],
+                        history: []
+                    };
+                    await savePortfolios([defaultPortfolio], 'default');
+                    setActivePortfolioId('default');
+                    return;
+                } catch (firestoreError) {
+                    console.error('Firestore load error, falling back to local:', firestoreError);
+                }
+            }
+
+            // Fallback: Load from AsyncStorage (for non-logged-in users or on error)
             const storedPortfolios = await AsyncStorage.getItem('portfolios');
             const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
 
@@ -145,62 +227,27 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 const parsedPortfolios = JSON.parse(storedPortfolios);
                 setPortfolios(parsedPortfolios);
 
-                // Set active ID, fallback to first portfolio if stored ID is invalid
                 if (storedActiveId && parsedPortfolios.find((p: Portfolio) => p.id === storedActiveId)) {
                     setActivePortfolioId(storedActiveId);
                 } else if (parsedPortfolios.length > 0) {
-                    const firstId = parsedPortfolios[0].id;
-                    setActivePortfolioId(firstId);
-                    await AsyncStorage.setItem('activePortfolioId', firstId);
+                    setActivePortfolioId(parsedPortfolios[0].id);
                 }
             } else {
-                // Migration Logic: Load legacy data
-                const [storedPortfolio, storedTrades, storedHistory, storedCashItems, storedCash] = await Promise.all([
-                    AsyncStorage.getItem('portfolio'),
-                    AsyncStorage.getItem('realizedTrades'),
-                    AsyncStorage.getItem('history'),
-                    AsyncStorage.getItem('cashItems'),
-                    AsyncStorage.getItem('cashBalance')
-                ]);
-
-                const initialItems = storedPortfolio ? JSON.parse(storedPortfolio) : [];
-                const initialTrades = storedTrades ? JSON.parse(storedTrades) : [];
-                const initialHistory = storedHistory ? JSON.parse(storedHistory) : [];
-
-                let initialCashItems = storedCashItems ? JSON.parse(storedCashItems) : [];
-
-                // Migrate legacy simple cash to cash items if needed
-                if (storedCash && (!initialCashItems || initialCashItems.length === 0)) {
-                    const legacyCash = parseFloat(storedCash);
-                    if (legacyCash > 0) {
-                        initialCashItems.push({
-                            id: Date.now().toString(),
-                            type: 'cash',
-                            name: 'Nakit (TRY)',
-                            amount: legacyCash,
-                            currency: 'TRY',
-                            dateAdded: Date.now()
-                        });
-                    }
-                }
-
+                // No data - create default empty portfolio
                 const defaultPortfolio: Portfolio = {
                     id: 'default',
                     name: 'Ana Portföy',
-                    color: '#007AFF', // Blue
+                    color: '#007AFF',
                     icon: '💼',
                     createdAt: Date.now(),
-                    items: initialItems,
-                    cashBalance: 0, // Deprecated
-                    cashItems: initialCashItems,
-                    realizedTrades: initialTrades,
-                    history: initialHistory
+                    items: [],
+                    cashBalance: 0,
+                    cashItems: [],
+                    realizedTrades: [],
+                    history: []
                 };
-
-                const newPortfolios = [defaultPortfolio];
-                await savePortfolios(newPortfolios);
+                setPortfolios([defaultPortfolio]);
                 setActivePortfolioId('default');
-                await AsyncStorage.setItem('activePortfolioId', 'default');
             }
         } catch (error) {
             console.error('Failed to load data', error);
@@ -208,6 +255,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setIsLoading(false);
         }
     };
+
+    // Reload data when user changes
+    useEffect(() => {
+        loadData();
+    }, [user?.uid]);
 
     // Multi-portfolio functions
     const createPortfolio = async (name: string, color: string, icon: string) => {
@@ -322,10 +374,51 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await updateActivePortfolio({ items: newPortfolio });
     };
 
-    const updateAsset = async (id: string, newAmount: number, newAverageCost: number) => {
-        const updatedPortfolio = portfolio.map(item =>
-            item.id === id ? { ...item, amount: newAmount, averageCost: newAverageCost } : item
-        );
+    const updateAsset = async (
+        id: string,
+        newAmount: number,
+        newAverageCost: number,
+        newDate?: number,
+        historicalUsdRate?: number,
+        besData?: { besPrincipal: number, besPrincipalYield: number }
+    ) => {
+        const updatedPortfolio = portfolio.map(item => {
+            if (item.id === id) {
+                const updates: Partial<PortfolioItem> = {
+                    amount: newAmount,
+                    averageCost: newAverageCost
+                };
+
+                // Handle BES-specific updates
+                if (besData) {
+                    updates.besPrincipal = besData.besPrincipal;
+                    updates.besPrincipalYield = besData.besPrincipalYield;
+                    updates.besStateContrib = 0;
+                    updates.besStateContribYield = 0;
+                    updates.averageCost = besData.besPrincipal; // Cost is principal for BES
+                }
+
+                // Update date if provided
+                if (newDate) {
+                    updates.dateAdded = newDate;
+                }
+
+                // Recalculate original costs if historical rate is provided
+                if (historicalUsdRate) {
+                    const rateToUse = historicalUsdRate;
+                    if (item.currency === 'USD') {
+                        updates.originalCostUsd = newAverageCost * newAmount;
+                        updates.originalCostTry = newAverageCost * newAmount * rateToUse;
+                    } else {
+                        updates.originalCostTry = newAverageCost * newAmount;
+                        updates.originalCostUsd = newAverageCost * newAmount / rateToUse;
+                    }
+                }
+
+                return { ...item, ...updates };
+            }
+            return item;
+        });
         await updateActivePortfolio({ items: updatedPortfolio });
     };
 
@@ -341,46 +434,115 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currency: 'USD' | 'TRY',
         date: number,
         historicalUsdRate?: number,
-        besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }
+        besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number },
+        customCategory?: string,
+        customData?: { name?: string, currentPrice?: number }
     ) => {
         const rateToUse = historicalUsdRate || currentUsdRate;
-        let originalCostUsd = 0;
-        let originalCostTry = 0;
+        const instrumentId = instrument.instrumentId || instrument.id;
 
-        if (currency === 'USD') {
-            originalCostUsd = cost * amount;
-            originalCostTry = cost * amount * rateToUse;
+        // Check if the same instrument already exists in portfolio (by instrumentId and type)
+        // BES and custom assets should not be merged
+        const existingIndex = (instrument.type !== 'bes' && !customCategory)
+            ? portfolio.findIndex(item =>
+                item.instrumentId === instrumentId &&
+                item.type === instrument.type &&
+                item.currency === currency
+            )
+            : -1;
+
+        let newPortfolio = [...portfolio];
+
+        if (existingIndex !== -1) {
+            // Merge with existing item using weighted average cost
+            const existing = portfolio[existingIndex];
+            const totalAmount = existing.amount + amount;
+
+            // Weighted average cost: (oldAmount * oldCost + newAmount * newCost) / totalAmount
+            const weightedAverageCost = ((existing.amount * existing.averageCost) + (amount * cost)) / totalAmount;
+
+            // Recalculate original costs
+            let totalOriginalCostUsd = 0;
+            let totalOriginalCostTry = 0;
+
+            if (currency === 'USD') {
+                const newCostUsd = cost * amount;
+                const newCostTry = cost * amount * rateToUse;
+                totalOriginalCostUsd = (existing.originalCostUsd || 0) + newCostUsd;
+                totalOriginalCostTry = (existing.originalCostTry || 0) + newCostTry;
+            } else {
+                const newCostTry = cost * amount;
+                const newCostUsd = cost * amount / rateToUse;
+                totalOriginalCostTry = (existing.originalCostTry || 0) + newCostTry;
+                totalOriginalCostUsd = (existing.originalCostUsd || 0) + newCostUsd;
+            }
+
+            // Update the existing item
+            newPortfolio[existingIndex] = {
+                ...existing,
+                amount: totalAmount,
+                averageCost: weightedAverageCost,
+                originalCostUsd: totalOriginalCostUsd,
+                originalCostTry: totalOriginalCostTry,
+                // Keep the original dateAdded (first purchase date)
+            };
+
+            console.log(`✅ Merged ${instrument.symbol}: ${existing.amount} + ${amount} = ${totalAmount} @ ${weightedAverageCost.toFixed(2)}`);
         } else {
-            originalCostTry = cost * amount;
-            originalCostUsd = cost * amount / rateToUse;
+            // Add as new item
+            let originalCostUsd = 0;
+            let originalCostTry = 0;
+
+            if (currency === 'USD') {
+                originalCostUsd = cost * amount;
+                originalCostTry = cost * amount * rateToUse;
+            } else {
+                originalCostTry = cost * amount;
+                originalCostUsd = cost * amount / rateToUse;
+            }
+
+            const newItem: PortfolioItem = {
+                id: Date.now().toString(),
+                instrumentId,
+                amount,
+                averageCost: cost,
+                currency,
+                originalCostUsd,
+                originalCostTry,
+                dateAdded: date,
+                type: instrument.type,
+                besPrincipal: besData?.principal,
+                besStateContrib: besData?.stateContrib,
+                besStateContribYield: besData?.stateContribYield,
+                besPrincipalYield: besData?.principalYield,
+                customCategory: customCategory,
+                customName: customData?.name,
+                customCurrentPrice: customData?.currentPrice,
+            };
+
+            newPortfolio.push(newItem);
+            console.log(`✅ Added new ${instrument.symbol}: ${amount} @ ${cost}`);
         }
 
-        const newItem: PortfolioItem = {
-            id: Date.now().toString(),
-            instrumentId: instrument.instrumentId || instrument.id,
-            amount,
-            averageCost: cost,
-            currency,
-            originalCostUsd,
-            originalCostTry,
-            dateAdded: date,
-            type: instrument.type,
-            besPrincipal: besData?.principal,
-            besStateContrib: besData?.stateContrib,
-            besStateContribYield: besData?.stateContribYield,
-            besPrincipalYield: besData?.principalYield,
-        };
-
-        const newPortfolio = [...portfolio, newItem];
         await updateActivePortfolio({ items: newPortfolio });
     };
 
     const sellAsset = async (id: string, amountToSell: number, sellPrice: number) => {
+        console.log('🔴 sellAsset called:', { id, amountToSell, sellPrice });
+
         const itemIndex = portfolio.findIndex(p => p.id === id);
-        if (itemIndex === -1) return;
+        if (itemIndex === -1) {
+            console.log('❌ Item not found in portfolio');
+            return;
+        }
 
         const item = portfolio[itemIndex];
-        if (item.amount < amountToSell) return;
+        console.log('✅ Found item:', item);
+
+        if (item.amount < amountToSell) {
+            console.log('❌ Not enough amount to sell');
+            return;
+        }
 
         const costBasis = item.averageCost * amountToSell;
         const saleProceeds = sellPrice * amountToSell;
@@ -410,33 +572,82 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             date: Date.now(),
             profit,
             profitUsd,
-            profitTry
+            profitTry,
+            type: item.type // Store asset type for category grouping
         };
+
+        console.log('💰 Created trade:', trade);
 
         let newPortfolio = [...portfolio];
         if (item.amount === amountToSell) {
             newPortfolio.splice(itemIndex, 1);
+            console.log('🗑️ Removed item completely');
         } else {
             newPortfolio[itemIndex] = {
                 ...item,
                 amount: item.amount - amountToSell
             };
+            console.log('📉 Reduced amount:', newPortfolio[itemIndex].amount);
         }
 
-        // Update both portfolio items and realized trades
+        // Update both portfolio items and realized trades atomically (including cash)
         if (activePortfolio) {
+            console.log('📝 Updating active portfolio...');
+
+            // Calculate updated cash items BEFORE saving to avoid race condition
+            let updatedCashItems = [...activePortfolio.cashItems];
+            const defaultCashIndex = updatedCashItems.findIndex(
+                item => item.type === 'cash' && item.currency === 'TRY'
+            );
+
+            if (defaultCashIndex !== -1) {
+                // Update existing cash item
+                updatedCashItems[defaultCashIndex] = {
+                    ...updatedCashItems[defaultCashIndex],
+                    amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
+                };
+            } else {
+                // Create new cash item
+                updatedCashItems.push({
+                    id: Date.now().toString(),
+                    type: 'cash',
+                    name: 'Nakit (TL)',
+                    amount: proceedsTry,
+                    currency: 'TRY',
+                    dateAdded: Date.now()
+                });
+            }
+
             const updatedPortfolio = {
                 ...activePortfolio,
                 items: newPortfolio,
-                realizedTrades: [...realizedTrades, trade]
+                realizedTrades: [...realizedTrades, trade],
+                cashItems: updatedCashItems
             };
+
+            console.log('📊 New realized trades count:', updatedPortfolio.realizedTrades.length);
+            console.log('💵 Updated cash items:', updatedCashItems);
 
             const newPortfolios = portfolios.map(p =>
                 p.id === activePortfolioId ? updatedPortfolio : p
             );
 
-            await savePortfolios(newPortfolios);
-            await updateCash(proceedsTry);
+            try {
+                await savePortfolios(newPortfolios);
+                console.log('✅ Portfolios saved to AsyncStorage');
+
+                // Manually update local state (useEffect only runs on portfolio switch)
+                setPortfolio(newPortfolio);
+                setRealizedTrades([...realizedTrades, trade]);
+                setCashItems(updatedCashItems);
+                console.log('✅ Local state updated - portfolio count:', newPortfolio.length);
+                console.log('💵 Cash updated:', proceedsTry);
+            } catch (error) {
+                console.error('❌ Error saving portfolios:', error);
+                throw error;
+            }
+        } else {
+            console.log('❌ No active portfolio found!');
         }
     };
 
@@ -495,6 +706,27 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             await updateActivePortfolio({ history: [] });
         } catch (error) {
             console.error('Error clearing history:', error);
+        }
+    };
+
+    const importData = async (newPortfolios: Portfolio[], newActivePortfolioId: string) => {
+        try {
+            await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
+            await AsyncStorage.setItem('activePortfolioId', newActivePortfolioId);
+            setPortfolios(newPortfolios);
+            setActivePortfolioId(newActivePortfolioId);
+
+            // Sync legacy state with the new active portfolio
+            const newActivePortfolio = newPortfolios.find(p => p.id === newActivePortfolioId);
+            if (newActivePortfolio) {
+                setPortfolio(newActivePortfolio.items);
+                setRealizedTrades(newActivePortfolio.realizedTrades);
+                setHistory(newActivePortfolio.history || []);
+                setCashItems(newActivePortfolio.cashItems);
+            }
+        } catch (error) {
+            console.error('Error importing data:', error);
+            throw error;
         }
     };
 
@@ -625,6 +857,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             updateTotalValue,
             resetData,
             clearHistory,
+            importData,
             getPortfolioTotalValue,
             getPortfolioDistribution
         }}>

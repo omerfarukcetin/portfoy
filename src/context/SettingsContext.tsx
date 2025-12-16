@@ -1,6 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+type RiskAppetite = 'low' | 'medium' | 'high';
+type SymbolCase = 'uppercase' | 'titlecase';
+
+export const RISK_APPETITE_THRESHOLDS: Record<RiskAppetite, number> = {
+    low: 30,    // Conservative - warn if cash < 30%
+    medium: 20, // Balanced - warn if cash < 20%
+    high: 10,   // Aggressive - warn if cash < 10%
+};
+
 interface SettingsContextType {
     marketSummaryVisible: boolean;
     toggleMarketSummary: () => void;
@@ -16,6 +25,11 @@ interface SettingsContextType {
     updateNotifications: (key: 'enabled' | 'priceAlerts' | 'dailySummary', value: boolean) => void;
     portfolioChartVisible: boolean;
     togglePortfolioChart: () => void;
+    riskAppetite: RiskAppetite;
+    setRiskAppetite: (value: RiskAppetite) => void;
+    cashThreshold: number;
+    symbolCase: SymbolCase;
+    setSymbolCase: (value: SymbolCase) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -41,6 +55,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         dailySummary: false
     });
     const [portfolioChartVisible, setPortfolioChartVisible] = useState(true);
+    const [riskAppetite, setRiskAppetiteState] = useState<RiskAppetite>('medium');
+    const [symbolCase, setSymbolCaseState] = useState<SymbolCase>('uppercase');
 
     useEffect(() => {
         loadSettings();
@@ -62,6 +78,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             const chartVisible = await AsyncStorage.getItem('portfolioChartVisible');
             if (chartVisible !== null) setPortfolioChartVisible(JSON.parse(chartVisible));
+
+            const risk = await AsyncStorage.getItem('riskAppetite');
+            if (risk !== null) setRiskAppetiteState(risk as RiskAppetite);
+
+            const symCase = await AsyncStorage.getItem('symbolCase');
+            if (symCase !== null) setSymbolCaseState(symCase as SymbolCase);
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -101,6 +123,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await AsyncStorage.setItem('portfolioChartVisible', JSON.stringify(newValue));
     };
 
+    const setRiskAppetite = async (value: RiskAppetite) => {
+        setRiskAppetiteState(value);
+        await AsyncStorage.setItem('riskAppetite', value);
+    };
+
+    const setSymbolCase = async (value: SymbolCase) => {
+        setSymbolCaseState(value);
+        await AsyncStorage.setItem('symbolCase', value);
+    };
+
+    const cashThreshold = RISK_APPETITE_THRESHOLDS[riskAppetite];
+
     return (
         <SettingsContext.Provider value={{
             marketSummaryVisible,
@@ -112,7 +146,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             notifications,
             updateNotifications,
             portfolioChartVisible,
-            togglePortfolioChart
+            togglePortfolioChart,
+            riskAppetite,
+            setRiskAppetite,
+            cashThreshold,
+            symbolCase,
+            setSymbolCase
         }}>
             {children}
         </SettingsContext.Provider>

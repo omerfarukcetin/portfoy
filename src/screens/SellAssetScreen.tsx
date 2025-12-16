@@ -11,7 +11,7 @@ export const SellAssetScreen = () => {
     const navigation = useNavigation();
     const { id } = route.params as { id: string };
     const { portfolio, sellAsset, deleteAsset } = usePortfolio();
-    const { colors } = useTheme();
+    const { colors, fonts } = useTheme();
 
     const item = portfolio.find(p => p.id === id);
     const [amount, setAmount] = useState('');

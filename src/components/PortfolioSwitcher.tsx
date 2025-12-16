@@ -3,10 +3,75 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet, FlatList, TextInput, A
 import { Feather } from '@expo/vector-icons';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
+import { formatCurrency } from '../utils/formatting';
+import { Portfolio } from '../types';
 
-export const PortfolioSwitcher = () => {
+interface PortfolioSwitcherProps {
+    prices?: Record<string, number>;
+    dailyChanges?: Record<string, number>;
+    usdRate?: number;
+    goldPrice?: number;
+}
+
+// Calculate portfolio stats
+const calculatePortfolioStats = (
+    portfolio: Portfolio,
+    prices: Record<string, number>,
+    dailyChanges: Record<string, number>,
+    usdRate: number
+) => {
+    let totalValue = 0;
+    let totalCost = 0;
+    let dailyChangeAmount = 0;
+
+    portfolio.items.forEach(item => {
+        const price = prices[item.instrumentId] || item.averageCost;
+        let value = item.amount * price;
+        let cost = item.amount * item.averageCost;
+
+        // Handle BES items specially - value is sum of all components
+        if (item.type === 'bes') {
+            value = (item.besPrincipal || 0) + (item.besStateContrib || 0) +
+                (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
+            cost = item.besPrincipal || 0;
+        }
+
+        // Convert USD to TRY for display
+        if (item.currency === 'USD') {
+            value *= usdRate;
+            cost *= usdRate;
+        }
+
+        totalValue += value;
+        totalCost += cost;
+
+        // Daily change
+        const changePercent = dailyChanges[item.instrumentId] || 0;
+        dailyChangeAmount += value * (changePercent / 100);
+    });
+
+    // Add cash balance
+    const cashBalance = portfolio.cashItems?.reduce((sum, item) => sum + item.amount, 0) || 0;
+    totalValue += cashBalance;
+    totalCost += cashBalance; // Cash is not a profit/loss source
+
+    const totalPL = totalValue - totalCost;
+    const totalPLPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
+    const dailyChangePercent = totalValue > 0 ? (dailyChangeAmount / (totalValue - dailyChangeAmount)) * 100 : 0;
+
+    return {
+        totalValue,
+        totalCost,
+        totalPL,
+        totalPLPercent,
+        dailyChangeAmount,
+        dailyChangePercent
+    };
+};
+
+export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1, goldPrice = 0 }: PortfolioSwitcherProps) => {
     const { portfolios, activePortfolio, switchPortfolio, createPortfolio, deletePortfolio, renamePortfolio } = usePortfolio();
-    const { colors, fontScale } = useTheme();
+    const { colors, fontScale, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
@@ -41,70 +106,104 @@ export const PortfolioSwitcher = () => {
         setPortfolioNameInput(portfolio.name);
     };
 
-    const renderItem = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={[
-                styles.portfolioItem,
-                {
-                    backgroundColor: item.id === activePortfolio?.id ? colors.primary + '20' : 'transparent',
-                    borderColor: colors.border
-                }
-            ]}
-            onPress={() => {
-                switchPortfolio(item.id);
-                setModalVisible(false);
-            }}
-        >
-            <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
-                <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-            </View>
-            <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={[styles.portfolioName, { color: colors.text, fontSize: 16 * fontScale }]}>
-                    {item.name}
-                </Text>
-                <Text style={[styles.portfolioCount, { color: colors.subText, fontSize: 12 * fontScale }]}>
-                    {item.items.length} varlık
-                </Text>
-            </View>
+    const renderItem = ({ item }: { item: any }) => {
+        const stats = calculatePortfolioStats(item as Portfolio, prices, dailyChanges, usdRate);
+        const hasPrices = Object.keys(prices).length > 0;
 
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity
-                    onPress={() => startEditing(item)}
-                    style={{ padding: 8, marginRight: 4 }}
-                >
-                    <Feather name="edit-2" size={18} color={colors.subText} />
-                </TouchableOpacity>
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.portfolioItem,
+                    {
+                        backgroundColor: item.id === activePortfolio?.id ? colors.primary + '20' : 'transparent',
+                        borderColor: colors.border
+                    }
+                ]}
+                onPress={() => {
+                    switchPortfolio(item.id);
+                    setModalVisible(false);
+                }}
+            >
+                <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
+                    <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                </View>
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={[styles.portfolioName, { color: colors.text, fontSize: 14 * fontScale }]}>
+                        {item.name}
+                    </Text>
+                    {hasPrices ? (
+                        <View style={{ marginTop: 4 }}>
+                            <Text style={{ color: colors.text, fontSize: 14 * fontScale, fontWeight: '700' }}>
+                                {formatCurrency(stats.totalValue, 'TRY')}
+                            </Text>
+                            <Text style={{ color: colors.subText, fontSize: 11 * fontScale, marginTop: 2 }}>
+                                ${(stats.totalValue / usdRate).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} · {goldPrice > 0 ? (stats.totalValue / goldPrice).toFixed(1) : '?'} gr altın
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+                                <Text style={{
+                                    fontSize: 11 * fontScale,
+                                    color: stats.dailyChangeAmount >= 0 ? colors.success : colors.danger
+                                }}>
+                                    Gün: {stats.dailyChangeAmount >= 0 ? '+' : ''}{formatCurrency(stats.dailyChangeAmount, 'TRY').replace('₺', '')} ({stats.dailyChangePercent >= 0 ? '+' : ''}{stats.dailyChangePercent.toFixed(1)}%)
+                                </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                                <Text style={{
+                                    fontSize: 11 * fontScale,
+                                    color: stats.totalPL >= 0 ? colors.success : colors.danger
+                                }}>
+                                    K/Z: {stats.totalPL >= 0 ? '+' : ''}{formatCurrency(stats.totalPL, 'TRY').replace('₺', '')} ({stats.totalPLPercent >= 0 ? '+' : ''}{stats.totalPLPercent.toFixed(1)}%)
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <Text style={[styles.portfolioCount, { color: colors.subText, fontSize: 12 * fontScale }]}>
+                            {item.items.length} varlık
+                        </Text>
+                    )}
+                </View>
 
-                {item.id !== activePortfolio?.id && (
-                    <TouchableOpacity
-                        onPress={() => {
-                            Alert.alert(
-                                'Portföyü Sil',
-                                `"${item.name}" portföyünü silmek istediğinize emin misiniz?`,
-                                [
-                                    { text: 'İptal', style: 'cancel' },
-                                    {
-                                        text: 'Sil',
-                                        style: 'destructive',
-                                        onPress: () => deletePortfolio(item.id)
-                                    }
-                                ]
-                            );
-                        }}
-                        style={{ padding: 8 }}
-                    >
-                        <Feather name="trash-2" size={18} color={colors.subText} />
-                    </TouchableOpacity>
-                )}
+                <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity
+                            onPress={() => startEditing(item)}
+                            style={{ padding: 6 }}
+                        >
+                            <Feather name="edit-2" size={16} color={colors.subText} />
+                        </TouchableOpacity>
 
-                {item.id === activePortfolio?.id && (
-                    <View style={{ padding: 8 }}>
-                        <Feather name="check" size={20} color={colors.primary} />
+                        {item.id !== activePortfolio?.id && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Alert.alert(
+                                        'Portföyü Sil',
+                                        `"${item.name}" portföyünü silmek istediğinize emin misiniz?`,
+                                        [
+                                            { text: 'İptal', style: 'cancel' },
+                                            {
+                                                text: 'Sil',
+                                                style: 'destructive',
+                                                onPress: () => deletePortfolio(item.id)
+                                            }
+                                        ]
+                                    );
+                                }}
+                                style={{ padding: 6 }}
+                            >
+                                <Feather name="trash-2" size={16} color={colors.subText} />
+                            </TouchableOpacity>
+                        )}
+
+                        {item.id === activePortfolio?.id && (
+                            <View style={{ padding: 6 }}>
+                                <Feather name="check" size={18} color={colors.primary} />
+                            </View>
+                        )}
                     </View>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <>
@@ -250,7 +349,7 @@ const styles = StyleSheet.create({
     },
     portfolioItem: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         padding: 12,
         borderRadius: 12,
         marginBottom: 8,

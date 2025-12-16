@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Theme = 'light' | 'dark' | 'gray' | 'navy';
 type FontSize = 'small' | 'medium' | 'large';
+type HeroSize = 'compact' | 'normal';
 
 interface ThemeColors {
     primary: string;
@@ -15,6 +16,15 @@ interface ThemeColors {
     danger: string;
     warning: string;
     inputBackground: string;
+}
+
+interface FontSizes {
+    xs: number;
+    sm: number;
+    base: number;
+    lg: number;
+    xl: number;
+    '2xl': number;
 }
 
 const lightColors: ThemeColors = {
@@ -69,20 +79,41 @@ const navyColors: ThemeColors = {
     inputBackground: '#1E293B',
 };
 
+// Base font sizes
+const baseFontSizes: FontSizes = {
+    xs: 11,
+    sm: 13,
+    base: 15,
+    lg: 18,
+    xl: 24,
+    '2xl': 32,
+};
+
+// Font scale multipliers
 const fontScales = {
     small: 0.9,
     medium: 1.0,
     large: 1.1,
 };
 
+// Hero size options
+const heroSizes = {
+    compact: 28,
+    normal: 32,
+};
+
 interface ThemeContextType {
     theme: Theme;
     fontSize: FontSize;
+    heroSize: HeroSize;
     colors: ThemeColors;
     fontScale: number;
+    fonts: FontSizes;
+    heroFontSize: number;
     toggleTheme: () => void;
     setTheme: (newTheme: Theme) => void;
     setFontSize: (size: FontSize) => void;
+    setHeroSize: (size: HeroSize) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -90,6 +121,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [theme, setThemeState] = useState<Theme>('light');
     const [fontSize, setFontSizeState] = useState<FontSize>('medium');
+    const [heroSize, setHeroSizeState] = useState<HeroSize>('normal');
 
     useEffect(() => {
         loadTheme();
@@ -99,8 +131,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             const savedTheme = await AsyncStorage.getItem('theme');
             const savedFontSize = await AsyncStorage.getItem('fontSize');
+            const savedHeroSize = await AsyncStorage.getItem('heroSize');
             if (savedTheme) setThemeState(savedTheme as Theme);
             if (savedFontSize) setFontSizeState(savedFontSize as FontSize);
+            if (savedHeroSize) setHeroSizeState(savedHeroSize as HeroSize);
         } catch (error) {
             console.error('Failed to load theme', error);
         }
@@ -116,6 +150,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await AsyncStorage.setItem('fontSize', size);
     };
 
+    const setHeroSize = async (size: HeroSize) => {
+        setHeroSizeState(size);
+        await AsyncStorage.setItem('heroSize', size);
+    };
+
     const toggleTheme = () => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
@@ -124,8 +163,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const colors = theme === 'dark' ? darkColors : theme === 'gray' ? grayColors : theme === 'navy' ? navyColors : lightColors;
     const fontScale = fontScales[fontSize];
 
+    // Calculate scaled font sizes
+    const fonts: FontSizes = {
+        xs: Math.round(baseFontSizes.xs * fontScale),
+        sm: Math.round(baseFontSizes.sm * fontScale),
+        base: Math.round(baseFontSizes.base * fontScale),
+        lg: Math.round(baseFontSizes.lg * fontScale),
+        xl: Math.round(baseFontSizes.xl * fontScale),
+        '2xl': Math.round(baseFontSizes['2xl'] * fontScale),
+    };
+
+    const heroFontSize = Math.round(heroSizes[heroSize] * fontScale);
+
     return (
-        <ThemeContext.Provider value={{ theme, fontSize, colors, fontScale, toggleTheme, setTheme, setFontSize }}>
+        <ThemeContext.Provider value={{
+            theme,
+            fontSize,
+            heroSize,
+            colors,
+            fontScale,
+            fonts,
+            heroFontSize,
+            toggleTheme,
+            setTheme,
+            setFontSize,
+            setHeroSize
+        }}>
             {children}
         </ThemeContext.Provider>
     );

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+
 import { PortfolioSwitcher } from '../components/PortfolioSwitcher';
 import { useTheme } from '../context/ThemeContext';
 import { usePortfolio } from '../context/PortfolioContext';
@@ -10,9 +11,18 @@ import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
 import { DonutChart } from '../components/DonutChart';
 import { PortfolioChart } from '../components/PortfolioChart';
+import { generateRecommendations, Recommendation } from '../services/advisorService';
+import { Skeleton } from '../components/Skeleton';
+import { NewsFeed } from '../components/NewsFeed';
+import { GradientCard } from '../components/GradientCard';
+
 
 const screenWidth = Dimensions.get('window').width;
 const insightCardWidth = (screenWidth - 58) / 3;
+
+// Responsive breakpoints
+const TABLET_WIDTH = 768;
+const DESKTOP_WIDTH = 1024;
 
 const Card = ({ children, style, onPress, borderColor }: { children: React.ReactNode, style?: any, onPress?: () => void, borderColor?: string }) => {
     const Container = onPress ? TouchableOpacity : View;
@@ -25,10 +35,22 @@ const Card = ({ children, style, onPress, borderColor }: { children: React.React
 
 export const SummaryScreen = () => {
     const navigation = useNavigation();
-    const { colors, fontScale } = useTheme();
-    const { portfolio, totalRealizedProfitTry, totalRealizedProfitUsd, updateTotalValue, cashBalance } = usePortfolio();
-    const { marketSummaryVisible, selectedMarketInstruments, portfolioChartVisible } = useSettings();
+    const { width } = useWindowDimensions();
+    const isLargeScreen = width >= TABLET_WIDTH;
+
+    const { colors, fontScale, fonts, heroFontSize, theme } = useTheme();
+    const {
+        portfolio,
+        cashItems,
+        cashBalance,
+        history,
+        updateTotalValue,
+        totalRealizedProfitTry,
+        totalRealizedProfitUsd
+    } = usePortfolio();
+    const { marketSummaryVisible, selectedMarketInstruments, portfolioChartVisible, cashThreshold } = useSettings();
     const [refreshing, setRefreshing] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [usdRate, setUsdRate] = useState(0);
@@ -47,19 +69,26 @@ export const SummaryScreen = () => {
     const [isHidden, setIsHidden] = useState(false);
     const [marketReportVisible, setMarketReportVisible] = useState(false);
     const [marketReportData, setMarketReportData] = useState<any>(null);
+    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Auto-refresh prices every 30 seconds
+    // Render UI first, then load data progressively
     useEffect(() => {
+        // Fetch prices immediately (critical for portfolio display)
         fetchPrices();
-        fetchMarketData();
+
+        // Defer market summary data to load after UI renders
+        const marketDataTimer = setTimeout(() => {
+            fetchMarketData();
+        }, 100);
 
         refreshIntervalRef.current = setInterval(() => {
             fetchPrices();
             fetchMarketData();
-        }, 5 * 60 * 1000); // Auto-refresh every 5 minutes (reduced API calls)
+        }, 5 * 60 * 1000); // Auto-refresh every 5 minutes
 
         return () => {
+            clearTimeout(marketDataTimer);
             if (refreshIntervalRef.current) {
                 clearInterval(refreshIntervalRef.current);
             }
@@ -68,6 +97,8 @@ export const SummaryScreen = () => {
 
     const fetchMarketReport = async () => {
         setMarketReportData(null);
+        setRecommendations([]);
+
         const [bist, usd, gold, btc] = await Promise.all([
             MarketDataService.getYahooPrice('XU100.IS'),
             MarketDataService.getYahooPrice('TRY=X'),
@@ -75,54 +106,47 @@ export const SummaryScreen = () => {
             MarketDataService.getCryptoPrice('bitcoin'),
         ]);
 
+        const currentUsdRate = usd?.currentPrice || usdRate || 30;
+
         setMarketReportData({
             bist: { price: bist?.currentPrice || 0, change: bist?.change24h || 0 },
-            usd: { price: usd?.currentPrice || 0, change: usd?.change24h || 0 },
+            usd: { price: currentUsdRate, change: usd?.change24h || 0 },
             gold: { price: gold?.currentPrice || 0, change: gold?.change24h || 0 },
             btc: { price: btc?.currentPrice || 0, change: btc?.change24h || 0 },
         });
+
+        // Generate personalized recommendations
+        const recs = generateRecommendations(
+            portfolio,
+            prices,
+            dailyChanges,
+            cashBalance,
+            currentUsdRate,
+            history,
+            cashThreshold
+        );
+        setRecommendations(recs);
     };
 
     const fetchMarketData = async () => {
         try {
-            // Fetch USD/TRY
-            const usdData = await MarketDataService.getYahooPrice('TRY=X');
-            if (usdData && usdData.currentPrice) setUsdRate(usdData.currentPrice);
+            // Fetch all market data in parallel for faster loading
+            const [usdData, goldData, silverData, bist, btc, eth] = await Promise.all([
+                MarketDataService.getYahooPrice('TRY=X'),
+                MarketDataService.getGoldPrice('gram'),
+                MarketDataService.getSilverPrice('gram'),
+                MarketDataService.getYahooPrice('XU100.IS'),
+                MarketDataService.getCryptoPrice('bitcoin'),
+                MarketDataService.getCryptoPrice('ethereum'),
+            ]);
 
-            // Fetch Gold (Gram TL)
-            const goldData = await MarketDataService.getGoldPrice('gram');
-            if (goldData && goldData.currentPrice) setGoldPrice(goldData.currentPrice);
-
-            // Fetch Silver (Gram TL)
-            const silverData = await MarketDataService.getSilverPrice('gram');
-            if (silverData && silverData.currentPrice) setSilverPrice(silverData.currentPrice);
-
-            // Fetch BIST 100
-            const bist = await MarketDataService.getYahooPrice('XU100.IS');
-            if (bist && bist.currentPrice) {
-                setBistData({
-                    price: bist.currentPrice,
-                    change: (bist as any).change24h || 0
-                });
-            }
-
-            // Fetch BTC
-            const btc = await MarketDataService.getCryptoPrice('bitcoin');
-            if (btc && btc.currentPrice) {
-                setBtcPrice({
-                    price: btc.currentPrice,
-                    change: (btc as any).change24h || 0
-                });
-            }
-
-            // Fetch ETH
-            const eth = await MarketDataService.getCryptoPrice('ethereum');
-            if (eth && eth.currentPrice) {
-                setEthPrice({
-                    price: eth.currentPrice,
-                    change: (eth as any).change24h || 0
-                });
-            }
+            // Set all values at once
+            if (usdData?.currentPrice) setUsdRate(usdData.currentPrice);
+            if (goldData?.currentPrice) setGoldPrice(goldData.currentPrice);
+            if (silverData?.currentPrice) setSilverPrice(silverData.currentPrice);
+            if (bist?.currentPrice) setBistData({ price: bist.currentPrice, change: (bist as any).change24h || 0 });
+            if (btc?.currentPrice) setBtcPrice({ price: btc.currentPrice, change: (btc as any).change24h || 0 });
+            if (eth?.currentPrice) setEthPrice({ price: eth.currentPrice, change: (eth as any).change24h || 0 });
 
         } catch (error) {
             console.error('Error fetching market data:', error);
@@ -160,6 +184,7 @@ export const SummaryScreen = () => {
 
         setPrices(newPrices);
         setDailyChanges(newDailyChanges);
+        setIsInitialLoading(false);
     };
 
     // Immediate load on mount
@@ -202,7 +227,8 @@ export const SummaryScreen = () => {
         let calcDailyProfit = 0;
 
         portfolio.forEach(item => {
-            let price = prices[item.instrumentId] || 0;
+            // Use customCurrentPrice for custom assets, otherwise use fetched price
+            let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
             const changePercent = dailyChanges[item.instrumentId] || 0;
 
             // If this is a crypto asset stored in TRY but price was fetched in USD, convert it
@@ -249,13 +275,42 @@ export const SummaryScreen = () => {
         setDailyProfit(calcDailyProfit);
     }, [portfolio, prices, dailyChanges, usdRate, cashBalance]);
 
+    // Sync calculated totals with Context (for History Tracking)
+    useEffect(() => {
+        if (totalPortfolioTry > 0) {
+            // Debounce updates to prevent excessive storage writes/renders
+            const timer = setTimeout(() => {
+                updateTotalValue(totalPortfolioTry, totalPortfolioUsd);
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [totalPortfolioTry, totalPortfolioUsd]);
+
+    // Generate news keywords from portfolio
+    const newsKeywords = React.useMemo(() => {
+        // If portfolio has items, prioritize them. Otherwise fallback to general market terms.
+        const baseKeywords = portfolio.length > 0 ? ['Borsa İstanbul'] : ['Borsa İstanbul', 'Ekonomi', 'Altın', 'Dolar'];
+
+        // Add top 5 assets (increased from 3 to cover more of user's portfolio)
+        const topAssets = [...portfolio]
+            .slice(0, 5)
+            .map(item => {
+                let symbol = item.instrumentId;
+                if (symbol.endsWith('.IS')) symbol = symbol.replace('.IS', '');
+                return symbol;
+            });
+
+        return [...baseKeywords, ...topAssets];
+    }, [portfolio]);
+
     // Category calculations (still computed on render)
     const categoryValues: Record<string, number> = {};
     let bestPerformer = { id: '', change: -Infinity };
     let worstPerformer = { id: '', change: Infinity };
 
     portfolio.forEach(item => {
-        let price = prices[item.instrumentId] || 0;
+        // Use customCurrentPrice for custom assets, otherwise use fetched price
+        let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
         const changePercent = dailyChanges[item.instrumentId] || 0;
 
         if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
@@ -280,8 +335,12 @@ export const SummaryScreen = () => {
         let category = 'Diğer';
         const id = item.instrumentId.toUpperCase();
 
+        // Custom category takes priority (for KFS, custom assets, etc.)
+        if (item.customCategory) {
+            category = item.customCategory;
+        }
         // Crypto - check by type or known IDs
-        if (item.type === 'crypto' || ['BTC', 'ETH', 'SOL', 'AVAX', 'USDT', 'USDC', 'BNB', 'WLD', 'WORLDCOIN-WLD'].includes(id)) {
+        else if (item.type === 'crypto' || ['BTC', 'ETH', 'SOL', 'AVAX', 'USDT', 'USDC', 'BNB', 'WLD', 'WORLDCOIN-WLD'].includes(id)) {
             category = 'Kripto';
         }
         // Gold
@@ -304,12 +363,12 @@ export const SummaryScreen = () => {
         else if (item.type === 'fund' || (id.length === 3 && !['BTC', 'ETH', 'SOL', 'XRP', 'USD', 'EUR', 'GBP'].includes(id))) {
             category = 'Fon';
         }
-        // US ETFs
-        else if (['VOO', 'QQQ', 'SPY', 'VTI', 'SCHD', 'JEPI', 'ARKK', 'SCHG'].includes(id)) {
+        // US ETFs - check before generic USD
+        else if (item.currency === 'USD' && (item.type === 'stock' || ['VOO', 'QQQ', 'SPY', 'VTI', 'SCHD', 'JEPI', 'ARKK', 'SCHG', 'OPTGY', 'OPT25'].includes(id))) {
             category = 'ABD ETF';
         }
-        // Other USD assets
-        else if (item.currency === 'USD') {
+        // Forex (USD, EUR, etc.)
+        else if (['USD', 'EUR', 'GBP', 'JPY'].includes(id)) {
             category = 'Döviz';
         }
 
@@ -338,6 +397,7 @@ export const SummaryScreen = () => {
 
     const dailyProfitPercent = totalPortfolioTry > 0 ? (dailyProfit / totalPortfolioTry) * 100 : 0;
     const portfolioInGramGold = goldPrice > 0 ? totalPortfolioTry / goldPrice : 0;
+    const portfolioInUsd = usdRate > 0 ? totalPortfolioTry / usdRate : 0;
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -345,247 +405,550 @@ export const SummaryScreen = () => {
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />}
             >
-                {/* Header Section */}
-                <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-                    <View style={styles.balanceContainer}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                            <View style={{ marginRight: 8 }}>
-                                <PortfolioSwitcher />
-                            </View>
-                            <Text style={[styles.balanceLabel, { color: colors.subText }]}>Toplam Varlık</Text>
-                            <TouchableOpacity onPress={() => setIsHidden(!isHidden)} style={[styles.iconButton, { backgroundColor: colors.cardBackground, marginLeft: 8 }]}>
-                                <Feather name={isHidden ? "eye-off" : "eye"} size={18} color={colors.subText} />
+                {/* Responsive Layout Content */}
+                {isLargeScreen ? (
+                    <View style={{ paddingHorizontal: 20, gap: 20 }}>
+                        {/* WEB HEADER (Full Width) */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
+                            <TouchableOpacity
+                                onPress={() => (navigation as any).navigate('Settings')}
+                                style={{ padding: 8, backgroundColor: colors.cardBackground, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}
+                            >
+                                <Feather name="settings" size={20} color={colors.text} />
                             </TouchableOpacity>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' }}>
-                            <Text style={[styles.mainBalance, { color: colors.text, fontSize: 32 }]}>
-                                {isHidden ? '••••••' : formatCurrency(totalPortfolioTry, 'TRY')}
-                            </Text>
-                            <Text style={{ color: colors.subText, marginHorizontal: 8, fontSize: 16 }}>|</Text>
-                            <Text style={[styles.subBalance, { color: colors.subText, fontSize: 16 }]}>
-                                {isHidden ? '••••' : formatCurrency(totalPortfolioUsd, 'USD')}
-                            </Text>
-                            <Text style={{ color: colors.subText, marginHorizontal: 8, fontSize: 16 }}>|</Text>
-                            <Text style={[styles.subBalance, { color: '#B8860B', fontSize: 16 }]}>
-                                {isHidden ? '••••' : `${portfolioInGramGold.toFixed(2)} gr`}
-                            </Text>
-                        </View>
-                    </View>
 
-                    {/* Stats Grid */}
-                    <View style={styles.statsGrid}>
-                        <View style={[styles.statItem, { backgroundColor: colors.cardBackground }]}>
-                            <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
-                            <View style={styles.statValueRow}>
-                                <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                    {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
-                                </Text>
-                            </View>
-                            <Text style={[styles.statPercent, { color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger }]}>
-                                {isHidden ? '•••' : `% ${totalUnrealizedProfitPercent.toFixed(2)} `}
-                            </Text>
-                        </View>
-
-                        <View style={[styles.statItem, { backgroundColor: colors.cardBackground }]}>
-                            <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
-                            <View style={styles.statValueRow}>
-                                <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
-                                    {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
-                                </Text>
-                            </View>
-                            <Text style={[styles.statPercent, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
-                                {isHidden ? '•••' : `% ${dailyProfitPercent.toFixed(2)} `}
-                            </Text>
-                        </View>
-
-                        <View style={[styles.statItem, { backgroundColor: colors.cardBackground }]}>
-                            <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen</Text>
-                            <View style={styles.statValueRow}>
-                                <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                    {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Portfolio Growth Chart */}
-                {portfolioChartVisible && <PortfolioChart />}
-
-                {/* Insights Row - 3 Columns */}
-                <View style={styles.insightsRow}>
-                    <Card
-                        style={[styles.insightCard, { backgroundColor: colors.cardBackground, marginRight: 6 }]}
-                        borderColor={colors.success}
-                    >
-                        <View style={styles.insightHeader}>
-                            <Feather name="trending-up" size={14} color={colors.success} />
-                            <Text style={[styles.insightTitle, { color: colors.success }]}>En İyi</Text>
-                        </View>
-                        <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
-                            {bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}
-                        </Text>
-                    </Card>
-
-                    <Card
-                        style={[styles.insightCard, { backgroundColor: colors.cardBackground, marginRight: 6 }]}
-                        borderColor={colors.danger}
-                    >
-                        <View style={styles.insightHeader}>
-                            <Feather name="trending-down" size={14} color={colors.danger} />
-                            <Text style={[styles.insightTitle, { color: colors.danger }]}>En Kötü</Text>
-                        </View>
-                        <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
-                            {worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}
-                        </Text>
-                    </Card>
-
-                    <Card
-                        style={[styles.insightCard, { backgroundColor: colors.cardBackground }]}
-                        borderColor={colors.primary}
-                        onPress={() => setMarketReportVisible(true)}
-                    >
-                        <View style={styles.insightHeader}>
-                            <Feather name="bar-chart-2" size={14} color={colors.primary} />
-                            <Text style={[styles.insightTitle, { color: colors.primary }]}>Piyasa Özeti</Text>
-                        </View>
-                        <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
-                            Günlük raporu görüntüle
-                        </Text>
-                    </Card>
-                </View>
-
-                {/* Market Ticker */}
-                {
-                    marketSummaryVisible && (
-                        <View style={[styles.section, { marginTop: 8 }]}>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Piyasa Özeti</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tickerScroll}>
-                                {[
-                                    { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
-                                    { id: 'Gram Altın', label: 'Gram Altın', value: goldPrice, change: 0.5, currency: 'TRY' },
-                                    { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
-                                    { id: 'Gram Gümüş', label: 'Gram Gümüş', value: silverPrice, change: 0, currency: 'TRY' },
-                                    { id: 'BTC', label: 'Bitcoin', value: btcPrice?.price, change: btcPrice?.change || 0, currency: 'USD' },
-                                    { id: 'ETH', label: 'Ethereum', value: ethPrice?.price, change: ethPrice?.change || 0, currency: 'USD' },
-                                ]
-                                    .filter(item => selectedMarketInstruments.includes(item.id))
-                                    .map((item, index) => (
-                                        <Card key={index} style={[styles.tickerCard, { backgroundColor: colors.cardBackground, padding: 8, width: insightCardWidth, alignItems: 'center', justifyContent: 'center' }]} borderColor={colors.border}>
-                                            <Text style={[styles.tickerLabel, { color: colors.subText, fontSize: 11, marginBottom: 2 }]}>{item.label}</Text>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                <Text style={[styles.tickerValue, { color: colors.text, fontSize: 13, marginBottom: 0 }]}>
-                                                    {item.value ? formatCurrency(item.value, item.currency as any).replace('₺', '').replace('$', '') : '-'}
-                                                </Text>
-                                                <View style={styles.tickerChangeRow}>
-                                                    <Feather
-                                                        name={item.change >= 0 ? "arrow-up-right" : "arrow-down-right"}
-                                                        size={12}
-                                                        color={item.change >= 0 ? colors.success : colors.danger}
-                                                    />
-                                                    <Text style={[styles.tickerChange, { color: item.change >= 0 ? colors.success : colors.danger, fontSize: 11 }]}>
-                                                        %{Math.abs(item.change).toFixed(2)}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        </Card>
-                                    ))}
-                            </ScrollView >
-                        </View >
-                    )
-                }
-
-                {/* Portfolio Distribution */}
-                {
-                    portfolio.length > 0 && (
-                        <View style={[styles.section, { marginTop: 8 }]}>
-                            <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale }]}>Portföy Dağılımı</Text>
-
-                            {/* Donut Chart - Compact */}
-                            <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 12 }}>
-                                <DonutChart
-                                    data={pieData.map(item => ({
-                                        name: item.name,
-                                        value: item.population,
-                                        color: item.color
-                                    }))}
-                                    size={180}
-                                    strokeWidth={32}
-                                    centerText={formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                    centerSubtext="₺"
-                                    colors={colors}
-                                />
-                            </View>
-
-                            {/* Legend - 2 Column Grid */}
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, gap: 8 }}>
-                                {pieData.map((item, index) => {
-                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-
-                                    return (
-                                        <View
-                                            key={index}
-                                            style={{
-                                                width: '48%',
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                backgroundColor: colors.cardBackground,
-                                                padding: 8,
-                                                borderRadius: 8,
-                                                borderLeftWidth: 3,
-                                                borderLeftColor: item.color,
-                                            }}
-                                        >
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ fontSize: 12 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
-                                                    {item.name}
+                        <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
+                            {/* LEFT COLUMN (Main Content) - Flex 3 */}
+                            <View style={{ flex: 3, gap: 16 }}>
+                                {/* Total Assets Card */}
+                                <GradientCard
+                                    variant="primary"
+                                    style={{ borderRadius: 24, padding: 0 }}
+                                    contentStyle={{ padding: 24 }}
+                                >
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <View>
+                                            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>TOPLAM VARLIK</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                                <Text style={{ color: '#fff', fontSize: heroFontSize, fontWeight: '800' }}>
+                                                    {isHidden ? '******' : formatCurrency(totalPortfolioTry, 'TRY')}
                                                 </Text>
                                             </View>
-                                            <Text style={{ fontSize: 13 * fontScale, color: item.color, fontWeight: '700', marginLeft: 4 }}>
-                                                %{percentage}
+
+                                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 8 }}>
+                                                {isHidden ? '****' : `$${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} · {isHidden ? '**' : portfolioInGramGold.toFixed(1)} gr altın
                                             </Text>
                                         </View>
-                                    );
-                                })}
-                            </View>
-                        </View>
-                    )
-                }
 
-                {/* Cash Management - At Bottom */}
-                <View style={[styles.insightsRow, { marginTop: 16, marginBottom: 20 }]}>
-                    <Card
-                        style={[styles.insightCard, { backgroundColor: colors.cardBackground, width: '100%', paddingVertical: 14 }]}
-                        borderColor={colors.primary}
-                        onPress={() => (navigation as any).navigate('CashManagement')}
-                    >
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <View>
-                                <View style={[styles.insightHeader, { marginBottom: 6 }]}>
-                                    <Feather name="dollar-sign" size={16} color={colors.primary} />
-                                    <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale }]}>Yedek Akçe</Text>
+                                        <TouchableOpacity onPress={() => setIsHidden(!isHidden)} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
+                                            <Feather name={isHidden ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.8)" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </GradientCard>
+
+                                {/* Portfolio Chart */}
+                                {!isInitialLoading && portfolioChartVisible && (
+                                    <View style={{ height: 300 }}>
+                                        <PortfolioChart currentValue={totalPortfolioTry} history={history} />
+                                    </View>
+                                )}
+
+                                {/* Portfolio Distribution (Donut) */}
+                                {portfolio.length > 0 && (
+                                    <View style={[styles.section, { marginTop: 0 }]}>
+                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale, marginLeft: 0, marginBottom: 12 }]}>Portföy Dağılımı</Text>
+                                        <GradientCard
+                                            variant="secondary"
+                                            style={{ borderWidth: 1, borderColor: colors.border }}
+                                            contentStyle={{ padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                        >
+                                            {isInitialLoading ? (
+                                                <Skeleton width="100%" height={200} />
+                                            ) : (
+                                                <>
+                                                    <View style={{ marginRight: 30 }}>
+                                                        <DonutChart
+                                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                            size={180}
+                                                            strokeWidth={20}
+                                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                            centerTextFontSize={22}
+                                                            centerSubtext="₺"
+                                                            colors={colors}
+                                                        />
+                                                    </View>
+                                                    <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                                        {pieData.map((item, index) => {
+                                                            const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                            const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                            return (
+                                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', width: '45%', marginBottom: 4 }}>
+                                                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 8 }} />
+                                                                    <View>
+                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
+                                                                    </View>
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </>
+                                            )}
+                                        </GradientCard>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* RIGHT COLUMN (Stats & Insights) - Flex 2 */}
+                            <View style={{ flex: 2, gap: 16 }}>
+
+                                {/* Stats Grid - Vertical on Web Right Col */}
+                                <View style={{ gap: 12 }}>
+                                    {/* Toplam K/Z */}
+                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                                    {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
+                                                </Text>
+                                                <Text style={[styles.statPercent, { color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger, fontSize: 12 }]}>
+                                                    {isHidden ? '•••' : `% ${totalUnrealizedProfitPercent.toFixed(2)} `}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </GradientCard>
+
+                                    {/* Günlük */}
+                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
+                                                    {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
+                                                </Text>
+                                                <Text style={[styles.statPercent, { color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 12 }]}>
+                                                    {isHidden ? '•••' : `% ${dailyProfitPercent.toFixed(2)} `}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </GradientCard>
                                 </View>
-                                <Text style={[styles.insightText, { color: colors.text, fontWeight: '700', fontSize: 20 * fontScale }]}>
-                                    {formatCurrency(cashBalance, 'TRY')}
-                                </Text>
-                            </View>
-                            <Feather name="chevron-right" size={24} color={colors.subText} />
-                        </View>
-                    </Card>
-                </View>
-            </ScrollView >
 
+                                {/* Market Insights - Vertical */}
+                                <View style={{ gap: 12 }}>
+                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.success }]} contentStyle={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (bestPerformer.id && bestPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Feather name="trending-up" size={16} color={colors.success} />
+                                            <Text style={[styles.insightTitle, { color: colors.success, marginBottom: 0 }]}>En İyi</Text>
+                                        </View>
+                                        <Text style={[styles.insightText, { color: colors.text }]}>{bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}</Text>
+                                    </GradientCard>
+
+                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.danger }]} contentStyle={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (worstPerformer.id && worstPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Feather name="trending-down" size={16} color={colors.danger} />
+                                            <Text style={[styles.insightTitle, { color: colors.danger, marginBottom: 0 }]}>En Kötü</Text>
+                                        </View>
+                                        <Text style={[styles.insightText, { color: colors.text }]}>{worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}</Text>
+                                    </GradientCard>
+                                </View>
+
+                                {/* Cash Management */}
+                                <GradientCard variant="secondary" style={[styles.insightCard, { backgroundColor: 'transparent', width: '100%', padding: 0, borderColor: colors.primary }]} contentStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => (navigation as any).navigate('CashManagement')}>
+                                    <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale, marginBottom: 0 }]}>Yedek Akçe</Text>
+                                    <Text style={[styles.statValue, { color: colors.text, marginBottom: 0, fontSize: 16 * fontScale }]}>{isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}</Text>
+                                </GradientCard>
+
+                                {/* Market Summary Ticker (Compact List) */}
+                                {marketSummaryVisible && (
+                                    <View style={[styles.section, { marginTop: 0 }]}>
+                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 14, marginBottom: 8 }]}>Piyasa Özeti</Text>
+                                        <View style={{ gap: 8 }}>
+                                            {[
+                                                { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
+                                                { id: 'Gram Altın', label: 'Gram Altın', value: goldPrice, change: 0.5, currency: 'TRY' },
+                                                { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
+                                            ].filter(item => selectedMarketInstruments.includes(item.id)).map((item, index) => (
+                                                <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 8, backgroundColor: colors.cardBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Text style={{ color: colors.subText }}>{item.label}</Text>
+                                                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                                                        <Text style={{ color: colors.text, fontWeight: '600' }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
+                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger }}>%{Math.abs(item.change).toFixed(2)}</Text>
+                                                    </View>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+
+                            </View>
+                        </View>
+                    </View>
+                ) : (
+                    // MOBILE LAYOUT (Existing)
+                    <>
+                        {/* Header Section */}
+                        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border, paddingHorizontal: 20 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
+                                <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
+                                <TouchableOpacity
+                                    onPress={() => (navigation as any).navigate('Settings')}
+                                    style={{ padding: 8, backgroundColor: colors.cardBackground, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}
+                                >
+                                    <Feather name="settings" size={20} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <GradientCard
+                                variant="primary"
+                                style={{
+                                    borderRadius: 24,
+                                    marginBottom: 6,
+                                    padding: 0
+                                }}
+                                contentStyle={{
+                                    padding: 24
+                                }}
+                            >
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <View>
+                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>TOPLAM VARLIK</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                            <Text style={{ color: '#fff', fontSize: heroFontSize, fontWeight: '800' }}>
+                                                {isHidden ? '******' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                            </Text>
+                                        </View>
+
+                                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 8 }}>
+                                            {isHidden ? '****' : `$${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} · {isHidden ? '**' : portfolioInGramGold.toFixed(1)} gr altın
+                                        </Text>
+                                    </View>
+
+                                    <TouchableOpacity
+                                        onPress={() => setIsHidden(!isHidden)}
+                                        style={{
+                                            padding: 8,
+                                            backgroundColor: 'rgba(255,255,255,0.1)',
+                                            borderRadius: 12
+                                        }}
+                                    >
+                                        <Feather name={isHidden ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.8)" />
+                                    </TouchableOpacity>
+                                </View>
+                            </GradientCard>
+                        </View>
+
+                        {/* Portfolio History Chart */}
+                        {
+                            !isInitialLoading && portfolioChartVisible && (
+                                <PortfolioChart currentValue={totalPortfolioTry} history={history} />
+                            )
+                        }
+
+                        {/* Stats Grid */}
+                        <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 6 }}>
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}
+                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Text style={[styles.statLabel, { color: colors.subText }]}>Toplam K/Z</Text>
+                                {isInitialLoading ? (
+                                    <View style={{ gap: 4 }}>
+                                        <Skeleton width="80%" height={16} />
+                                        <Skeleton width="60%" height={12} />
+                                    </View>
+                                ) : (
+                                    <>
+                                        <View style={styles.statValueRow}>
+                                            <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                                {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.statPercent, { color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger, fontSize: 11 }]}>
+                                            {isHidden ? '•••' : `${(totalUnrealizedProfitTry / (usdRate || 1)) >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry / (usdRate || 1), 'USD')} | % ${totalUnrealizedProfitPercent.toFixed(2)} `}
+                                        </Text>
+                                    </>
+                                )}
+                            </GradientCard>
+
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]}
+                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Text style={[styles.statLabel, { color: colors.subText }]}>Günlük</Text>
+                                {isInitialLoading ? (
+                                    <View style={{ gap: 4 }}>
+                                        <Skeleton width="80%" height={16} />
+                                        <Skeleton width="60%" height={12} />
+                                    </View>
+                                ) : (
+                                    <>
+                                        <View style={styles.statValueRow}>
+                                            <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
+                                                {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.statPercent, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
+                                            {isHidden ? '•••' : `% ${dailyProfitPercent.toFixed(2)} `}
+                                        </Text>
+                                    </>
+                                )}
+                            </GradientCard>
+
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}
+                                contentStyle={{ padding: 12, justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Text style={[styles.statLabel, { color: colors.subText }]}>Gerçekleşen</Text>
+                                {isInitialLoading ? (
+                                    <Skeleton width="80%" height={16} />
+                                ) : (
+                                    <View style={styles.statValueRow}>
+                                        <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                            {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
+                                        </Text>
+                                    </View>
+                                )}
+                            </GradientCard>
+                        </View>
+
+                        {/* Market Insights Cards */}
+                        <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 6, marginTop: 6, marginBottom: 8 }}>
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.insightCard, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.success }]}
+                                contentStyle={{ padding: 8, justifyContent: 'center', alignItems: 'center' }}
+                                onPress={() => {
+                                    if (bestPerformer.id && bestPerformer.id !== '-') {
+                                        // Find instrument in portfolio to get full object if needed, or pass partial
+                                        const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id);
+                                        if (instrument) {
+                                            (navigation as any).navigate('AssetDetail', { id: instrument.id });
+                                        }
+                                    }
+                                }}
+                            >
+                                <View style={styles.insightHeader}>
+                                    <Feather name="trending-up" size={14} color={colors.success} />
+                                    <Text style={[styles.insightTitle, { color: colors.success }]}>En İyi</Text>
+                                </View>
+                                {isInitialLoading ? (
+                                    <Skeleton width="100%" height={16} />
+                                ) : (
+                                    <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
+                                        {bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}
+                                    </Text>
+                                )}
+                            </GradientCard>
+
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.insightCard, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.danger }]}
+                                contentStyle={{ padding: 8, justifyContent: 'center', alignItems: 'center' }}
+                                onPress={() => {
+                                    if (worstPerformer.id && worstPerformer.id !== '-') {
+                                        const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id);
+                                        if (instrument) {
+                                            (navigation as any).navigate('AssetDetail', { id: instrument.id });
+                                        }
+                                    }
+                                }}
+                            >
+                                <View style={styles.insightHeader}>
+                                    <Feather name="trending-down" size={14} color={colors.danger} />
+                                    <Text style={[styles.insightTitle, { color: colors.danger }]}>En Kötü</Text>
+                                </View>
+                                {isInitialLoading ? (
+                                    <Skeleton width="100%" height={16} />
+                                ) : (
+                                    <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
+                                        {worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}
+                                    </Text>
+                                )}
+                            </GradientCard>
+
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.insightCard, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: colors.primary }]}
+                                contentStyle={{ padding: 8, justifyContent: 'center', alignItems: 'center' }}
+                                onPress={() => setMarketReportVisible(true)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.insightHeader}>
+                                    <Feather name="bar-chart-2" size={14} color={colors.primary} />
+                                    <Text style={[styles.insightTitle, { color: colors.primary }]}>Piyasa</Text>
+                                </View>
+                                {isInitialLoading ? (
+                                    <Skeleton width="100%" height={16} />
+                                ) : (
+                                    <Text style={[styles.insightText, { color: colors.text }]} numberOfLines={2}>
+                                        Günlük Raporu
+                                    </Text>
+                                )}
+                            </GradientCard>
+                        </View >
+
+
+
+                        {/* Market Ticker */}
+                        {
+                            marketSummaryVisible && (
+                                <View style={[styles.section, { marginTop: 8 }]}>
+                                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Piyasa Özeti</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tickerScroll}>
+                                        {[
+                                            { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
+                                            { id: 'Gram Altın', label: 'Gram Altın', value: goldPrice, change: 0.5, currency: 'TRY' },
+                                            { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
+                                            { id: 'Gram Gümüş', label: 'Gram Gümüş', value: silverPrice, change: 0, currency: 'TRY' },
+                                            { id: 'BTC', label: 'Bitcoin', value: btcPrice?.price, change: btcPrice?.change || 0, currency: 'USD' },
+                                            { id: 'ETH', label: 'Ethereum', value: ethPrice?.price, change: ethPrice?.change || 0, currency: 'USD' },
+                                        ]
+                                            .filter(item => selectedMarketInstruments.includes(item.id))
+                                            .map((item, index) => (
+                                                <GradientCard key={index} variant="secondary" style={[styles.tickerCard, { backgroundColor: 'transparent', padding: 0, width: insightCardWidth, borderColor: colors.border }]} contentStyle={{ padding: 8, alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Text style={[styles.tickerLabel, { color: colors.subText, fontSize: 11, marginBottom: 2 }]}>{item.label}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <Text style={[styles.tickerValue, { color: colors.text, fontSize: 13, marginBottom: 0 }]}>
+                                                            {item.value ? formatCurrency(item.value, item.currency as any).replace('₺', '').replace('$', '') : '-'}
+                                                        </Text>
+                                                        <View style={styles.tickerChangeRow}>
+                                                            <Feather
+                                                                name={item.change >= 0 ? "arrow-up-right" : "arrow-down-right"}
+                                                                size={12}
+                                                                color={item.change >= 0 ? colors.success : colors.danger}
+                                                            />
+                                                            <Text style={[styles.tickerChange, { color: item.change >= 0 ? colors.success : colors.danger, fontSize: 11 }]}>
+                                                                %{Math.abs(item.change).toFixed(2)}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                </GradientCard>
+                                            ))}
+                                    </ScrollView >
+                                </View >
+                            )
+                        }
+
+                        {/* Portfolio Distribution */}
+                        {
+                            portfolio.length > 0 && (
+                                <View style={[styles.section, { marginTop: 8 }]}>
+                                    <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale, textAlign: 'center', marginLeft: 0 }]}>Portföy Dağılımı</Text>
+
+                                    {/* Donut Chart - Compact */}
+                                    <GradientCard
+                                        variant="secondary"
+                                        style={{
+                                            marginBottom: 12,
+                                            marginHorizontal: 20,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        contentStyle={{
+                                            padding: 16,
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between'
+                                        }}
+                                    >
+                                        {isInitialLoading ? (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                                <Skeleton width={120} height={120} borderRadius={60} />
+                                                <View style={{ flex: 1, marginLeft: 20, gap: 10 }}>
+                                                    <Skeleton width="100%" height={16} />
+                                                    <Skeleton width="100%" height={16} />
+                                                    <Skeleton width="100%" height={16} />
+                                                </View>
+                                            </View>
+                                        ) : (
+                                            <>
+                                                {/* Left: Chart */}
+                                                <View style={{ marginRight: 20 }}>
+                                                    <DonutChart
+                                                        data={pieData.map(item => ({
+                                                            name: item.name,
+                                                            value: item.population,
+                                                            color: item.color
+                                                        }))}
+                                                        size={120}
+                                                        strokeWidth={16}
+                                                        centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                        centerSubtext="₺"
+                                                        colors={colors}
+                                                    />
+                                                </View>
+
+                                                {/* Right: Legend List */}
+                                                <View style={{ flex: 1, justifyContent: 'center' }}>
+                                                    {pieData.map((item, index) => {
+                                                        const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                        const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+
+                                                        return (
+                                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
+                                                                    <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '500' }} numberOfLines={1}>
+                                                                        {item.name}
+                                                                    </Text>
+                                                                </View>
+                                                                <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '700' }}>
+                                                                    %{percentage}
+                                                                </Text>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+                                            </>
+                                        )}
+                                    </GradientCard>
+                                </View>
+                            )
+                        }
+
+                        {/* Cash Management - At Bottom */}
+                        <View style={[styles.insightsRow, { marginTop: 12, marginBottom: 20 }]}>
+                            <GradientCard
+                                variant="secondary"
+                                style={[styles.insightCard, { backgroundColor: 'transparent', width: '100%', padding: 0, borderColor: colors.primary, minHeight: 0 }]}
+                                contentStyle={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                                onPress={() => (navigation as any).navigate('CashManagement')}
+                            >
+                                <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale, marginBottom: 0 }]}>Yedek Akçe</Text>
+
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    {isInitialLoading ? (
+                                        <Skeleton width={100} height={20} />
+                                    ) : (
+                                        <Text style={[styles.statValue, { color: colors.text, marginBottom: 0, fontSize: 16 * fontScale }]}>
+                                            {isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}
+                                        </Text>
+                                    )}
+                                    <Feather name="chevron-right" size={20} color={colors.subText} />
+                                </View>
+                            </GradientCard>
+                        </View>
+                    </>
+                )}
+            </ScrollView>
             {/* FAB */}
-            < TouchableOpacity
+            <TouchableOpacity
                 style={[styles.fab, { backgroundColor: colors.primary }]}
                 onPress={() => (navigation as any).navigate('AddInstrument')}
             >
                 <Feather name="plus" size={24} color="#fff" />
-            </TouchableOpacity >
+            </TouchableOpacity>
+
 
             {/* Critical Updates Modal */}
-            < Modal
+            <Modal
                 visible={marketReportVisible}
                 animationType="fade"
                 transparent={true}
@@ -609,48 +972,130 @@ export const SummaryScreen = () => {
                                 <>
                                     <View style={styles.modalSection}>
                                         <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Piyasa Özeti</Text>
-                                        {[
-                                            { label: 'BIST 100', data: marketReportData.bist },
-                                            { label: 'Dolar/TL', data: marketReportData.usd },
-                                            { label: 'Gram Altın', data: marketReportData.gold },
-                                            { label: 'Bitcoin', data: marketReportData.btc },
-                                        ].map((item, idx) => (
-                                            <View key={idx} style={[styles.marketRow, { borderBottomColor: colors.border }]}>
-                                                <Text style={[styles.marketLabel, { color: colors.text }]}>{item.label}</Text>
-                                                <View style={styles.marketValueContainer}>
-                                                    <Text style={[styles.marketValue, { color: colors.text }]}>
-                                                        {item.label === 'Bitcoin' ? '$' : ''}
-                                                        {formatCurrency(item.data.price, 'TRY').replace('₺', '')}
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                            {[
+                                                { label: 'BIST', data: marketReportData.bist },
+                                                { label: '$/₺', data: marketReportData.usd },
+                                                { label: 'Altın', data: marketReportData.gold },
+                                                { label: 'BTC', data: marketReportData.btc },
+                                            ].map((item, idx) => (
+                                                <View
+                                                    key={idx}
+                                                    style={[
+                                                        styles.compactMarketCard,
+                                                        {
+                                                            backgroundColor: colors.background,
+                                                            borderColor: colors.border
+                                                        }
+                                                    ]}
+                                                >
+                                                    <Text style={[styles.compactMarketLabel, { color: colors.subText }]}>{item.label}</Text>
+                                                    <Text style={[styles.compactMarketValue, { color: colors.text }]}>
+                                                        {item.label === 'BTC' ? '$' : ''}{formatCurrency(item.data.price, 'TRY').replace('₺', '')}
                                                     </Text>
-                                                    <Text style={[styles.marketChange, { color: item.data.change >= 0 ? colors.success : colors.danger }]}>
-                                                        {item.data.change >= 0 ? '+' : ''}%{item.data.change.toFixed(2)}
+                                                    <Text style={[styles.compactMarketChange, { color: item.data.change >= 0 ? colors.success : colors.danger }]}>
+                                                        {item.data.change >= 0 ? '↑' : '↓'}{Math.abs(item.data.change).toFixed(1)}%
                                                     </Text>
                                                 </View>
-                                            </View>
-                                        ))}
+                                            ))}
+                                        </View>
                                     </View>
 
+                                    {/* Comprehensive Market Commentary */}
                                     <View style={styles.modalSection}>
                                         <View style={styles.noteHeader}>
-                                            <Feather name="info" size={16} color={colors.subText} />
-                                            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Piyasa Notları</Text>
+                                            <Feather name="trending-up" size={16} color={colors.primary} />
+                                            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Günün Piyasa Yorumu</Text>
                                         </View>
-                                        <Text style={[styles.noteText, { color: colors.text }]}>
-                                            {marketReportData.bist.change < -1 ? 'BIST 100 endeksinde satış baskısı gözlemleniyor.' :
-                                                marketReportData.bist.change > 1 ? 'BIST 100 endeksi günü pozitif seyirle sürdürüyor.' :
-                                                    'BIST 100 endeksi yatay seyrediyor.'}
-                                            {'\n\n'}
-                                            {marketReportData.usd.change > 0.5 ? 'Döviz kurlarında yukarı yönlü hareketlilik var.' : 'Döviz kurları sakin seyrediyor.'}
+                                        <Text style={[styles.noteText, { color: colors.text, lineHeight: 24 }]}>
+                                            {/* Market sentiment based on all indicators */}
+                                            {(() => {
+                                                const bistTrend = marketReportData.bist.change;
+                                                const usdTrend = marketReportData.usd.change;
+                                                const goldTrend = marketReportData.gold.change;
+                                                const btcTrend = marketReportData.btc.change;
+
+                                                let commentary = '';
+
+                                                // Overall market sentiment
+                                                if (bistTrend > 1 && usdTrend < 0.3) {
+                                                    commentary = '📈 Bugün borsada risk iştahı yüksek görünüyor. BIST pozitif seyrederken TL değer kazanıyor, bu hisse senetleri için olumlu bir ortam yaratıyor.';
+                                                } else if (bistTrend < -1 && usdTrend > 0.5) {
+                                                    commentary = '📉 Piyasalarda tedirginlik hakim. Yatırımcılar güvenli liman arayışında, bu dönemde temkinli olmakta fayda var.';
+                                                } else if (bistTrend > 0 && goldTrend > 0.5) {
+                                                    commentary = '🏆 Hem borsa hem altın yükseliyor - bu genellikle enflasyonist beklentilere işaret ediyor.';
+                                                } else if (btcTrend > 3) {
+                                                    commentary = '₿ Kripto paralarda hareketli bir gün! Bitcoin %' + btcTrend.toFixed(1) + ' yükseldi. Riskli varlıklara ilgi artıyor.';
+                                                } else if (btcTrend < -3) {
+                                                    commentary = '₿ Kripto piyasasında düzeltme yaşanıyor. Uzun vadeli yatırımcılar için alım fırsatı olabilir.';
+                                                } else if (Math.abs(bistTrend) < 0.5 && Math.abs(usdTrend) < 0.3) {
+                                                    commentary = '⏸️ Piyasalar bugün sakin bir seyir izliyor. Yatırımcılar bekle-gör modunda.';
+                                                } else {
+                                                    commentary = '📊 Piyasalar bugün karışık sinyaller veriyor. BIST ' + (bistTrend >= 0 ? '+' : '') + bistTrend.toFixed(1) + '%, Dolar ' + (usdTrend >= 0 ? '+' : '') + usdTrend.toFixed(1) + '%.';
+                                                }
+
+                                                // Add portfolio-specific insight
+                                                if (portfolio.length > 0) {
+                                                    commentary += '\n\n💼 Portföyünüzde ' + portfolio.length + ' farklı varlık bulunuyor.';
+                                                }
+
+                                                return commentary;
+                                            })()}
                                         </Text>
                                     </View>
+
+                                    {/* Personalized Recommendations */}
+                                    {recommendations.length > 0 && (
+                                        <View style={styles.modalSection}>
+                                            <View style={styles.noteHeader}>
+                                                <Feather name="zap" size={16} color={colors.primary} />
+                                                <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Kişisel Asistan</Text>
+                                            </View>
+                                            {recommendations.map((rec, idx) => (
+                                                <View
+                                                    key={rec.id}
+                                                    style={[
+                                                        styles.recommendationCard,
+                                                        {
+                                                            backgroundColor: rec.type === 'warning' ? 'rgba(255, 149, 0, 0.1)' :
+                                                                rec.type === 'opportunity' ? 'rgba(0, 122, 255, 0.1)' :
+                                                                    rec.type === 'success' ? 'rgba(52, 199, 89, 0.1)' :
+                                                                        'rgba(142, 142, 147, 0.1)',
+                                                            borderLeftColor: rec.type === 'warning' ? '#FF9500' :
+                                                                rec.type === 'opportunity' ? '#007AFF' :
+                                                                    rec.type === 'success' ? '#34C759' :
+                                                                        colors.subText,
+                                                        }
+                                                    ]}
+                                                >
+                                                    <View style={styles.recommendationHeader}>
+                                                        <Text style={styles.recommendationIcon}>{rec.icon}</Text>
+                                                        <Text style={[styles.recommendationTitle, { color: colors.text }]}>{rec.title}</Text>
+                                                    </View>
+                                                    <Text style={[styles.recommendationDesc, { color: colors.subText }]}>{rec.description}</Text>
+                                                    {rec.action && (
+                                                        <Text style={[styles.recommendationAction, { color: colors.primary }]}>💡 {rec.action}</Text>
+                                                    )}
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
                                 </>
                             ) : (
                                 <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
                             )}
+
+                            {/* News Feed - Always visible in modal */}
+                            <View style={{ marginTop: 24, paddingBottom: 40, paddingHorizontal: 4 }}>
+                                <NewsFeed keywords={newsKeywords} />
+                            </View>
                         </ScrollView>
                     </View>
                 </View>
             </Modal >
+
+            {/* AI Assistant FAB */}
+
         </View >
     );
 };
@@ -663,10 +1108,9 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     header: {
-        paddingTop: Platform.OS === 'ios' ? 80 : 60,
-        paddingBottom: 20,
+        paddingTop: Platform.OS === 'ios' ? 20 : 10,
+        paddingBottom: 16,
         paddingHorizontal: 20,
-        borderBottomWidth: 1,
     },
     headerTop: {
         flexDirection: 'row',
@@ -752,8 +1196,8 @@ const styles = StyleSheet.create({
     },
     insightCard: {
         flex: 1,
-        padding: 12,
-        height: 80,
+        padding: 8,
+        height: 64,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
@@ -833,18 +1277,18 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 32,
-        right: 24,
+        bottom: 20,
+        right: 20,
         width: 56,
         height: 56,
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.3,
         shadowRadius: 8,
-        elevation: 4,
+        elevation: 6,
+        zIndex: 100,
     },
     modalOverlay: {
         flex: 1,
@@ -915,5 +1359,73 @@ const styles = StyleSheet.create({
     noteText: {
         fontSize: 14,
         lineHeight: 22,
+    },
+    recommendationCard: {
+        padding: 14,
+        borderRadius: 10,
+        marginBottom: 10,
+        borderLeftWidth: 4,
+    },
+    recommendationHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    recommendationIcon: {
+        fontSize: 18,
+        marginRight: 8,
+    },
+    recommendationTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    recommendationDesc: {
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 6,
+    },
+    recommendationAction: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    compactMarketCard: {
+        flex: 1,
+        minWidth: '22%',
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
+    fabBadge: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        backgroundColor: '#FF3B30',
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    fabBadgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    compactMarketLabel: {
+        fontSize: 11,
+        fontWeight: '500',
+        marginBottom: 4,
+    },
+    compactMarketValue: {
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    compactMarketChange: {
+        fontSize: 11,
+        fontWeight: '600',
     },
 });

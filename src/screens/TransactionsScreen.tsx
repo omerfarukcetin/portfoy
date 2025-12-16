@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
 import { PortfolioItem } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { TickerIcon } from '../components/TickerIcon';
+import { MarketDataService } from '../services/marketData';
 
 export const TransactionsScreen = () => {
     const { realizedTrades, portfolio, updateAsset, deleteAsset } = usePortfolio();
-    const { colors } = useTheme();
+    const { colors, fonts } = useTheme();
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
 
     // Edit Modal State
@@ -17,11 +19,36 @@ export const TransactionsScreen = () => {
     const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
     const [editAmount, setEditAmount] = useState('');
     const [editCost, setEditCost] = useState('');
+    const [editDate, setEditDate] = useState('');
+    const [editHistoricalRate, setEditHistoricalRate] = useState('');
+    const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+    // Fetch historical rate when date changes
+    useEffect(() => {
+        const fetchRate = async () => {
+            if (editDate.length === 10) {
+                const date = new Date(editDate).getTime();
+                if (!isNaN(date)) {
+                    setIsLoadingRate(true);
+                    const rate = await MarketDataService.getHistoricalRate(date);
+                    if (rate) {
+                        setEditHistoricalRate(rate.toFixed(4));
+                    }
+                    setIsLoadingRate(false);
+                }
+            }
+        };
+        fetchRate();
+    }, [editDate]);
 
     const openEditModal = (item: PortfolioItem) => {
         setEditingItem(item);
         setEditAmount(item.amount.toString());
         setEditCost(item.averageCost.toString());
+        // Format date as YYYY-MM-DD
+        const dateObj = new Date(item.dateAdded || Date.now());
+        setEditDate(dateObj.toISOString().split('T')[0]);
+        setEditHistoricalRate('');
         setEditModalVisible(true);
     };
 
@@ -29,13 +56,15 @@ export const TransactionsScreen = () => {
         if (editingItem && editAmount && editCost) {
             const amount = parseFloat(editAmount.replace(',', '.'));
             const cost = parseFloat(editCost.replace(',', '.'));
+            const rate = editHistoricalRate ? parseFloat(editHistoricalRate.replace(',', '.')) : undefined;
+            const date = editDate ? new Date(editDate).getTime() : undefined;
 
             if (isNaN(amount) || isNaN(cost)) {
                 Alert.alert("Hata", "Geçersiz değerler.");
                 return;
             }
 
-            await updateAsset(editingItem.id, amount, cost);
+            await updateAsset(editingItem.id, amount, cost, date, rate);
             setEditModalVisible(false);
             setEditingItem(null);
         }
@@ -54,21 +83,44 @@ export const TransactionsScreen = () => {
 
     const renderItem = (data: { item: PortfolioItem }) => {
         const item = data.item;
+
+        // Determine icon color based on type
+        const getIconColor = (item: PortfolioItem) => {
+            if (item.type === 'gold') return '#FFD700';
+            if (item.type === 'crypto') return '#AF52DE';
+            if (item.type === 'stock') return '#007AFF';
+            if (item.type === 'fund') return '#FF2D55';
+            if (item.type === 'bes') return '#FF9500';
+            return '#8E8E93';
+        };
+
         return (
-            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                <View style={styles.row}>
-                    <Text style={[styles.symbol, { color: colors.text }]}>{item.instrumentId}</Text>
-                    <Text style={[styles.value, { color: colors.text }]}>
-                        {item.amount} Adet
-                    </Text>
-                </View>
-                <View style={[styles.row, { marginTop: 5 }]}>
-                    <Text style={[styles.details, { color: colors.subText }]}>
-                        Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                    </Text>
-                    <Text style={[styles.details, { color: colors.subText }]}>
-                        Toplam: {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                    </Text>
+            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                <View style={styles.itemRow}>
+                    {/* Left: Icon + Symbol */}
+                    <View style={styles.leftContainer}>
+                        <TickerIcon
+                            symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : item.instrumentId}
+                            color={getIconColor(item)}
+                            size={40}
+                        />
+                        <View style={styles.textContainer}>
+                            <Text style={[styles.symbol, { color: colors.text }]}>{item.customName || item.instrumentId}</Text>
+                            <Text style={[styles.details, { color: colors.subText }]}>
+                                Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Right: Amount + Total */}
+                    <View style={styles.rightContainer}>
+                        <Text style={[styles.value, { color: colors.text }]}>
+                            {item.amount} Adet
+                        </Text>
+                        <Text style={[styles.total, { color: colors.subText }]}>
+                            {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                        </Text>
+                    </View>
                 </View>
             </View>
         );
@@ -139,29 +191,97 @@ export const TransactionsScreen = () => {
                     />
                 )
             ) : (
-                // CLOSED POSITIONS (History)
+                // CLOSED POSITIONS (History) with Category Summary
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     {realizedTrades.length === 0 ? (
                         <Text style={{ textAlign: 'center', color: colors.subText, marginTop: 20 }}>Henüz işlem yok.</Text>
                     ) : (
-                        realizedTrades.slice().reverse().map(trade => (
-                            <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <View style={styles.row}>
-                                    <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
-                                    <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
-                                        {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
-                                    </Text>
-                                </View>
-                                <View style={styles.row}>
-                                    <Text style={[styles.details, { color: colors.subText }]}>
-                                        {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
-                                    </Text>
-                                    <Text style={[styles.details, { color: colors.subText }]}>
-                                        {new Date(trade.date).toLocaleDateString()}
-                                    </Text>
-                                </View>
-                            </View>
-                        ))
+                        <>
+                            {/* Category Summary */}
+                            {(() => {
+                                const categoryTotals: { [key: string]: { profitTry: number; count: number } } = {};
+                                let totalProfitTry = 0;
+
+                                realizedTrades.forEach(trade => {
+                                    const cat = trade.type || 'other';
+                                    if (!categoryTotals[cat]) {
+                                        categoryTotals[cat] = { profitTry: 0, count: 0 };
+                                    }
+                                    categoryTotals[cat].profitTry += trade.profitTry;
+                                    categoryTotals[cat].count += 1;
+                                    totalProfitTry += trade.profitTry;
+                                });
+
+                                const getCategoryName = (type: string) => {
+                                    switch (type) {
+                                        case 'stock': return '📈 Hisse';
+                                        case 'crypto': return '₿ Kripto';
+                                        case 'fund': return '📊 Fon';
+                                        case 'gold': return '🥇 Altın';
+                                        case 'bes': return '🏦 BES';
+                                        case 'custom': return '📁 Diğer';
+                                        default: return '📁 Diğer';
+                                    }
+                                };
+
+                                return (
+                                    <View style={{ marginBottom: 20 }}>
+                                        {/* Total Summary Card */}
+                                        <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border, padding: 16 }]}>
+                                            <Text style={{ color: colors.subText, fontSize: 13, marginBottom: 4 }}>Toplam Gerçekleşen K/Z</Text>
+                                            <Text style={{ color: totalProfitTry >= 0 ? colors.success : colors.danger, fontSize: 24, fontWeight: '700' }}>
+                                                {totalProfitTry >= 0 ? '+' : ''}{formatCurrency(totalProfitTry, 'TRY')}
+                                            </Text>
+                                        </View>
+
+                                        {/* Category Breakdown */}
+                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, marginTop: 16, marginBottom: 10 }}>Kategori Bazlı</Text>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                            {Object.entries(categoryTotals).map(([cat, data]) => (
+                                                <View key={cat} style={{ backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, minWidth: '47%', flex: 1, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Text style={{ color: colors.subText, fontSize: 12 }}>{getCategoryName(cat)}</Text>
+                                                    <Text style={{ color: data.profitTry >= 0 ? colors.success : colors.danger, fontSize: 16, fontWeight: '700', marginTop: 2 }}>
+                                                        {data.profitTry >= 0 ? '+' : ''}{formatCurrency(data.profitTry, 'TRY')}
+                                                    </Text>
+                                                    <Text style={{ color: colors.subText, fontSize: 11, marginTop: 2 }}>{data.count} işlem</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                );
+                            })()}
+
+                            {/* Trade List */}
+                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, marginBottom: 10 }}>İşlem Geçmişi</Text>
+                            {realizedTrades.slice().reverse().map(trade => {
+                                const cost = trade.buyPrice * trade.amount;
+                                const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
+
+                                return (
+                                    <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <View style={styles.row}>
+                                            <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
+                                                    {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                                                </Text>
+                                                <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
+                                                    ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.row}>
+                                            <Text style={[styles.details, { color: colors.subText }]}>
+                                                {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
+                                            </Text>
+                                            <Text style={[styles.details, { color: colors.subText }]}>
+                                                {new Date(trade.date).toLocaleDateString()}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </>
                     )}
                 </ScrollView>
             )}
@@ -192,6 +312,30 @@ export const TransactionsScreen = () => {
                             value={editCost}
                             onChangeText={setEditCost}
                             keyboardType="numeric"
+                        />
+
+                        <Text style={[styles.label, { color: colors.text }]}>İşlem Tarihi (YYYY-MM-DD)</Text>
+                        <TextInput
+                            style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                            value={editDate}
+                            onChangeText={setEditDate}
+                            placeholder="2024-01-15"
+                            placeholderTextColor={colors.subText}
+                        />
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                            <Text style={[styles.label, { color: colors.text, marginBottom: 0, flex: 1 }]}>
+                                USD/TRY Kuru (o günkü)
+                            </Text>
+                            {isLoadingRate && <ActivityIndicator size="small" color={colors.primary} />}
+                        </View>
+                        <TextInput
+                            style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                            value={editHistoricalRate}
+                            onChangeText={setEditHistoricalRate}
+                            keyboardType="numeric"
+                            placeholder="Otomatik yüklenecek"
+                            placeholderTextColor={colors.subText}
                         />
 
                         <View style={styles.modalButtons}>
@@ -248,6 +392,32 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingHorizontal: 15,
     },
+    // Modern card container (iOS style)
+    cardContainer: {
+        borderRadius: 16,
+        marginBottom: 12,
+        overflow: 'hidden',
+    },
+    itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+    },
+    leftContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    textContainer: {
+        justifyContent: 'center',
+    },
+    rightContainer: {
+        alignItems: 'flex-end',
+    },
+    // Legacy card (can be removed later)
     card: {
         borderRadius: 12,
         padding: 10,
@@ -261,26 +431,32 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     symbol: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
+        marginBottom: 2,
     },
     value: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
+        marginBottom: 2,
+    },
+    total: {
+        fontSize: 13,
+        fontWeight: '500',
     },
     details: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '500',
     },
     rowBack: {
         alignItems: 'center',
-        backgroundColor: '#DDD',
+        backgroundColor: 'transparent',
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'flex-end',
         paddingRight: 15,
-        marginBottom: 8,
-        borderRadius: 12,
+        marginBottom: 12,
+        borderRadius: 16,
     },
     backRightBtn: {
         alignItems: 'center',

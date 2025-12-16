@@ -1,4 +1,4 @@
-export type InstrumentType = 'crypto' | 'stock' | 'forex' | 'gold' | 'fund' | 'metal' | 'bes';
+export type InstrumentType = 'crypto' | 'stock' | 'forex' | 'gold' | 'silver' | 'fund' | 'metal' | 'bes' | 'custom';
 
 export interface Instrument {
   id: string;
@@ -29,6 +29,10 @@ export interface PortfolioItem {
   besStateContrib?: number; // Devlet katkısı
   besStateContribYield?: number; // Devlet katkısı getirisi
   besPrincipalYield?: number; // Ana para getirisi
+  customCategory?: string; // User-defined category name
+  // Custom Asset Fields (for manual price entry like crowdfunding)
+  customName?: string; // Display name for custom assets
+  customCurrentPrice?: number; // User-entered current unit price
 }
 
 export interface RealizedTrade {
@@ -42,16 +46,22 @@ export interface RealizedTrade {
   profit: number; // In original currency
   profitUsd: number;
   profitTry: number;
+  type?: InstrumentType; // Asset type for category grouping
 }
 
 export interface CashItem {
   id: string;
   type: 'cash' | 'money_market_fund' | 'deposit';
   name: string;
-  amount: number;
+  amount: number; // Current value (TRY)
   interestRate?: number; // For deposits (annual rate as percentage)
   currency: 'TRY' | 'USD';
   dateAdded?: number;
+  // For money market funds - P/L tracking
+  instrumentId?: string; // TEFAS fund code
+  units?: number; // Number of fund units
+  averageCost?: number; // Average cost per unit
+  historicalUsdRate?: number; // USD/TRY rate at purchase date
 }
 
 export interface Portfolio {
@@ -65,4 +75,25 @@ export interface Portfolio {
   cashItems: CashItem[];
   realizedTrades: RealizedTrade[];
   history: { date: string; valueTry: number; valueUsd: number }[];
+}
+
+export interface PriceAlert {
+  id: string;
+  instrumentId: string;
+  instrumentName: string;
+  type: 'above' | 'below' | 'target' | 'change_percent';
+  targetPrice?: number;
+  changePercent?: number;
+  basePrice?: number; // For percent change calculation
+  currency: 'USD' | 'TRY';
+  isActive: boolean;
+  createdAt: number;
+  triggeredAt?: number;
+}
+
+export interface NotificationSettings {
+  dailySummaryEnabled: boolean;
+  dailySummaryTime: string; // "08:00"
+  bigMoveAlertEnabled: boolean;
+  bigMoveThreshold: number; // Default 5%
 }

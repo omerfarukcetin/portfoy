@@ -648,8 +648,8 @@ export const SummaryScreen = () => {
                             )
                         }
 
-                        {/* Stats Grid */}
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 6 }}>
+                        {/* Stats Grid - 3 columns */}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, justifyContent: 'flex-start' }}>
                             <GradientCard
                                 variant="secondary"
                                 style={[styles.statItem, { padding: 0, minHeight: 70, borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}
@@ -1189,7 +1189,8 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     statItem: {
-        width: '32%', // 3 columns
+        width: '31%', // 3 columns with gap
+        minWidth: 120,
         padding: 12,
         borderRadius: 12,
         alignItems: 'center',

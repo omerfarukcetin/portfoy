@@ -419,10 +419,10 @@ export const SummaryScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
-                            {/* LEFT COLUMN (Main Content) - Flex 3 */}
-                            <View style={{ flex: 3, gap: 16 }}>
-                                {/* Total Assets Card */}
+                        {/* 3-COLUMN GRID LAYOUT */}
+                        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
+                            {/* COLUMN 1: Total Assets Card */}
+                            <View style={{ flex: 1, gap: 16 }}>
                                 <GradientCard
                                     variant="primary"
                                     style={{ borderRadius: 24, padding: 0 }}
@@ -450,61 +450,12 @@ export const SummaryScreen = () => {
 
                                 {/* Portfolio Chart */}
                                 {!isInitialLoading && portfolioChartVisible && (
-                                    <View style={{ height: 300, width: '100%', overflow: 'hidden' }}>
+                                    <View style={{ height: 280, width: '100%', overflow: 'hidden' }}>
                                         <PortfolioChart currentValue={totalPortfolioTry} history={history} />
                                     </View>
                                 )}
 
-                                {/* Portfolio Distribution (Donut) */}
-                                {portfolio.length > 0 && (
-                                    <View style={[styles.section, { marginTop: 0 }]}>
-                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale, marginLeft: 0, marginBottom: 12 }]}>Portföy Dağılımı</Text>
-                                        <GradientCard
-                                            variant="secondary"
-                                            style={{ borderWidth: 1, borderColor: colors.border }}
-                                            contentStyle={{ padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                                        >
-                                            {isInitialLoading ? (
-                                                <Skeleton width="100%" height={200} />
-                                            ) : (
-                                                <>
-                                                    <View style={{ marginRight: 30 }}>
-                                                        <DonutChart
-                                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                            size={180}
-                                                            strokeWidth={20}
-                                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                            centerTextFontSize={22}
-                                                            centerSubtext="₺"
-                                                            colors={colors}
-                                                        />
-                                                    </View>
-                                                    <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                                                        {pieData.map((item, index) => {
-                                                            const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                            const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-                                                            return (
-                                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', width: '45%', marginBottom: 4 }}>
-                                                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 8 }} />
-                                                                    <View>
-                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
-                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
-                                                                    </View>
-                                                                </View>
-                                                            );
-                                                        })}
-                                                    </View>
-                                                </>
-                                            )}
-                                        </GradientCard>
-                                    </View>
-                                )}
-                            </View>
-
-                            {/* RIGHT COLUMN (Stats & Insights) - Flex 2 */}
-                            <View style={{ flex: 2, gap: 16 }}>
-
-                                {/* Stats Grid - Vertical on Web Right Col */}
+                                {/* Stats Grid - Vertical */}
                                 <View style={{ gap: 12 }}>
                                     {/* Toplam K/Z */}
                                     <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
@@ -537,7 +488,63 @@ export const SummaryScreen = () => {
                                     </GradientCard>
                                 </View>
 
-                                {/* Market Insights - Vertical */}
+                                {/* Cash Management */}
+                                <GradientCard variant="secondary" style={[styles.insightCard, { backgroundColor: 'transparent', width: '100%', padding: 0, borderColor: colors.primary }]} contentStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => (navigation as any).navigate('CashManagement')}>
+                                    <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale, marginBottom: 0 }]}>Yedek Akçe</Text>
+                                    <Text style={[styles.statValue, { color: colors.text, marginBottom: 0, fontSize: 16 * fontScale }]}>{isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}</Text>
+                                </GradientCard>
+                            </View>
+
+                            {/* COLUMN 2: Portfolio Distribution (Donut Chart - LARGER) */}
+                            <View style={{ flex: 1, gap: 16 }}>
+                                {portfolio.length > 0 && (
+                                    <View style={[styles.section, { marginTop: 0 }]}>
+                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 * fontScale, marginLeft: 0, marginBottom: 12 }]}>Portföy Dağılımı</Text>
+                                        <GradientCard
+                                            variant="secondary"
+                                            style={{ borderWidth: 1, borderColor: colors.border }}
+                                            contentStyle={{ padding: 24, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                                        >
+                                            {isInitialLoading ? (
+                                                <Skeleton width="100%" height={300} />
+                                            ) : (
+                                                <>
+                                                    <View style={{ marginBottom: 20 }}>
+                                                        <DonutChart
+                                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                            size={240}
+                                                            strokeWidth={28}
+                                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                            centerTextFontSize={24}
+                                                            centerSubtext="₺"
+                                                            colors={colors}
+                                                        />
+                                                    </View>
+                                                    <View style={{ width: '100%', gap: 4 }}>
+                                                        {pieData.map((item, index) => {
+                                                            const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                            const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                            return (
+                                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                                                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 10 }} />
+                                                                        <Text style={{ fontSize: 14 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                                                    </View>
+                                                                    <Text style={{ fontSize: 14 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </>
+                                            )}
+                                        </GradientCard>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* COLUMN 3: Market Insights & Summary */}
+                            <View style={{ flex: 1, gap: 16 }}>
+                                {/* Market Insights */}
                                 <View style={{ gap: 12 }}>
                                     <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.success }]} contentStyle={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (bestPerformer.id && bestPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -556,16 +563,10 @@ export const SummaryScreen = () => {
                                     </GradientCard>
                                 </View>
 
-                                {/* Cash Management */}
-                                <GradientCard variant="secondary" style={[styles.insightCard, { backgroundColor: 'transparent', width: '100%', padding: 0, borderColor: colors.primary }]} contentStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => (navigation as any).navigate('CashManagement')}>
-                                    <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale, marginBottom: 0 }]}>Yedek Akçe</Text>
-                                    <Text style={[styles.statValue, { color: colors.text, marginBottom: 0, fontSize: 16 * fontScale }]}>{isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}</Text>
-                                </GradientCard>
-
                                 {/* Market Summary Ticker (Compact List) */}
                                 {marketSummaryVisible && (
                                     <View style={[styles.section, { marginTop: 0 }]}>
-                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 14, marginBottom: 8 }]}>Piyasa Özeti</Text>
+                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 14, marginBottom: 8, marginLeft: 0 }]}>Piyasa Özeti</Text>
                                         <View style={{ gap: 8 }}>
                                             {[
                                                 { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
@@ -573,10 +574,10 @@ export const SummaryScreen = () => {
                                                 { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
                                             ].filter(item => selectedMarketInstruments.includes(item.id)).map((item, index) => (
                                                 <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 8, backgroundColor: colors.cardBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Text style={{ color: colors.subText }}>{item.label}</Text>
-                                                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                                                        <Text style={{ color: colors.text, fontWeight: '600' }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
-                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger }}>%{Math.abs(item.change).toFixed(2)}</Text>
+                                                    <Text style={{ color: colors.subText, fontSize: 12 }}>{item.label}</Text>
+                                                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                                                        <Text style={{ color: colors.text, fontWeight: '600', fontSize: 12 }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
+                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger, fontSize: 11 }}>%{Math.abs(item.change).toFixed(2)}</Text>
                                                     </View>
                                                 </View>
                                             ))}

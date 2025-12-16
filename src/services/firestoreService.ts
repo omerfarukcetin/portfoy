@@ -4,6 +4,7 @@ import {
     setDoc,
     getDoc,
     getDocs,
+    getDocsFromServer,
     deleteDoc,
     onSnapshot,
     query,
@@ -83,8 +84,9 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
         const activePortfolioId = userData?.activePortfolioId || '';
         console.log(`📥 Firestore: User doc activePortfolioId = ${activePortfolioId}`);
 
-        // Get all portfolios
-        const portfoliosSnapshot = await getDocs(getUserPortfoliosRef(userId));
+        // Get all portfolios - FORCE read from server (bypass cache)
+        console.log('📥 Firestore: Forcing server read (no cache)...');
+        const portfoliosSnapshot = await getDocsFromServer(getUserPortfoliosRef(userId));
         const portfolios: Portfolio[] = [];
 
         portfoliosSnapshot.forEach((doc) => {

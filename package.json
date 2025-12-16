@@ -2,14 +2,13 @@
   "name": "portfoy",
   "version": "1.0.0",
   "main": "index.ts",
-  "homepage": "https://omerfarukcetin.github.io/portfoy",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export": "expo export -p web",
-    "predeploy": "npm run export && touch dist/.nojekyll && cp dist/index.html dist/404.html",
+    "predeploy": "npm run export && node fix-paths.js && touch dist/.nojekyll && cp dist/index.html dist/404.html",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {

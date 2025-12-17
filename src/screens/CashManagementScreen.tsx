@@ -676,48 +676,45 @@ export const CashManagementScreen = () => {
                             {!editingItem && (
                                 <View style={styles.formGroup}>
                                     <Text style={[styles.label, { color: colors.text }]}>Tarih</Text>
-                                    <TouchableOpacity
-                                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
-                                        onPress={() => setShowDatePicker(true)}
-                                    >
-                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
-                                    </TouchableOpacity>
-                                    {showDatePicker && (
-                                        Platform.OS === 'web' ? (
-                                            <View style={{ marginTop: 8 }}>
-                                                <input
-                                                    type="date"
-                                                    value={dateStr}
-                                                    onChange={(e: any) => {
-                                                        setDateStr(e.target.value);
+                                    {Platform.OS === 'web' ? (
+                                        <input
+                                            type="date"
+                                            value={dateStr}
+                                            onChange={(e: any) => setDateStr(e.target.value)}
+                                            style={{
+                                                padding: 12,
+                                                fontSize: 16,
+                                                borderRadius: 10,
+                                                border: `1px solid ${colors.border}`,
+                                                backgroundColor: colors.inputBackground,
+                                                color: colors.text,
+                                                width: '100%',
+                                                minHeight: 48,
+                                                cursor: 'pointer',
+                                            }}
+                                        />
+                                    ) : (
+                                        <>
+                                            <TouchableOpacity
+                                                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
+                                                onPress={() => setShowDatePicker(true)}
+                                            >
+                                                <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
+                                            </TouchableOpacity>
+                                            {showDatePicker && (
+                                                <DateTimePicker
+                                                    value={new Date(dateStr)}
+                                                    mode="date"
+                                                    display="default"
+                                                    onChange={(event, selectedDate) => {
                                                         setShowDatePicker(false);
+                                                        if (selectedDate) {
+                                                            setDateStr(selectedDate.toISOString().split('T')[0]);
+                                                        }
                                                     }}
-                                                    style={{
-                                                        padding: 12,
-                                                        fontSize: 15,
-                                                        borderRadius: 10,
-                                                        border: `1px solid ${colors.border}`,
-                                                        backgroundColor: colors.inputBackground,
-                                                        color: colors.text,
-                                                        width: '100%',
-                                                        minHeight: 44,
-                                                    }}
-                                                    autoFocus
                                                 />
-                                            </View>
-                                        ) : (
-                                            <DateTimePicker
-                                                value={new Date(dateStr)}
-                                                mode="date"
-                                                display="default"
-                                                onChange={(event, selectedDate) => {
-                                                    setShowDatePicker(false);
-                                                    if (selectedDate) {
-                                                        setDateStr(selectedDate.toISOString().split('T')[0]);
-                                                    }
-                                                }}
-                                            />
-                                        )
+                                            )}
+                                        </>
                                     )}
                                 </View>
                             )}

@@ -902,33 +902,32 @@ export const SummaryScreen = () => {
                                                             value: item.population,
                                                             color: item.color
                                                         }))}
-                                                        size={120}
-                                                        strokeWidth={16}
-                                                        centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                        centerSubtext="₺"
-                                                        colors={colors}
-                                                        legend={
-                                                            <View style={{ flex: 1, justifyContent: 'center' }}>
-                                                                {pieData.map((item, index) => {
-                                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                        size={160}\n                                                        strokeWidth={20}
+                                                    centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                    centerSubtext="₺"
+                                                    colors={colors}
+                                                    legend={
+                                                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                                                            {pieData.map((item, index) => {
+                                                                const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                                const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
 
-                                                                    return (
-                                                                        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
-                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                                                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
-                                                                                <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
-                                                                                    {item.name}
-                                                                                </Text>
-                                                                            </View>
-                                                                            <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>
-                                                                                %{percentage}
+                                                                return (
+                                                                    <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+                                                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
+                                                                            <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
+                                                                                {item.name}
                                                                             </Text>
                                                                         </View>
-                                                                    );
-                                                                })}
-                                                            </View>
-                                                        }
+                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>
+                                                                            %{percentage}
+                                                                        </Text>
+                                                                    </View>
+                                                                );
+                                                            })}
+                                                        </View>
+                                                    }
                                                     />
                                                 </View>
                                             </>

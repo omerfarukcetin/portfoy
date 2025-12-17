@@ -87,20 +87,24 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     <Text style={[styles.amount, { color: colors.subText }]}>
                         {formatCurrency(displayPrice, displayCurrency)} × {item.amount} Adet
                     </Text>
-                    {changePercent !== 0 ? (
+                    {/* Hide daily change on mobile */}
+                    {Platform.OS === 'web' && changePercent !== 0 ? (
                         <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
                             {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
                         </Text>
-                    ) : (
+                    ) : Platform.OS === 'web' ? (
                         <Text style={[styles.dailyChange, { color: colors.subText }]}>-</Text>
-                    )}
+                    ) : null}
                 </View>
             </View>
 
             <View style={styles.rightContainer}>
-                <Text style={[styles.costLabel, { color: colors.subText }]}>
-                    Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                </Text>
+                {/* Hide cost label on mobile */}
+                {Platform.OS === 'web' && (
+                    <Text style={[styles.costLabel, { color: colors.subText }]}>
+                        Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                    </Text>
+                )}
                 <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(displayValue, displayCurrency)}</Text>
                 <View style={[styles.plContainer, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
                     <Text style={[styles.plText, { color: isProfit ? colors.success : colors.danger }]}>
@@ -137,20 +141,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingVertical: Platform.OS === 'web' ? 12 : 10,
+        paddingHorizontal: Platform.OS === 'web' ? 16 : 12,
     },
     leftContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: Platform.OS === 'web' ? 12 : 10,
         flex: 1,
     },
     textContainer: {
         justifyContent: 'center',
     },
     symbol: {
-        fontSize: 16,
+        fontSize: Platform.OS === 'web' ? 16 : 13,
         fontWeight: '700',
         marginBottom: 2,
     },
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     amount: {
-        fontSize: 13,
+        fontSize: Platform.OS === 'web' ? 13 : 11,
     },
     rightContainer: {
         alignItems: 'flex-end',
@@ -171,17 +175,17 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     value: {
-        fontSize: 16,
+        fontSize: Platform.OS === 'web' ? 16 : 14,
         fontWeight: '700',
         marginBottom: 4,
     },
     plContainer: {
-        paddingHorizontal: 6,
+        paddingHorizontal: Platform.OS === 'web' ? 6 : 5,
         paddingVertical: 2,
         borderRadius: 6,
     },
     plText: {
-        fontSize: 12,
+        fontSize: Platform.OS === 'web' ? 12 : 10,
         fontWeight: '600',
     },
     dailyChange: {

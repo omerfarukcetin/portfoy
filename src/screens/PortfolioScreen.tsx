@@ -300,7 +300,8 @@ export const PortfolioScreen = () => {
                                         <Text style={[styles.sectionTotal, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
                                         <Feather name={isCollapsed ? "chevron-down" : "chevron-up"} size={16} color={colors.subText} />
                                     </View>
-                                    {(category !== 'Yedek Akçe' || categoryPL['Yedek Akçe']?.cost > 0) && currentCategoryCost > 0 && (
+                                    {/* Hide category P/L on mobile */}
+                                    {Platform.OS === 'web' && (category !== 'Yedek Akçe' || categoryPL['Yedek Akçe']?.cost > 0) && currentCategoryCost > 0 && (
                                         <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
                                             {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
                                         </Text>

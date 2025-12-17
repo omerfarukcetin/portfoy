@@ -842,13 +842,18 @@ const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
+        justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
+        alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
     },
     modalContent: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
+        borderTopLeftRadius: Platform.OS === 'web' ? 16 : 24,
+        borderTopRightRadius: Platform.OS === 'web' ? 16 : 24,
+        borderBottomLeftRadius: Platform.OS === 'web' ? 16 : 0,
+        borderBottomRightRadius: Platform.OS === 'web' ? 16 : 0,
+        padding: Platform.OS === 'web' ? 20 : 24,
         maxHeight: '90%',
+        maxWidth: Platform.OS === 'web' ? 600 : undefined,
+        width: Platform.OS === 'web' ? '90%' : '100%',
     },
     modalHeader: {
         flexDirection: 'row',
@@ -861,7 +866,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     formGroup: {
-        marginBottom: 20,
+        marginBottom: Platform.OS === 'web' ? 16 : 20,
     },
     label: {
         fontSize: 16,
@@ -870,9 +875,10 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 18,
+        borderRadius: Platform.OS === 'web' ? 10 : 12,
+        padding: Platform.OS === 'web' ? 12 : 16,
+        fontSize: Platform.OS === 'web' ? 15 : 18,
+        minHeight: Platform.OS === 'web' ? 44 : 56,
     },
     typeButtons: {
         flexDirection: 'row',

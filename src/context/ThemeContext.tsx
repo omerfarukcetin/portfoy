@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type Theme = 'light' | 'dark' | 'gray' | 'navy';
+type Theme = 'light' | 'dark' | 'gray' | 'navy' | 'cream' | 'sage';
 type FontSize = 'small' | 'medium' | 'large';
 type HeroSize = 'compact' | 'normal';
 
@@ -77,6 +77,34 @@ const navyColors: ThemeColors = {
     danger: '#F87171', // Red 400
     warning: '#FBBF24', // Amber 400
     inputBackground: '#1E293B',
+};
+
+// Cream - Warm beige/cream theme
+const creamColors: ThemeColors = {
+    primary: '#B8860B', // Dark Goldenrod
+    background: '#FDF5E6', // Old Lace (krem)
+    cardBackground: '#FFFAF0', // Floral White
+    text: '#3D2B1F', // Bistre (koyu kahve)
+    subText: '#8B7355', // Burly Wood
+    border: '#DEB887', // Burlywood
+    success: '#6B8E23', // Olive Drab
+    danger: '#CD5C5C', // Indian Red
+    warning: '#DAA520', // Goldenrod
+    inputBackground: '#FAF0E6', // Linen
+};
+
+// Sage - Soft green-gray theme
+const sageColors: ThemeColors = {
+    primary: '#6B8E6B', // Sage Green
+    background: '#F5F5F0', // Off-white with green tint
+    cardBackground: '#FAFAF5', // Warm white
+    text: '#2F4F2F', // Dark green
+    subText: '#6B7B6B', // Gray-green
+    border: '#C8D8C8', // Light sage
+    success: '#5F9F5F', // Forest green
+    danger: '#C06060', // Dusty rose
+    warning: '#C9A04B', // Warm yellow
+    inputBackground: '#F0F5F0', // Very light sage
 };
 
 import { Platform } from 'react-native';
@@ -164,7 +192,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTheme(newTheme);
     };
 
-    const colors = theme === 'dark' ? darkColors : theme === 'gray' ? grayColors : theme === 'navy' ? navyColors : lightColors;
+    const colors = theme === 'dark' ? darkColors
+        : theme === 'gray' ? grayColors
+            : theme === 'navy' ? navyColors
+                : theme === 'cream' ? creamColors
+                    : theme === 'sage' ? sageColors
+                        : lightColors;
     const fontScale = fontScales[fontSize];
 
     // Calculate scaled font sizes

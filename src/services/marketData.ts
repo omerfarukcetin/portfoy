@@ -705,16 +705,27 @@ export const MarketDataService = {
             const period1 = timestamp - 86400; // -1 day buffer
             const period2 = timestamp + 86400; // +1 day buffer
 
-            const response = await axios.get(`${YAHOO_BASE_URL}/TRY=X`, {
-                params: {
-                    period1: period1,
-                    period2: period2,
-                    interval: '1d',
-                    events: 'history'
+            // Use CORS proxy on web (similar to getYahooPrice)
+            const isWeb = Platform.OS === 'web';
+            let url = `${YAHOO_BASE_URL}/TRY=X?period1=${period1}&period2=${period2}&interval=1d&events=history`;
+
+            if (isWeb) {
+                url = `https://cors.eu.org/${url}`;
+            }
+
+            const response = await fetch(url, {
+                headers: isWeb ? {} : {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
                 }
             });
 
-            const result = response.data.chart.result[0];
+            if (!response.ok) {
+                console.error(`Historical rate fetch error: ${response.status} ${response.statusText}`);
+                return null;
+            }
+
+            const data = await response.json();
+            const result = data.chart.result[0];
             if (result && result.indicators.quote[0].close) {
                 const timestamps = result.timestamp;
                 const closes = result.indicators.quote[0].close;
@@ -725,6 +736,7 @@ export const MarketDataService = {
 
                 // Simple approach: Take the first non-null value found in the range
                 const rate = closes.find((c: number) => c != null && c > 0);
+                console.log('✅ Historical USD/TRY rate fetched:', rate);
                 return rate || null;
             }
             return null;

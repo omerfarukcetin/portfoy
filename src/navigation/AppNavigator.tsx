@@ -215,6 +215,39 @@ const webStyles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 10,
     },
+    // Bottom Tab Bar for Mobile Web
+    bottomTabBar: {
+        flexDirection: 'row',
+        height: 70,
+        paddingBottom: 10,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'space-around',
+    },
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 4,
+    },
+    tabLabel: {
+        fontSize: 10,
+        fontWeight: '500',
+        marginTop: 2,
+    },
+    addButtonTab: {
+        backgroundColor: '#007AFF',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        marginTop: -20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
 });
 
 const HomeTabNavigator = () => {
@@ -262,8 +295,9 @@ const AuthNavigator = () => {
 // Web-specific Stack Navigator (no tabs, sidebar instead)
 const WebNavigator = () => {
     const { colors } = useTheme();
-    const [sidebarVisible, setSidebarVisible] = useState(false);
+    const navigation = useNavigation<any>();
     const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
+    const [activeTab, setActiveTab] = useState('Summary');
 
     // Track window width changes
     useEffect(() => {
@@ -275,67 +309,87 @@ const WebNavigator = () => {
 
     const isMobile = windowWidth < 768;
 
+    const mobileMenuItems = [
+        { name: 'Summary', label: 'Özet', icon: 'home' },
+        { name: 'Portfolio', label: 'Portföy', icon: 'briefcase' },
+        { name: 'AddInstrument', label: 'Ekle', icon: 'plus-circle' },
+        { name: 'Transactions', label: 'İşlemler', icon: 'list' },
+        { name: 'Settings', label: 'Ayarlar', icon: 'settings' },
+    ];
+
+    const handleTabPress = (tabName: string) => {
+        setActiveTab(tabName);
+        navigation.navigate(tabName);
+    };
+
     return (
-        <View style={{ flex: 1, flexDirection: 'row', width: '100%', height: '100%' }}>
-            {/* Hamburger Menu (Mobile Only) */}
-            {isMobile && (
-                <TouchableOpacity
-                    style={[webStyles.hamburger, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                    onPress={() => setSidebarVisible(true)}
-                >
-                    <Feather name="menu" size={24} color={colors.text} />
-                </TouchableOpacity>
-            )}
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+            {/* Main Content Area */}
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+                {/* Sidebar - Desktop only */}
+                {!isMobile && <Sidebar />}
 
-            {/* Sidebar - Always visible on desktop, overlay on mobile */}
-            {((!isMobile) || sidebarVisible) && (
-                <>
-                    {/* Backdrop for mobile */}
-                    {isMobile && (
-                        <TouchableOpacity
-                            style={webStyles.backdrop}
-                            activeOpacity={1}
-                            onPress={() => setSidebarVisible(false)}
-                        />
-                    )}
-                    <View style={[isMobile && webStyles.sidebarMobile]}>
-                        <Sidebar />
+                {/* Content */}
+                <View style={{ flex: 1, backgroundColor: colors.background }}>
+                    <View style={{ flex: 1, maxWidth: 1800, width: '100%', alignSelf: 'center' }}>
+                        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Summary">
+                            <Stack.Screen name="Summary" component={SummaryScreen} />
+                            <Stack.Screen name="Portfolio" component={PortfolioScreen} />
+                            <Stack.Screen name="Transactions" component={TransactionsScreen} />
+                            <Stack.Screen name="Favorites" component={FavoritesScreen} />
+                            <Stack.Screen name="Settings" component={SettingsScreen} />
+                            <Stack.Screen
+                                name="AddInstrument"
+                                component={AddInstrumentScreen}
+                                options={{ presentation: 'modal' }}
+                            />
+                            <Stack.Screen
+                                name="SellAsset"
+                                component={SellAssetScreen}
+                                options={{ title: 'Varlık Sat', presentation: 'modal' }}
+                            />
+                            <Stack.Screen
+                                name="CashManagement"
+                                component={CashManagementScreen}
+                                options={{ presentation: 'modal' }}
+                            />
+                            <Stack.Screen
+                                name="AssetDetail"
+                                component={AssetDetailScreen}
+                                options={{ presentation: 'modal', title: 'Varlık Detayı' }}
+                            />
+                        </Stack.Navigator>
                     </View>
-                </>
-            )}
-
-            <View style={{ flex: 1, backgroundColor: colors.background }}>
-                {/* Content Container to limit width on large screens */}
-                <View style={{ flex: 1, maxWidth: 1800, width: '100%', alignSelf: 'center' }}>
-                    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Summary">
-                        <Stack.Screen name="Summary" component={SummaryScreen} />
-                        <Stack.Screen name="Portfolio" component={PortfolioScreen} />
-                        <Stack.Screen name="Transactions" component={TransactionsScreen} />
-                        <Stack.Screen name="Favorites" component={FavoritesScreen} />
-                        <Stack.Screen name="Settings" component={SettingsScreen} />
-                        <Stack.Screen
-                            name="AddInstrument"
-                            component={AddInstrumentScreen}
-                            options={{ presentation: 'modal' }}
-                        />
-                        <Stack.Screen
-                            name="SellAsset"
-                            component={SellAssetScreen}
-                            options={{ title: 'Varlık Sat', presentation: 'modal' }}
-                        />
-                        <Stack.Screen
-                            name="CashManagement"
-                            component={CashManagementScreen}
-                            options={{ presentation: 'modal' }}
-                        />
-                        <Stack.Screen
-                            name="AssetDetail"
-                            component={AssetDetailScreen}
-                            options={{ presentation: 'modal', title: 'Varlık Detayı' }}
-                        />
-                    </Stack.Navigator>
                 </View>
             </View>
+
+            {/* Bottom Tab Bar - Mobile only */}
+            {isMobile && (
+                <View style={[webStyles.bottomTabBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.border }]}>
+                    {mobileMenuItems.map((item) => {
+                        const isActive = activeTab === item.name;
+                        const isAddButton = item.name === 'AddInstrument';
+                        return (
+                            <TouchableOpacity
+                                key={item.name}
+                                style={[webStyles.tabItem, isAddButton && webStyles.addButtonTab]}
+                                onPress={() => handleTabPress(item.name)}
+                            >
+                                <Feather
+                                    name={item.icon as any}
+                                    size={isAddButton ? 28 : 22}
+                                    color={isAddButton ? '#fff' : (isActive ? colors.primary : colors.subText)}
+                                />
+                                {!isAddButton && (
+                                    <Text style={[webStyles.tabLabel, { color: isActive ? colors.primary : colors.subText }]}>
+                                        {item.label}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            )}
         </View>
     );
 };

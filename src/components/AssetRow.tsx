@@ -113,23 +113,23 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                 </View>
             </View>
 
-            {/* Web: Show Sell button inline */}
+            {/* Web: Show Sell button inline - smaller on mobile */}
             {Platform.OS === 'web' && onSell && (
                 <TouchableOpacity
                     style={{
                         backgroundColor: colors.danger,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: 6,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 4,
-                        marginLeft: 12
+                        justifyContent: 'center',
+                        marginLeft: 8,
+                        minWidth: 32,
                     }}
                     onPress={onSell}
                 >
-                    <Feather name="trending-down" size={16} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Satış Yap</Text>
+                    <Feather name="trending-down" size={14} color="#fff" />
                 </TouchableOpacity>
             )}
         </TouchableOpacity>

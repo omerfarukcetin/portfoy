@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer, useNavigation, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,10 +16,10 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Text, ActivityIndicator, View, StatusBar, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Text, ActivityIndicator, View, StatusBar, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../context/SettingsContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { Sidebar } from '../components/web/Sidebar';
 
 // Turkish page titles for web
@@ -175,6 +175,48 @@ const styles = StyleSheet.create({
     },
 });
 
+// Web-specific styles for responsive sidebar
+const webStyles = StyleSheet.create({
+    hamburger: {
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        zIndex: 999,
+        width: 50,
+        height: 50,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    backdrop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: 998,
+    },
+    sidebarMobile: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 999,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 10,
+    },
+});
+
 const HomeTabNavigator = () => {
     const { colors } = useTheme();
     const { t } = useLanguage();
@@ -220,10 +262,48 @@ const AuthNavigator = () => {
 // Web-specific Stack Navigator (no tabs, sidebar instead)
 const WebNavigator = () => {
     const { colors } = useTheme();
+    const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
+
+    // Track window width changes
+    useEffect(() => {
+        const subscription = Dimensions.addEventListener('change', ({ window }) => {
+            setWindowWidth(window.width);
+        });
+        return () => subscription?.remove();
+    }, []);
+
+    const isMobile = windowWidth < 768;
 
     return (
         <View style={{ flex: 1, flexDirection: 'row', width: '100%', height: '100%' }}>
-            <Sidebar />
+            {/* Hamburger Menu (Mobile Only) */}
+            {isMobile && (
+                <TouchableOpacity
+                    style={[webStyles.hamburger, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                    onPress={() => setSidebarVisible(true)}
+                >
+                    <Feather name="menu" size={24} color={colors.text} />
+                </TouchableOpacity>
+            )}
+
+            {/* Sidebar - Always visible on desktop, overlay on mobile */}
+            {((!isMobile) || sidebarVisible) && (
+                <>
+                    {/* Backdrop for mobile */}
+                    {isMobile && (
+                        <TouchableOpacity
+                            style={webStyles.backdrop}
+                            activeOpacity={1}
+                            onPress={() => setSidebarVisible(false)}
+                        />
+                    )}
+                    <View style={[isMobile && webStyles.sidebarMobile]}>
+                        <Sidebar />
+                    </View>
+                </>
+            )}
+
             <View style={{ flex: 1, backgroundColor: colors.background }}>
                 {/* Content Container to limit width on large screens */}
                 <View style={{ flex: 1, maxWidth: 1800, width: '100%', alignSelf: 'center' }}>

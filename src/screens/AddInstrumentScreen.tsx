@@ -18,7 +18,7 @@ export const AddInstrumentScreen = () => {
     const [cost, setCost] = useState('');
     const [currency, setCurrency] = useState<'USD' | 'TRY'>('TRY');
     const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
-    const [category, setCategory] = useState<'BIST' | 'ABD' | 'EMTIA' | 'KRIPTO' | 'FON' | 'BES' | 'DIGER'>('BIST');
+    const [category, setCategory] = useState<'BIST' | 'ABD' | 'EMTIA' | 'KRIPTO' | 'FON' | 'BES' | 'DIGER' | 'NAKIT'>('BIST');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [historicalRate, setHistoricalRate] = useState('');
 
@@ -255,15 +255,24 @@ export const AddInstrumentScreen = () => {
             {!selectedInstrument ? (
                 <>
                     <View style={styles.tabContainer}>
-                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DİĞER'].map((cat) => (
-                            <TouchableOpacity
-                                key={cat}
-                                style={[styles.tab, category === (cat === 'DİĞER' ? 'DIGER' : cat) && { backgroundColor: colors.primary }]}
-                                onPress={() => setCategory((cat === 'DİĞER' ? 'DIGER' : cat) as any)}
-                            >
-                                <Text style={[styles.tabText, { color: category === cat ? '#fff' : colors.subText }]}>{cat}</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'NAKİT', 'DİĞER'].map((cat) => {
+                            const catKey = cat === 'DİĞER' ? 'DIGER' : cat === 'NAKİT' ? 'NAKIT' : cat;
+                            return (
+                                <TouchableOpacity
+                                    key={cat}
+                                    style={[styles.tab, category === catKey && { backgroundColor: colors.primary }]}
+                                    onPress={() => {
+                                        if (cat === 'NAKİT') {
+                                            navigation.navigate('CashManagement' as never);
+                                        } else {
+                                            setCategory(catKey as any);
+                                        }
+                                    }}
+                                >
+                                    <Text style={[styles.tabText, { color: category === catKey ? '#fff' : colors.subText }]}>{cat}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
 
                     {category === 'KRIPTO' ? (

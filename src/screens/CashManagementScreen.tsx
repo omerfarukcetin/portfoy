@@ -240,6 +240,37 @@ export const CashManagementScreen = () => {
         );
     };
 
+    // Sell PPF and add proceeds to cash balance
+    const handleSellPPF = async (item: CashItem) => {
+        if (item.type !== 'money_market_fund' || !item.instrumentId || !item.units) return;
+
+        const currentPrice = fundPrices[item.instrumentId] || item.averageCost || 0;
+        const currentValue = item.units * currentPrice;
+
+        showAlert(
+            'Satış Yap',
+            `${item.name} satılacak.\nGüncel Değer: ${formatCurrency(currentValue, 'TRY')}\n\nEmin misiniz?`,
+            [
+                { text: 'İptal', style: 'cancel' },
+                {
+                    text: 'Sat',
+                    style: 'destructive',
+                    onPress: async () => {
+                        console.log('💰 Selling PPF:', item.name, 'Value:', currentValue);
+
+                        // Delete the PPF item
+                        await deleteCashItem(item.id);
+
+                        // Add proceeds to cash balance
+                        await updateCash(currentValue);
+
+                        showAlert('Başarılı', `${item.name} satıldı ve ${formatCurrency(currentValue, 'TRY')} nakit bakiyenize eklendi.`);
+                    }
+                }
+            ]
+        );
+    };
+
     const getTypeLabel = (type: string) => {
         switch (type) {
             case 'cash': return 'Nakit';
@@ -393,9 +424,16 @@ export const CashManagementScreen = () => {
                                             </Text>
                                         </View>
                                     </View>
-                                    <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
-                                        <Feather name="trash-2" size={18} color={colors.danger} />
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        {item.type === 'money_market_fund' && item.units && (
+                                            <TouchableOpacity onPress={() => handleSellPPF(item)} style={[styles.deleteButton, { backgroundColor: colors.success + '15' }]}>
+                                                <Feather name="trending-down" size={16} color={colors.success} />
+                                            </TouchableOpacity>
+                                        )}
+                                        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
+                                            <Feather name="trash-2" size={18} color={colors.danger} />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                                 <View style={styles.itemFooter}>
                                     <View>

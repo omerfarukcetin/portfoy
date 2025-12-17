@@ -378,14 +378,25 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         let defaultCash = cashItems.find(item => item.type === 'cash' && item.currency === 'TRY');
 
         if (defaultCash) {
-            await updateCashItem(defaultCash.id, defaultCash.amount + amount);
-        } else {
+            const newAmount = defaultCash.amount + amount;
+            // Prevent negative balance
+            if (newAmount < 0) {
+                console.log('⚠️ Cannot deduct more than available cash balance');
+                return;
+            }
+            await updateCashItem(defaultCash.id, newAmount);
+            console.log('💰 Cash updated:', defaultCash.amount, '+', amount, '=', newAmount);
+        } else if (amount > 0) {
+            // Only create new cash item for positive amounts
             await addCashItem({
                 type: 'cash',
                 name: 'Nakit (TL)',
                 amount: amount,
                 currency: 'TRY'
             });
+            console.log('💰 New cash item created with amount:', amount);
+        } else {
+            console.log('⚠️ No existing cash item to deduct from');
         }
     };
 

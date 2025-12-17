@@ -673,8 +673,7 @@ export const CashManagementScreen = () => {
                                 </View>
                             )}
 
-                            {/* Date Picker - For non-fund types */}
-                            {formData.type !== 'money_market_fund' && !editingItem && (
+                            {/* Date Picker - For ALL types */}\n                            {!editingItem && (
                                 <View style={styles.formGroup}>
                                     <Text style={[styles.label, { color: colors.text }]}>Tarih</Text>
                                     {Platform.OS === 'web' ? (

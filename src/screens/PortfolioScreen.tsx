@@ -431,14 +431,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    scrollContent: { paddingBottom: 100, paddingHorizontal: 16 },
+    scrollContent: { paddingBottom: 100, paddingHorizontal: Platform.OS === 'web' ? 16 : 12 },
     scrollContentWeb: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         gap: 16,
     },
-    sectionContainer: { marginTop: 20 },
+    sectionContainer: { marginTop: Platform.OS === 'web' ? 20 : 16 },
     sectionContainerWeb: {
         width: '32%', // 3 columns
         minWidth: 280,
@@ -448,9 +448,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 10, paddingHorizontal: 4
     },
-    sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
-    categoryPL: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-    sectionTotal: { fontSize: 14, fontWeight: '700' },
+    sectionTitle: { fontSize: Platform.OS === 'web' ? 13 : 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
+    categoryPL: { fontSize: Platform.OS === 'web' ? 11 : 10, fontWeight: '600', marginTop: 2 },
+    sectionTotal: { fontSize: Platform.OS === 'web' ? 14 : 12, fontWeight: '700' },
 
     // New Card Container Style (Solid/Glass look)
     cardContainer: {
@@ -459,9 +459,9 @@ const styles = StyleSheet.create({
     },
 
     // Legacy / Shared Styles
-    symbol: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-    name: { fontSize: 13 },
-    value: { fontSize: 16, fontWeight: '700', textAlign: 'right' },
+    symbol: { fontSize: Platform.OS === 'web' ? 16 : 14, fontWeight: '700', marginBottom: 2 },
+    name: { fontSize: Platform.OS === 'web' ? 13 : 11 },
+    value: { fontSize: Platform.OS === 'web' ? 16 : 14, fontWeight: '700', textAlign: 'right' },
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
     modalContent: { width: '85%', padding: 24, borderRadius: 20 },
     input: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16 },
@@ -474,8 +474,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 16
+        paddingVertical: Platform.OS === 'web' ? 14 : 12,
+        paddingHorizontal: Platform.OS === 'web' ? 16 : 12
     },
     rowLeft: {
         flexDirection: 'row',

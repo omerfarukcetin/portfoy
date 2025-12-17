@@ -201,9 +201,9 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Tema"
-                        value={theme === 'light' ? 'Açık' : theme === 'dark' ? 'Koyu' : theme === 'gray' ? 'Gri' : 'Lacivert'}
+                        value={theme === 'light' ? 'Açık' : theme === 'dark' ? 'Koyu' : theme === 'gray' ? 'Gri' : theme === 'navy' ? 'Lacivert' : theme === 'cream' ? 'Krem' : 'Adaçayı'}
                         onPress={() => {
-                            const themes = ['light', 'dark', 'gray', 'navy'] as const;
+                            const themes = ['light', 'dark', 'gray', 'navy', 'cream', 'sage'] as const;
                             const next = themes[(themes.indexOf(theme as any) + 1) % themes.length];
                             setTheme(next);
                         }}

@@ -213,7 +213,8 @@ export const CashManagementScreen = () => {
                 name: formData.name,
                 amount: amount,
                 currency: formData.currency,
-                interestRate: formData.interestRate ? parseFloat(formData.interestRate) : undefined
+                interestRate: formData.interestRate ? parseFloat(formData.interestRate) : undefined,
+                dateAdded: new Date(dateStr).getTime()
             };
             await addCashItem(newItem);
         }
@@ -669,6 +670,32 @@ export const CashManagementScreen = () => {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
+                                </View>
+                            )}
+
+                            {/* Date Picker - For non-fund types */}
+                            {formData.type !== 'money_market_fund' && !editingItem && (
+                                <View style={styles.formGroup}>
+                                    <Text style={[styles.label, { color: colors.text }]}>Tarih</Text>
+                                    <TouchableOpacity
+                                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={new Date(dateStr)}
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event, selectedDate) => {
+                                                setShowDatePicker(false);
+                                                if (selectedDate) {
+                                                    setDateStr(selectedDate.toISOString().split('T')[0]);
+                                                }
+                                            }}
+                                        />
+                                    )}
                                 </View>
                             )}
 

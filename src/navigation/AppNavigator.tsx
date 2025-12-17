@@ -175,35 +175,34 @@ const styles = StyleSheet.create({
     },
 });
 
-const TabNavigator = () => {
-    const { colors, fontScale } = useTheme();
-    const { startScreen } = useSettings();
+const HomeTabNavigator = () => {
+    const { colors } = useTheme();
+    const { t } = useLanguage();
 
     return (
         <Tab.Navigator
-            initialRouteName={startScreen || 'Summary'}
             tabBar={(props) => <CustomTabBar {...props} />}
             screenOptions={{ headerShown: false }}
         >
             <Tab.Screen
                 name="Summary"
                 component={SummaryScreen}
-                options={{ title: 'Özet' }}
+                options={{ title: t('nav.summary') }}
             />
             <Tab.Screen
                 name="Portfolio"
                 component={PortfolioScreen}
-                options={{ title: 'Portföy' }}
+                options={{ title: t('nav.portfolio') }}
             />
             <Tab.Screen
                 name="Transactions"
                 component={TransactionsScreen}
-                options={{ title: 'İşlemler' }}
+                options={{ title: t('nav.transactions') }}
             />
             <Tab.Screen
                 name="Favorites"
                 component={FavoritesScreen}
-                options={{ title: 'Favoriler' }}
+                options={{ title: t('nav.favorites') }}
             />
         </Tab.Navigator>
     );

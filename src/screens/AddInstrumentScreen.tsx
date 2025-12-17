@@ -57,23 +57,32 @@ export const AddInstrumentScreen = () => {
     // Auto-fetch price and rate when date or instrument changes
     useEffect(() => {
         const fetchData = async () => {
+            console.log('🔍 AddInstrument useEffect triggered:', { dateStr, selectedInstrument: selectedInstrument?.symbol });
             if (dateStr.length === 10) {
                 const date = new Date(dateStr).getTime();
                 if (!isNaN(date)) {
+                    console.log('📅 Date is valid, fetching data for timestamp:', date);
                     setLoading(true);
 
                     // Fetch Historical Price of Asset
                     if (selectedInstrument) {
+                        console.log('📈 Fetching historical price for:', selectedInstrument.symbol);
                         const price = await MarketDataService.getHistoricalPrice(selectedInstrument.symbol, date);
+                        console.log('💰 Historical price result:', price);
                         if (price > 0) {
                             setCost(price.toFixed(2));
                         }
                     }
 
                     // Fetch Historical USD/TRY Rate
+                    console.log('💱 Fetching historical USD/TRY rate...');
                     const rate = await MarketDataService.getHistoricalRate(date);
+                    console.log('💵 Historical rate result:', rate);
                     if (rate) {
                         setHistoricalRate(rate.toFixed(4));
+                        console.log('✅ USD rate set to:', rate.toFixed(4));
+                    } else {
+                        console.log('❌ No rate returned from API');
                     }
 
                     setLoading(false);
@@ -626,14 +635,19 @@ export const AddInstrumentScreen = () => {
                             )}
 
                             <Text style={[styles.label, { color: colors.text }]}>O günkü Dolar Kuru (Opsiyonel)</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                value={historicalRate}
-                                onChangeText={setHistoricalRate}
-                                placeholder="Otomatik getirilir veya manuel girin"
-                                placeholderTextColor={colors.subText}
-                                keyboardType="numeric"
-                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <TextInput
+                                    style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                    value={historicalRate}
+                                    onChangeText={setHistoricalRate}
+                                    placeholder="Otomatik getirilir veya manuel girin"
+                                    placeholderTextColor={colors.subText}
+                                    keyboardType="numeric"
+                                />
+                                {loading && (
+                                    <ActivityIndicator style={{ marginLeft: 10 }} color={colors.primary} />
+                                )}
+                            </View>
 
                             <Text style={[styles.label, { color: colors.subText }]}>Birim Maliyet</Text>
                             <View style={styles.row}>

@@ -4,7 +4,6 @@ import { useTheme } from '../context/ThemeContext';
 import { PortfolioItem } from '../types';
 import { formatCurrency } from '../utils/formatting';
 import { TickerIcon } from './TickerIcon';
-import { Feather } from '@expo/vector-icons';
 
 interface AssetRowProps {
     item: PortfolioItem;
@@ -118,18 +117,18 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                 <TouchableOpacity
                     style={{
                         backgroundColor: colors.danger,
-                        paddingHorizontal: 8,
+                        paddingHorizontal: 10,
                         paddingVertical: 6,
                         borderRadius: 6,
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginLeft: 8,
-                        minWidth: 32,
+                        minWidth: 40,
                     }}
                     onPress={onSell}
                 >
-                    <Feather name="trending-down" size={14} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>📉</Text>
                 </TouchableOpacity>
             )}
         </TouchableOpacity>

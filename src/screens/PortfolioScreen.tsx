@@ -325,30 +325,31 @@ export const PortfolioScreen = () => {
             </View>
 
             {/* Category Tabs */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ maxHeight: 50, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.cardBackground }}
-                contentContainerStyle={{ gap: 8, alignItems: 'center' }}
-            >
-                {allCategories.map(cat => {
-                    const isActive = selectedCategory === cat;
-                    return (
-                        <TouchableOpacity
-                            key={cat}
-                            onPress={() => setSelectedCategory(isActive ? null : cat)}
-                            style={[
-                                styles.categoryTab,
-                                { backgroundColor: isActive ? colors.primary : colors.background, borderColor: isActive ? colors.primary : colors.border }
-                            ]}
-                        >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : colors.text }}>
-                                {cat.replace(' (BIST)', '')}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
+            <View style={{ height: 50, backgroundColor: colors.cardBackground, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, alignItems: 'center', paddingHorizontal: 16 }}
+                >
+                    {allCategories.map(cat => {
+                        const isActive = selectedCategory === cat;
+                        return (
+                            <TouchableOpacity
+                                key={cat}
+                                onPress={() => setSelectedCategory(isActive ? null : cat)}
+                                style={[
+                                    styles.categoryTab,
+                                    { backgroundColor: isActive ? colors.primary : colors.background, borderColor: isActive ? colors.primary : colors.border }
+                                ]}
+                            >
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : colors.text }}>
+                                    {cat.replace(' (BIST)', '')}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
                 {allCategories
@@ -368,17 +369,17 @@ export const PortfolioScreen = () => {
                             <View key={category} style={styles.categorySection}>
                                 {/* Category Header */}
                                 <View style={styles.categoryHeader}>
-                                    <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
-                                    <View style={{ alignItems: 'flex-end' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
                                         <Text style={[styles.sectionTotal, { color: colors.text }]}>
                                             {formatCurrency(categoryValues[category], displayCurrency)}
                                         </Text>
-                                        {currentCategoryCost > 0 && (
-                                            <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
-                                                {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
-                                            </Text>
-                                        )}
                                     </View>
+                                    {currentCategoryCost > 0 && (
+                                        <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
+                                            {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                        </Text>
+                                    )}
                                 </View>
 
 
@@ -680,9 +681,12 @@ const styles = StyleSheet.create({
     // Category Tabs
     categoryTab: {
         paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
+        height: 34,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 17,
         borderWidth: 1,
+        minWidth: 80,
     },
 
     // Category Section

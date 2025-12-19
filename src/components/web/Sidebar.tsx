@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -21,7 +21,6 @@ export const Sidebar = () => {
                 if (routeMatch) {
                     const newRoute = routeMatch[1];
                     if (newRoute !== currentRoute) {
-                        console.log('📍 Sidebar: Route changed to:', newRoute);
                         setCurrentRoute(newRoute);
                     }
                     return;
@@ -36,94 +35,116 @@ export const Sidebar = () => {
                 if (currentRouteObj?.name) {
                     const newRoute = currentRouteObj.name;
                     if (newRoute !== currentRoute) {
-                        console.log('📍 Sidebar: Route changed to (from state):', newRoute);
                         setCurrentRoute(newRoute);
                     }
                 }
             } catch (e) {
-                console.log('Could not get navigation state:', e);
+                // Silent fallback
             }
         };
 
-        // Initial detection
         updateCurrentRoute();
-
-        // Listen to navigation events
         const unsubscribe = navigation.addListener('state', updateCurrentRoute);
         return unsubscribe;
     }, [navigation, currentRoute]);
 
-    const menuItems = [
-        { name: 'Summary', label: 'Özet', icon: 'home' },
-        { name: 'Portfolio', label: 'Portföy', icon: 'briefcase' },
-        { name: 'Transactions', label: 'İşlemler', icon: 'list' },
-        { name: 'Favorites', label: 'Favoriler', icon: 'star' },
-        { name: 'Settings', label: 'Ayarlar', icon: 'settings' },
+    // Menu items organized by section
+    const mainMenuItems = [
+        { name: 'Summary', label: 'Genel Bakış', icon: 'grid', iconType: 'feather' },
+        { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart', iconType: 'feather' },
+        { name: 'Transactions', label: 'İşlemler', icon: 'repeat', iconType: 'feather' },
+        { name: 'Favorites', label: 'Takip Listesi', icon: 'heart', iconType: 'feather' },
+    ];
+
+    const preferenceItems = [
+        { name: 'Settings', label: 'Ayarlar', icon: 'settings', iconType: 'feather' },
     ];
 
     const handleLogout = async () => {
         await logout();
     };
 
+    const renderNavItem = (item: any) => {
+        const isActive = currentRoute === item.name;
+        return (
+            <TouchableOpacity
+                key={item.name}
+                style={[
+                    styles.navItem,
+                    isActive && [styles.navItemActive, { backgroundColor: colors.primary + '15' }]
+                ]}
+                onPress={() => navigation.navigate(item.name)}
+            >
+                <View style={[
+                    styles.iconContainer,
+                    isActive && [styles.iconContainerActive, { backgroundColor: colors.primary + '20' }]
+                ]}>
+                    <Feather
+                        name={item.icon as any}
+                        size={18}
+                        color={isActive ? colors.primary : colors.subText}
+                    />
+                </View>
+                <Text
+                    style={[
+                        styles.navLabel,
+                        { color: isActive ? colors.primary : colors.text },
+                        isActive && styles.navLabelActive
+                    ]}
+                >
+                    {item.label}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
     return (
         <View style={[styles.sidebar, { backgroundColor: colors.cardBackground, borderRightColor: colors.border }]}>
             {/* Logo */}
             <View style={styles.logo}>
-                <Text style={[styles.logoText, { color: colors.primary }]}>Portföy</Text>
-                <Text style={[styles.logoSubtext, { color: colors.subText }]}>Cepte</Text>
+                <View style={styles.logoRow}>
+                    <View style={[styles.logoIcon, { backgroundColor: colors.primary }]}>
+                        <Text style={styles.logoIconText}>P</Text>
+                    </View>
+                    <View>
+                        <Text style={styles.logoText}>
+                            <Text style={{ color: colors.primary }}>Portföy</Text>
+                            <Text style={{ color: colors.success }}>Cepte</Text>
+                        </Text>
+                        <Text style={[styles.logoSubtext, { color: colors.subText }]}>YATIRIM ASİSTANI</Text>
+                    </View>
+                </View>
             </View>
 
-            {/* Navigation */}
+            {/* Main Menu Section */}
             <View style={styles.nav}>
-                {menuItems.map((item) => {
-                    const isActive = currentRoute === item.name;
-                    return (
-                        <TouchableOpacity
-                            key={item.name}
-                            style={[
-                                styles.navItem,
-                                isActive && { backgroundColor: colors.primary + '20' }
-                            ]}
-                            onPress={() => navigation.navigate(item.name)}
-                        >
-                            <Feather
-                                name={item.icon as any}
-                                size={18}
-                                color={isActive ? colors.primary : colors.subText}
-                            />
-                            <Text
-                                style={[
-                                    styles.navLabel,
-                                    { color: isActive ? colors.primary : colors.text }
-                                ]}
-                            >
-                                {item.label}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
+                <Text style={[styles.sectionLabel, { color: colors.subText }]}>MENÜ</Text>
+                {mainMenuItems.map(renderNavItem)}
+
+                {/* Preferences Section */}
+                <Text style={[styles.sectionLabel, { color: colors.subText, marginTop: 24 }]}>TERCİHLER</Text>
+                {preferenceItems.map(renderNavItem)}
             </View>
 
             {/* User Profile */}
             {user && (
                 <View style={[styles.userProfile, { borderTopColor: colors.border }]}>
                     <View style={styles.userInfo}>
-                        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                            <Text style={styles.avatarText}>
-                                {user.email?.charAt(0).toUpperCase() || 'U'}
-                            </Text>
+                        <View style={[styles.avatar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            <Feather name="file-text" size={16} color={colors.subText} />
                         </View>
                         <View style={styles.userDetails}>
                             <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
-                                {user.email?.split('@')[0]}
+                                {user.email?.split('@')[0] || 'Kullanıcı'}
                             </Text>
+                            <Text style={[styles.userRole, { color: colors.subText }]}>Pro Üyelik</Text>
                         </View>
                     </View>
                     <TouchableOpacity
-                        style={[styles.logoutButton, { backgroundColor: colors.danger + '20' }]}
+                        style={styles.logoutButton}
                         onPress={handleLogout}
                     >
-                        <Feather name="log-out" size={16} color={colors.danger} />
+                        <Feather name="log-out" size={18} color={colors.subText} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -133,67 +154,105 @@ export const Sidebar = () => {
 
 const styles = StyleSheet.create({
     sidebar: {
-        width: 200, // Reduced from 240
+        width: 220,
         height: '100%',
         borderRightWidth: 1,
-        padding: 16, // Reduced from 20
+        paddingHorizontal: 16,
+        paddingVertical: 20,
         flexDirection: 'column',
     },
     logo: {
-        marginBottom: 24, // Reduced from 32
-        paddingBottom: 16,
+        marginBottom: 32,
+        paddingBottom: 0,
+    },
+    logoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    logoIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    logoIconText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '800',
     },
     logoText: {
-        fontSize: 20, // Reduced from 24
-        fontWeight: '800',
-        letterSpacing: -0.5,
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: -0.3,
     },
     logoSubtext: {
+        fontSize: 9,
+        fontWeight: '600',
+        letterSpacing: 1,
+        marginTop: 2,
+    },
+    sectionLabel: {
         fontSize: 11,
-        fontWeight: '500',
-        marginTop: 0,
+        fontWeight: '600',
+        letterSpacing: 0.5,
+        marginBottom: 12,
+        marginLeft: 4,
     },
     nav: {
         flex: 1,
-        gap: 4,
     },
     navItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10, // Reduced from 12
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        borderRadius: 10,
+        gap: 12,
+        marginBottom: 4,
+    },
+    navItemActive: {
+        borderRadius: 10,
+    },
+    iconContainer: {
+        width: 32,
+        height: 32,
         borderRadius: 8,
-        gap: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconContainerActive: {
+        // Active icon container style
     },
     navLabel: {
-        fontSize: 14, // Reduced from 15
+        fontSize: 14,
         fontWeight: '500',
+    },
+    navLabelActive: {
+        fontWeight: '600',
     },
     userProfile: {
         borderTopWidth: 1,
         paddingTop: 16,
-        gap: 12,
-        flexDirection: 'row', // Horizontal verify
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
     },
     userInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
         flex: 1,
-        overflow: 'hidden'
+        overflow: 'hidden',
     },
     avatar: {
-        width: 32, // Reduced
-        height: 32,
-        borderRadius: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    avatarText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
     },
     userDetails: {
         flex: 1,
@@ -202,11 +261,14 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
     },
+    userRole: {
+        fontSize: 11,
+        fontWeight: '500',
+        marginTop: 1,
+    },
     logoutButton: {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 8,
-        borderRadius: 8,
-        // Icon only logout for compactness
     },
 });

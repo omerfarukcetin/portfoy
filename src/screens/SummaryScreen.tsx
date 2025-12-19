@@ -407,213 +407,436 @@ export const SummaryScreen = () => {
             >
                 {/* Responsive Layout Content */}
                 {isLargeScreen ? (
-                    <View style={{ paddingHorizontal: 20, gap: 20 }}>
-                        {/* WEB HEADER (Full Width) */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 20 }}>
-                            <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
-                            <TouchableOpacity
-                                onPress={() => (navigation as any).navigate('Settings')}
-                                style={{ padding: 8, backgroundColor: colors.cardBackground, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}
-                            >
-                                <Feather name="settings" size={20} color={colors.text} />
-                            </TouchableOpacity>
+                    <View style={{ paddingHorizontal: 24, paddingTop: 24, gap: 20 }}>
+                        {/* WEB HEADER - Greeting + Portfolio Switcher */}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <View>
+                                <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
+                                    Merhaba, Yatırımcı 👋
+                                </Text>
+                                <Text style={{ fontSize: 14, color: colors.subText, marginTop: 4 }}>
+                                    İşte bugünkü finansal özetin
+                                </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
+                                <TouchableOpacity
+                                    onPress={() => (navigation as any).navigate('Alerts')}
+                                    style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
+                                >
+                                    <Feather name="bell" size={18} color={colors.text} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setIsHidden(!isHidden)}
+                                    style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
+                                >
+                                    <Feather name={theme === 'dark' ? 'moon' : 'sun'} size={18} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
-                        {/* 3-COLUMN GRID LAYOUT */}
-                        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
-                            {/* COLUMN 1: Total Assets Card */}
-                            <View style={{ flex: 1, gap: 16 }}>
+                        {/* MAIN 2-COLUMN LAYOUT */}
+                        <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
+                            {/* LEFT COLUMN - Main Content */}
+                            <View style={{ flex: 2, gap: 20 }}>
+                                {/* Total Assets Card (Full Width) */}
                                 <GradientCard
                                     variant="primary"
-                                    style={{ borderRadius: 24, padding: 0 }}
-                                    contentStyle={{ padding: 24 }}
+                                    style={{ borderRadius: 20, padding: 0 }}
+                                    contentStyle={{ padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                                 >
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 12 }}>
+                                            <Feather name="briefcase" size={24} color="rgba(255,255,255,0.9)" />
+                                        </View>
                                         <View>
-                                            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>TOPLAM VARLIK</Text>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                                                <Text style={{ color: '#fff', fontSize: heroFontSize, fontWeight: '800' }}>
-                                                    {isHidden ? '******' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }}>Toplam Varlıklar</Text>
+                                            <Text style={{ color: '#fff', fontSize: heroFontSize, fontWeight: '800', marginTop: 4 }}>
+                                                {isHidden ? '******' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                            </Text>
+                                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 4 }}>
+                                                {isHidden ? '****' : `💰 $${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}  ·  {isHidden ? '**' : `⚖ ${portfolioInGramGold.toFixed(1)} gr altın`}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    {/* K/Z Badge */}
+                                    <View style={{
+                                        backgroundColor: 'rgba(255,255,255,0.15)',
+                                        paddingHorizontal: 20,
+                                        paddingVertical: 16,
+                                        borderRadius: 16,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 12
+                                    }}>
+                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}>
+                                            <Feather name="trending-up" size={20} color={totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30'} />
+                                        </View>
+                                        <View>
+                                            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>TOPLAM KÂR/ZARAR</Text>
+                                            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 2 }}>
+                                                {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')}`}
+                                            </Text>
+                                        </View>
+                                        <View style={{
+                                            backgroundColor: totalUnrealizedProfitPercent >= 0 ? '#34C759' : '#FF3B30',
+                                            paddingHorizontal: 10,
+                                            paddingVertical: 6,
+                                            borderRadius: 8,
+                                            marginLeft: 8
+                                        }}>
+                                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                                                {isHidden ? '•••' : `%${totalUnrealizedProfitPercent.toFixed(2)}`}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </GradientCard>
+
+                                {/* 3 Stat Cards Row */}
+                                <View style={{ flexDirection: 'row', gap: 16 }}>
+                                    {/* Günlük Değişim */}
+                                    <View style={{
+                                        flex: 1,
+                                        backgroundColor: colors.cardBackground,
+                                        borderRadius: 16,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: colors.border
+                                    }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: colors.background, padding: 10, borderRadius: 10 }}>
+                                                <Feather name="calendar" size={18} color={colors.subText} />
+                                            </View>
+                                            <View style={{
+                                                backgroundColor: dailyProfit >= 0 ? '#E8F5E9' : '#FFEBEE',
+                                                paddingHorizontal: 8,
+                                                paddingVertical: 4,
+                                                borderRadius: 6
+                                            }}>
+                                                <Text style={{ color: dailyProfit >= 0 ? '#34C759' : '#FF3B30', fontSize: 11, fontWeight: '600' }}>
+                                                    {dailyProfit >= 0 ? '↑' : '↓'} {Math.abs(dailyProfitPercent).toFixed(2)}%
                                                 </Text>
                                             </View>
+                                        </View>
+                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Günlük Değişim</Text>
+                                        <Text style={{ color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                            {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')}`}
+                                        </Text>
+                                    </View>
 
-                                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 8 }}>
-                                                {isHidden ? '****' : `$${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`} · {isHidden ? '**' : portfolioInGramGold.toFixed(1)} gr altın
+                                    {/* Gerçekleşen Kâr */}
+                                    <View style={{
+                                        flex: 1,
+                                        backgroundColor: colors.cardBackground,
+                                        borderRadius: 16,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: colors.border
+                                    }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: colors.background, padding: 10, borderRadius: 10 }}>
+                                                <Feather name="check-square" size={18} color={colors.subText} />
+                                            </View>
+                                        </View>
+                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Gerçekleşen Kâr</Text>
+                                        <Text style={{ color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                            {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')}`}
+                                        </Text>
+                                    </View>
+
+                                    {/* Yedek Akçe */}
+                                    <TouchableOpacity
+                                        style={{
+                                            flex: 1,
+                                            backgroundColor: colors.cardBackground,
+                                            borderRadius: 16,
+                                            padding: 20,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => (navigation as any).navigate('CashManagement')}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
+                                                <Feather name="archive" size={18} color="#FF9800" />
+                                            </View>
+                                        </View>
+                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
+                                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                            {isHidden ? '•••' : formatCurrency(cashBalance, 'TRY')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Portfolio Distribution - Donut Chart */}
+                                {portfolio.length > 0 && (
+                                    <View style={{
+                                        backgroundColor: colors.cardBackground,
+                                        borderRadius: 16,
+                                        padding: 24,
+                                        borderWidth: 1,
+                                        borderColor: colors.border
+                                    }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                            <View>
+                                                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
+                                                <Text style={{ fontSize: 13, color: colors.subText, marginTop: 2 }}>Portföyünüzün sektörel dağılımı</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                                                <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Feather name="download" size={16} color={colors.subText} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Feather name="more-horizontal" size={16} color={colors.subText} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 40 }}>
+                                            {/* Donut Chart */}
+                                            <View style={{ alignItems: 'center' }}>
+                                                {isInitialLoading ? (
+                                                    <Skeleton width={220} height={220} borderRadius={110} />
+                                                ) : (
+                                                    <ShareableDonutChart
+                                                        data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                        size={220}
+                                                        strokeWidth={28}
+                                                        centerText={isHidden ? '••••' : `${(totalPortfolioTry / 1000).toFixed(0)}K`}
+                                                        centerTextFontSize={28}
+                                                        centerSubtext="TOPLAM"
+                                                        colors={colors}
+                                                    />
+                                                )}
+                                            </View>
+
+                                            {/* Legend - 2 column grid */}
+                                            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                                                {pieData.map((item, index) => {
+                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                    return (
+                                                        <View key={index} style={{ width: '45%', marginBottom: 8 }}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color }} />
+                                                                <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                                            </View>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4, marginLeft: 18 }}>
+                                                                <Text style={{ fontSize: 16, color: colors.text, fontWeight: '700' }}>{percentage}%</Text>
+                                                                <Text style={{ fontSize: 12, color: colors.subText }}>
+                                                                    {isHidden ? '•••' : formatCurrency(item.population, 'TRY')}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </View>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* RIGHT COLUMN - Insights */}
+                            <View style={{ flex: 1, gap: 16 }}>
+                                {/* Risk Analysis Card */}
+                                <View style={{
+                                    backgroundColor: colors.cardBackground,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border
+                                }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Feather name="shield" size={18} color={colors.text} />
+                                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Risk Analizi</Text>
+                                        </View>
+                                        <View style={{
+                                            backgroundColor: '#FFF3E0',
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 6,
+                                            borderRadius: 8
+                                        }}>
+                                            <Text style={{ color: '#FF9800', fontSize: 12, fontWeight: '700' }}>Orta Risk</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ gap: 12 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                            <Text style={{ color: colors.subText, fontSize: 13 }}>Riskteki Para</Text>
+                                            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
+                                                {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
                                             </Text>
                                         </View>
 
-                                        <TouchableOpacity onPress={() => setIsHidden(!isHidden)} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
-                                            <Feather name={isHidden ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.8)" />
-                                        </TouchableOpacity>
+                                        {/* Progress Bar */}
+                                        <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
+                                            <View style={{ width: '66%', height: '100%', backgroundColor: colors.success, borderRadius: 4 }} />
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                            <View>
+                                                <Text style={{ color: colors.subText, fontSize: 11 }}>Anapara</Text>
+                                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
+                                                    {isHidden ? '•••' : formatCurrency(totalCostBasisTry, 'TRY')}
+                                                </Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ color: colors.subText, fontSize: 11 }}>Risk Oranı</Text>
+                                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>%66</Text>
+                                            </View>
+                                        </View>
                                     </View>
-                                </GradientCard>
-
-                                {/* Portfolio Chart */}
-                                {!isInitialLoading && portfolioChartVisible && (
-                                    <View style={{ height: 320, width: '100%', overflow: 'hidden' }}>
-                                        <PortfolioChart currentValue={totalPortfolioTry} history={history} />
-                                    </View>
-                                )}
-
-                                {/* Stats Grid - Vertical */}
-                                <View style={{ gap: 12 }}>
-                                    {/* Toplam K/Z */}
-                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Toplam K/Z</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.statValue, { color: totalUnrealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                                    {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')} `}
-                                                </Text>
-                                                <Text style={[styles.statPercent, { color: totalUnrealizedProfitPercent >= 0 ? colors.success : colors.danger, fontSize: 12 }]}>
-                                                    {isHidden ? '•••' : `% ${totalUnrealizedProfitPercent.toFixed(2)} `}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </GradientCard>
-
-                                    {/* Günlük */}
-                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: dailyProfit >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Günlük</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.statValue, { color: dailyProfit >= 0 ? colors.success : colors.danger }]}>
-                                                    {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${formatCurrency(dailyProfit, 'TRY')} `}
-                                                </Text>
-                                                <Text style={[styles.statPercent, { color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 12 }]}>
-                                                    {isHidden ? '•••' : `% ${dailyProfitPercent.toFixed(2)} `}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </GradientCard>
-
-                                    {/* Gerçekleşen Kâr */}
-                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]} contentStyle={{ padding: 16 }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Gerçekleşen Kâr</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.statValue, { color: totalRealizedProfitTry >= 0 ? colors.success : colors.danger }]}>
-                                                    {isHidden ? '•••' : `${totalRealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalRealizedProfitTry, 'TRY')} `}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </GradientCard>
-
-                                    {/* Riskteki Para */}
-                                    <GradientCard variant="secondary" style={[styles.statItem, { padding: 0, minHeight: 80, width: '100%', borderWidth: 1, borderColor: colors.warning }]} contentStyle={{ padding: 16 }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.statLabel, { color: colors.subText, fontSize: 17, fontWeight: '700' }]}>Riskteki Para</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.statValue, { color: colors.warning }]}>
-                                                    {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
-                                                </Text>
-                                                <Text style={[styles.statPercent, { color: colors.subText, fontSize: 11 }]}>
-                                                    {isHidden ? '•••' : `Anapara: ${formatCurrency(totalCostBasisTry, 'TRY')}`}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </GradientCard>
                                 </View>
 
-                                {/* Cash Management */}
-                                <GradientCard variant="secondary" style={[styles.insightCard, { backgroundColor: 'transparent', width: '100%', padding: 0, borderColor: colors.primary }]} contentStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => (navigation as any).navigate('CashManagement')}>
-                                    <Text style={[styles.insightTitle, { color: colors.primary, fontSize: 14 * fontScale, marginBottom: 0 }]}>Yedek Akçe</Text>
-                                    <Text style={[styles.statValue, { color: colors.text, marginBottom: 0, fontSize: 16 * fontScale }]}>{isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}</Text>
-                                </GradientCard>
-                            </View>
+                                {/* Daily Performance */}
+                                <View style={{
+                                    backgroundColor: colors.cardBackground,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border
+                                }}>
+                                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.subText, letterSpacing: 0.5, marginBottom: 16 }}>GÜNÜN PERFORMANSI</Text>
 
-                            {/* COLUMN 2: Portfolio Distribution (Donut Chart - LARGER) */}
-                            <View style={{ flex: 1, gap: 16 }}>
-                                {portfolio.length > 0 && (
-                                    <View style={[styles.section, { marginTop: 0 }]}>
-                                        <GradientCard
-                                            variant="secondary"
-                                            style={{ borderWidth: 1, borderColor: colors.border }}
-                                            contentStyle={{ padding: 24, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
-                                        >
-                                            {isInitialLoading ? (
-                                                <Skeleton width="100%" height={300} />
-                                            ) : (
-                                                <>
-                                                    <ShareableDonutChart
-                                                        data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                        size={280}
-                                                        strokeWidth={32}
-                                                        centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                        centerTextFontSize={26}
-                                                        centerSubtext="₺"
-                                                        colors={colors}
-                                                        legend={
-                                                            <View style={{ width: '100%', gap: 4 }}>
-                                                                {pieData.map((item, index) => {
-                                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-                                                                    return (
-                                                                        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                                                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 10 }} />
-                                                                                <Text style={{ fontSize: 14 * fontScale, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
-                                                                            </View>
-                                                                            <Text style={{ fontSize: 14 * fontScale, color: colors.subText, fontWeight: '700' }}>%{percentage}</Text>
-                                                                        </View>
-                                                                    );
-                                                                })}
-                                                            </View>
-                                                        }
-                                                    />
-                                                </>
-                                            )}
-                                        </GradientCard>
-                                    </View>
-                                )}
-                            </View>
-
-                            {/* COLUMN 3: Market Insights & Summary */}
-                            <View style={{ flex: 1, gap: 16 }}>
-                                {/* Market Insights */}
-                                <View style={{ gap: 12 }}>
-                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.success }]} contentStyle={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (bestPerformer.id && bestPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Feather name="trending-up" size={20} color={colors.success} />
-                                            <Text style={[styles.insightTitle, { color: colors.success, marginBottom: 0, fontSize: 17 }]}>En İyi</Text>
+                                    {/* Best Performer */}
+                                    <TouchableOpacity
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            backgroundColor: colors.background,
+                                            padding: 14,
+                                            borderRadius: 12,
+                                            marginBottom: 10,
+                                            borderWidth: 1,
+                                            borderColor: colors.success + '30'
+                                        }}
+                                        onPress={() => {
+                                            if (bestPerformer.id && bestPerformer.id !== '-') {
+                                                const instrument = portfolio.find(p => p.instrumentId === bestPerformer.id);
+                                                if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id });
+                                            }
+                                        }}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <View style={{ backgroundColor: '#E8F5E9', padding: 8, borderRadius: 8 }}>
+                                                <Feather name="trending-up" size={16} color={colors.success} />
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 11, color: colors.subText }}>EN İYİ PERFORMANS</Text>
+                                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 }}>
+                                                    {bestPerformer.id ? bestPerformer.id.replace('.IS', '') : '-'}
+                                                </Text>
+                                            </View>
                                         </View>
-                                        <Text style={[styles.insightText, { color: colors.text, fontSize: 16, fontWeight: '600' }]}>{bestPerformer.id ? `${bestPerformer.id}: +${bestPerformer.change.toFixed(2)}%` : '-'}</Text>
-                                    </GradientCard>
-
-                                    <GradientCard variant="secondary" style={[styles.insightCard, { padding: 0, width: '100%', borderWidth: 1, borderColor: colors.danger }]} contentStyle={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => { if (worstPerformer.id && worstPerformer.id !== '-') { const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id); if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id }); } }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Feather name="trending-down" size={20} color={colors.danger} />
-                                            <Text style={[styles.insightTitle, { color: colors.danger, marginBottom: 0, fontSize: 17 }]}>En Kötü</Text>
+                                        <View style={{ backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                                            <Text style={{ color: colors.success, fontSize: 14, fontWeight: '700' }}>
+                                                {bestPerformer.id ? `+${bestPerformer.change.toFixed(2)}%` : '-'}
+                                            </Text>
                                         </View>
-                                        <Text style={[styles.insightText, { color: colors.text, fontSize: 16, fontWeight: '600' }]}>{worstPerformer.id ? `${worstPerformer.id}: ${worstPerformer.change.toFixed(2)}%` : '-'}</Text>
-                                    </GradientCard>
+                                    </TouchableOpacity>
+
+                                    {/* Worst Performer */}
+                                    <TouchableOpacity
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            backgroundColor: colors.background,
+                                            padding: 14,
+                                            borderRadius: 12,
+                                            borderWidth: 1,
+                                            borderColor: colors.danger + '30'
+                                        }}
+                                        onPress={() => {
+                                            if (worstPerformer.id && worstPerformer.id !== '-') {
+                                                const instrument = portfolio.find(p => p.instrumentId === worstPerformer.id);
+                                                if (instrument) (navigation as any).navigate('AssetDetail', { id: instrument.id });
+                                            }
+                                        }}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <View style={{ backgroundColor: '#FFEBEE', padding: 8, borderRadius: 8 }}>
+                                                <Feather name="trending-down" size={16} color={colors.danger} />
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 11, color: colors.subText }}>EN KÖTÜ PERFORMANS</Text>
+                                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 }}>
+                                                    {worstPerformer.id ? worstPerformer.id.replace('.IS', '') : '-'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={{ backgroundColor: '#FFEBEE', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                                            <Text style={{ color: colors.danger, fontSize: 14, fontWeight: '700' }}>
+                                                {worstPerformer.id ? `${worstPerformer.change.toFixed(2)}%` : '-'}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
 
-                                {/* Market Summary Ticker (Compact List) */}
+                                {/* Market Summary */}
                                 {marketSummaryVisible && (
-                                    <View style={[styles.section, { marginTop: 0 }]}>
-                                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 18, marginBottom: 10, marginLeft: 0, fontWeight: '700' }]}>Piyasa Özeti</Text>
-                                        <View style={{ gap: 10 }}>
+                                    <View style={{
+                                        backgroundColor: colors.cardBackground,
+                                        borderRadius: 16,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: colors.border
+                                    }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Feather name="activity" size={16} color={colors.text} />
+                                                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Piyasa Özeti</Text>
+                                            </View>
+                                            <TouchableOpacity>
+                                                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Tümünü Gör</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        <View style={{ gap: 12 }}>
                                             {[
-                                                { id: 'USD/TRY', label: 'USD/TRY', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
-                                                { id: 'Gram Altın', label: 'Gram Altın', value: goldPrice, change: 0.5, currency: 'TRY' },
-                                                { id: 'BIST 100', label: 'BIST 100', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
-                                                { id: 'Gram Gümüş', label: 'Gram Gümüş', value: silverPrice, change: 0, currency: 'TRY' },
-                                                { id: 'BTC', label: 'Bitcoin', value: btcPrice?.price, change: btcPrice?.change || 0, currency: 'USD' },
-                                                { id: 'ETH', label: 'Ethereum', value: ethPrice?.price, change: ethPrice?.change || 0, currency: 'USD' },
+                                                { id: 'USD/TRY', label: 'USD/TRY', sublabel: 'DOLAR KURU', icon: '$', value: usdRate, change: dailyChanges['USD'] || 0, currency: 'TRY' },
+                                                { id: 'Gram Altın', label: 'Gram Altın', sublabel: 'EMTİA', icon: 'Au', value: goldPrice, change: 0.5, currency: 'TRY' },
+                                                { id: 'BIST 100', label: 'BIST 100', sublabel: 'ENDEKS', icon: 'B', value: bistData?.price, change: bistData?.change || 0, currency: 'TRY' },
                                             ].filter(item => selectedMarketInstruments.includes(item.id)).map((item, index) => (
-                                                <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, backgroundColor: colors.cardBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Text style={{ color: colors.subText, fontSize: 15, fontWeight: '500' }}>{item.label}</Text>
-                                                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.value ? formatCurrency(item.value, item.currency as any) : '-'}</Text>
-                                                        <Text style={{ color: item.change >= 0 ? colors.success : colors.danger, fontSize: 15, fontWeight: '600' }}>%{Math.abs(item.change).toFixed(2)}</Text>
+                                                <View key={index} style={{
+                                                    flexDirection: 'row',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    paddingVertical: 8
+                                                }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                                        <View style={{
+                                                            width: 36,
+                                                            height: 36,
+                                                            borderRadius: 10,
+                                                            backgroundColor: colors.background,
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            borderWidth: 1,
+                                                            borderColor: colors.border
+                                                        }}>
+                                                            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.subText }}>{item.icon}</Text>
+                                                        </View>
+                                                        <View>
+                                                            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{item.label}</Text>
+                                                            <Text style={{ fontSize: 11, color: colors.subText }}>{item.sublabel}</Text>
+                                                        </View>
+                                                    </View>
+                                                    <View style={{ alignItems: 'flex-end' }}>
+                                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                                                            {item.value ? formatCurrency(item.value, item.currency as any) : '-'}
+                                                        </Text>
+                                                        <Text style={{ fontSize: 12, color: item.change >= 0 ? colors.success : colors.danger, fontWeight: '600' }}>
+                                                            {item.change >= 0 ? '↑' : '↓'} {Math.abs(item.change).toFixed(2)}%
+                                                        </Text>
                                                     </View>
                                                 </View>
                                             ))}
                                         </View>
                                     </View>
                                 )}
-
                             </View>
                         </View>
                     </View>
@@ -902,32 +1125,33 @@ export const SummaryScreen = () => {
                                                             value: item.population,
                                                             color: item.color
                                                         }))}
-                                                        size={160}\n                                                        strokeWidth={20}
-                                                    centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
-                                                    centerSubtext="₺"
-                                                    colors={colors}
-                                                    legend={
-                                                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                                                            {pieData.map((item, index) => {
-                                                                const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                                const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                        size={160}
+                                                        strokeWidth={20}
+                                                        centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY').replace('₺', '').trim()}
+                                                        centerSubtext="₺"
+                                                        colors={colors}
+                                                        legend={
+                                                            <View style={{ flex: 1, justifyContent: 'center' }}>
+                                                                {pieData.map((item, index) => {
+                                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
 
-                                                                return (
-                                                                    <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
-                                                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
-                                                                            <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
-                                                                                {item.name}
+                                                                    return (
+                                                                        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
+                                                                                <Text style={{ fontSize: 13 * fontScale, color: colors.text, fontWeight: '600' }} numberOfLines={1}>
+                                                                                    {item.name}
+                                                                                </Text>
+                                                                            </View>
+                                                                            <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>
+                                                                                %{percentage}
                                                                             </Text>
                                                                         </View>
-                                                                        <Text style={{ fontSize: 13 * fontScale, color: colors.subText, fontWeight: '700' }}>
-                                                                            %{percentage}
-                                                                        </Text>
-                                                                    </View>
-                                                                );
-                                                            })}
-                                                        </View>
-                                                    }
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        }
                                                     />
                                                 </View>
                                             </>

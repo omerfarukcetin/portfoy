@@ -14,7 +14,7 @@ import { AssetRow } from '../components/AssetRow';
 import { TickerIcon } from '../components/TickerIcon';
 
 export const PortfolioScreen = () => {
-    const { portfolio, deleteAsset, updateAsset, cashBalance, activePortfolio } = usePortfolio();
+    const { portfolio, deleteAsset, updateAsset, cashBalance, activePortfolio, cashItems } = usePortfolio();
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
     const navigation = useNavigation();
@@ -29,6 +29,7 @@ export const PortfolioScreen = () => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [displayCurrency, setDisplayCurrency] = useState<'TRY' | 'USD'>('TRY');
     const [usdRate, setUsdRate] = useState(1);
+    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
     // Edit Modal State
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -89,6 +90,22 @@ export const PortfolioScreen = () => {
         setPrices(newPrices);
         setDailyChanges(newDailyChanges);
         setErrors(newErrors);
+
+        // Fetch fund prices for PPF
+        const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+        const newFundPrices: Record<string, number> = {};
+        for (const item of fundItems) {
+            try {
+                const priceResult = await MarketDataService.getYahooPrice(item.instrumentId!);
+                if (priceResult && priceResult.currentPrice) {
+                    newFundPrices[item.instrumentId!] = priceResult.currentPrice;
+                }
+            } catch (error) {
+                console.error('Error fetching fund price:', error);
+            }
+        }
+        setFundPrices(newFundPrices);
+
         setIsRefreshing(false);
     };
 
@@ -206,20 +223,25 @@ export const PortfolioScreen = () => {
     if (displayCurrency === 'USD') displayCash = cashBalance / usdRate;
     categoryValues['Yedek Akçe'] = displayCash;
 
-    // Calculate Yedek Akçe P/L from cashItems
-    // Cash stays same (cost = value), but money_market_fund can have P/L
-    const cashItems = activePortfolio?.cashItems || [];
+    // Calculate Yedek Akçe P/L from cashItems using live fund prices
+    // Cash stays same (cost = value), but money_market_fund can have P/L based on live prices
     let yedekAkceCost = 0;
     let yedekAkceValue = 0;
 
     cashItems.forEach(item => {
-        let itemValue = item.amount;
         let itemCost = item.amount; // Default: cost = current value (for plain cash)
+        let itemValue = item.amount;
 
-        // For money market funds with averageCost and units, calculate actual cost
-        if (item.type === 'money_market_fund' && item.units && item.averageCost) {
+        // For money market funds with units and instrumentId, use live prices
+        if (item.type === 'money_market_fund' && item.units && item.averageCost && item.instrumentId) {
             itemCost = item.units * item.averageCost; // Original cost
-            // itemValue is already the current value (item.amount)
+            // Use live fund price if available
+            const livePrice = fundPrices[item.instrumentId];
+            if (livePrice) {
+                itemValue = item.units * livePrice; // Live value
+            } else {
+                itemValue = item.amount; // Fallback to stored amount (which is cost)
+            }
         }
 
         // Convert to display currency if needed
@@ -234,6 +256,9 @@ export const PortfolioScreen = () => {
         yedekAkceValue += itemValue;
         yedekAkceCost += itemCost;
     });
+
+    // Update categoryValues with live Yedek Akçe value
+    categoryValues['Yedek Akçe'] = yedekAkceValue;
 
     // Add Yedek Akçe to categoryPL
     if (yedekAkceCost > 0) {

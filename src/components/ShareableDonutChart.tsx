@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import { DonutChart } from './DonutChart';
-import { Feather } from '@expo/vector-icons';
 import html2canvas from 'html2canvas';
 // @ts-ignore
 import ViewShot from 'react-native-view-shot';
@@ -71,31 +70,23 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
 
     const ChartContent = (
         <View style={[styles.container, { backgroundColor: props.colors.cardBackground }]}>
-            {/* Header with controls */}
+            {/* Header with icon controls */}
             <View style={styles.header}>
                 <Text style={[styles.title, { color: props.colors.text }]}>
                     Portföy Dağılımı
                 </Text>
                 <View style={styles.controls}>
                     <TouchableOpacity
-                        style={[styles.toggleButton, { borderColor: props.colors.border }]}
+                        style={[styles.iconButton, { backgroundColor: props.colors.border + '40' }]}
                         onPress={() => setHidePrices(!hidePrices)}
                     >
-                        <Feather
-                            name={hidePrices ? 'eye-off' : 'eye'}
-                            size={16}
-                            color={props.colors.subText}
-                        />
-                        <Text style={[styles.toggleText, { color: props.colors.subText }]}>
-                            {hidePrices ? 'Göster' : 'Gizle'}
-                        </Text>
+                        <Text style={{ fontSize: 16 }}>{hidePrices ? '👁️' : '🙈'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.shareButton, { backgroundColor: props.colors.primary }]}
+                        style={[styles.iconButton, { backgroundColor: props.colors.primary + '20' }]}
                         onPress={handleShare}
                     >
-                        <Feather name="download" size={16} color="#fff" />
-                        <Text style={styles.shareText}>Kaydet</Text>
+                        <Text style={{ fontSize: 16 }}>💾</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -110,18 +101,33 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
                 />
             </View>
 
-            {/* Legend */}
-            {props.legend && !hidePrices && (
-                <View style={styles.legend}>
-                    {props.legend}
-                </View>
-            )}
+            {/* Legend - Always included for download, hidden when prices hidden */}
+            <View style={styles.legend}>
+                {props.data.map((item, index) => {
+                    const total = props.data.reduce((sum, d) => sum + d.value, 0);
+                    const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
+
+                    return (
+                        <View key={index} style={styles.legendItem}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                                <Text style={[styles.legendText, { color: props.colors.text }]} numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                            </View>
+                            <Text style={[styles.legendPercent, { color: props.colors.subText }]}>
+                                {hidePrices ? '••%' : `%${percentage}`}
+                            </Text>
+                        </View>
+                    );
+                })}
+            </View>
 
             {/* Watermark for privacy mode */}
             {hidePrices && (
                 <View style={styles.watermark}>
                     <Text style={[styles.watermarkText, { color: props.colors.subText }]}>
-                        Fiyatlar gizlendi
+                        Tutarlar gizlendi
                     </Text>
                 </View>
             )}
@@ -163,38 +169,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 8,
     },
-    toggleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+    iconButton: {
+        padding: 8,
         borderRadius: 8,
-        borderWidth: 1,
-    },
-    toggleText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    shareButton: {
-        flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-    },
-    shareText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
+        justifyContent: 'center',
     },
     chartWrapper: {
         alignItems: 'center',
         marginVertical: 16,
     },
     legend: {
-        marginTop: 16,
+        marginTop: 12,
+        gap: 8,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    legendDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 10,
+    },
+    legendText: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    legendPercent: {
+        fontSize: 13,
+        fontWeight: '700',
     },
     watermark: {
         marginTop: 12,
@@ -205,3 +212,4 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
     },
 });
+

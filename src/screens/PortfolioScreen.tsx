@@ -25,7 +25,7 @@ export const PortfolioScreen = () => {
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [displayCurrency, setDisplayCurrency] = useState<'TRY' | 'USD'>('TRY');
     const [usdRate, setUsdRate] = useState(1);
@@ -164,9 +164,10 @@ export const PortfolioScreen = () => {
         }
     };
 
-    const toggleCategory = (category: string) => {
-        setCollapsedCategories(prev => ({ ...prev, [category]: !prev[category] }));
-    };
+    // Get all categories for tabs
+    const allCategories = ['Hisse (BIST)', 'Altın', 'Kripto', 'Fon', 'ABD ETF', 'BES', 'Yedek Akçe'].filter(cat =>
+        categoryValues[cat] > 0 || portfolio.some(i => getCategory(i) === cat)
+    );
 
     // --- Calculations & Grouping ---
     const categoryValues: Record<string, number> = {};
@@ -323,44 +324,67 @@ export const PortfolioScreen = () => {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={[styles.scrollContent, isLargeScreen && styles.scrollContentWeb]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-                {Object.keys(categoryValues).map(category => {
-                    if (category === 'Yedek Akçe' && categoryValues[category] <= 0) return null;
-                    const items = portfolio.filter(i => getCategory(i) === category);
-                    if (items.length === 0 && category !== 'Yedek Akçe') return null;
-
-                    const isCollapsed = collapsedCategories[category];
-
-                    // Calculate category P/L
-                    const currentCategoryPL = categoryPL[category]?.pl || 0;
-                    const currentCategoryCost = categoryPL[category]?.cost || 0;
-                    const categoryPLPercent = currentCategoryCost > 0 ? (currentCategoryPL / currentCategoryCost) * 100 : 0;
-                    const isProfitable = currentCategoryPL >= 0;
-
+            {/* Category Tabs */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ maxHeight: 50, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.cardBackground }}
+                contentContainerStyle={{ gap: 8, alignItems: 'center' }}
+            >
+                {allCategories.map(cat => {
+                    const isActive = selectedCategory === cat;
                     return (
-                        <View key={category} style={[styles.sectionContainer, isLargeScreen && styles.sectionContainerWeb]}>
-                            <TouchableOpacity onPress={() => toggleCategory(category)} style={styles.sectionHeader}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    {getCategoryIcon(category)}
+                        <TouchableOpacity
+                            key={cat}
+                            onPress={() => setSelectedCategory(isActive ? null : cat)}
+                            style={[
+                                styles.categoryTab,
+                                { backgroundColor: isActive ? colors.primary : colors.background, borderColor: isActive ? colors.primary : colors.border }
+                            ]}
+                        >
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : colors.text }}>
+                                {cat.replace(' (BIST)', '')}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+                {allCategories
+                    .filter(cat => selectedCategory === null || selectedCategory === cat)
+                    .map(category => {
+                        if (category === 'Yedek Akçe' && categoryValues[category] <= 0) return null;
+                        const items = portfolio.filter(i => getCategory(i) === category);
+                        if (items.length === 0 && category !== 'Yedek Akçe') return null;
+
+                        // Calculate category P/L
+                        const currentCategoryPL = categoryPL[category]?.pl || 0;
+                        const currentCategoryCost = categoryPL[category]?.cost || 0;
+                        const categoryPLPercent = currentCategoryCost > 0 ? (currentCategoryPL / currentCategoryCost) * 100 : 0;
+                        const isProfitable = currentCategoryPL >= 0;
+
+                        return (
+                            <View key={category} style={styles.categorySection}>
+                                {/* Category Header */}
+                                <View style={styles.categoryHeader}>
                                     <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        <Text style={[styles.sectionTotal, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
-                                        <Text style={{ fontSize: 12, color: colors.subText }}>{isCollapsed ? '▼' : '▲'}</Text>
-                                    </View>
-                                    {/* Show P/L for all categories including Yedek Akçe */}
-                                    {Platform.OS === 'web' && currentCategoryCost > 0 && (
-                                        <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
-                                            {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={[styles.sectionTotal, { color: colors.text }]}>
+                                            {formatCurrency(categoryValues[category], displayCurrency)}
                                         </Text>
-                                    )}
+                                        {currentCategoryCost > 0 && (
+                                            <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
+                                                {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                            </Text>
+                                        )}
+                                    </View>
                                 </View>
-                            </TouchableOpacity>
 
 
-                            {!isCollapsed && (
-                                category === 'Yedek Akçe' ? (
+
+                                {/* Asset Grid */}
+                                {category === 'Yedek Akçe' ? (
                                     <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
                                         {cashItems.map((cashItem, index) => {
                                             // Calculate values for each cash item
@@ -456,53 +480,69 @@ export const PortfolioScreen = () => {
                                         )}
                                     </View>
                                 ) : (
-                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
-                                        {items.map((item, index) => {
-                                            const currentPrice = prices[item.instrumentId] || 0;
+                                    /* Regular assets grid */
+                                    <View style={styles.assetGrid}>
+                                        {items.map((item) => {
+                                            const currentPrice = item.customCurrentPrice || prices[item.instrumentId] || 0;
                                             const changePercent = dailyChanges[item.instrumentId] || 0;
+                                            let value = item.amount * currentPrice;
+                                            let cost = item.amount * item.averageCost;
 
-                                            // Determine color for icon based on category logic or passed in?
-                                            // We can use the category colors logic but just pick the primary color
-                                            const categoryColors = getCategoryColors(category);
-                                            // The first color in the array is usually the primary tint
-                                            const iconColor = categoryColors[0].replace('rgba(', '').replace(')', '').split(',').slice(0, 3).join(',') + ', 1)'; // simplistic opacity removal hack or just map properly
+                                            if (item.type === 'bes') {
+                                                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
+                                                cost = item.besPrincipal || 0;
+                                            }
 
-                                            // Actually, let's just map categories to solid colors for icons
-                                            const getIconColor = (cat: string) => {
-                                                switch (cat) {
-                                                    case 'Altın': return '#FFD700';
-                                                    case 'Hisse (BIST)': return '#007AFF';
-                                                    case 'Kripto': return '#AF52DE';
-                                                    case 'Döviz': return '#34C759';
-                                                    case 'Fon': return '#FF2D55';
-                                                    case 'ABD ETF': return '#0A84FF';
-                                                    default: return '#8E8E93';
-                                                }
-                                            };
+                                            // Currency conversion
+                                            if (displayCurrency === 'USD' && item.currency === 'TRY') {
+                                                value = value / usdRate;
+                                                cost = cost / usdRate;
+                                            } else if (displayCurrency === 'TRY' && item.currency === 'USD') {
+                                                value = value * usdRate;
+                                                cost = cost * usdRate;
+                                            }
+
+                                            const profit = value - cost;
+                                            const profitPercent = cost > 0 ? (profit / cost) * 100 : 0;
+                                            const isProfit = profit >= 0;
 
                                             return (
-                                                <View key={item.id}>
-                                                    <AssetRow
-                                                        item={item}
-                                                        currentPrice={currentPrice}
-                                                        changePercent={changePercent}
-                                                        displayCurrency={displayCurrency}
-                                                        usdRate={usdRate}
-                                                        onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
-                                                        onLongPress={() => handleLongPress(item)}
-                                                        color={getIconColor(category)}
-                                                        onSell={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
-                                                    />
-                                                    {index < items.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                                                </View>
+                                                <TouchableOpacity
+                                                    key={item.id}
+                                                    style={[styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                                                    onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
+                                                    onLongPress={() => handleLongPress(item)}
+                                                >
+                                                    <Text style={[styles.cardSymbol, { color: colors.text }]}>
+                                                        {formatSymbol(item.instrumentId)}
+                                                    </Text>
+                                                    <Text style={[styles.cardDetail, { color: colors.subText }]}>
+                                                        {formatCurrency(currentPrice, item.currency || 'TRY')} × {item.amount.toFixed(item.amount < 10 ? 2 : 0)}
+                                                    </Text>
+                                                    <Text style={[styles.cardCost, { color: colors.subText }]}>
+                                                        Maliyet: {formatCurrency(cost, displayCurrency)}
+                                                    </Text>
+                                                    <Text style={[styles.cardValue, { color: colors.text }]}>
+                                                        {formatCurrency(value, displayCurrency)}
+                                                    </Text>
+                                                    <View style={[styles.cardPL, { backgroundColor: isProfit ? colors.success + '20' : colors.danger + '20' }]}>
+                                                        <Text style={{ fontSize: 11, fontWeight: '600', color: isProfit ? colors.success : colors.danger }}>
+                                                            {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)} ({isProfit ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                        </Text>
+                                                    </View>
+                                                    {changePercent !== 0 && (
+                                                        <Text style={{ fontSize: 10, color: changePercent > 0 ? colors.success : colors.danger, marginTop: 4 }}>
+                                                            {changePercent > 0 ? '↑' : '↓'} {Math.abs(changePercent).toFixed(2)}%
+                                                        </Text>
+                                                    )}
+                                                </TouchableOpacity>
                                             );
                                         })}
                                     </View>
-                                )
-                            )}
-                        </View>
-                    );
-                })}
+                                )}
+                            </View>
+                        );
+                    })}
             </ScrollView>
 
             {/* Edit Modal */}
@@ -635,5 +675,65 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 6,
         marginTop: 4,
-    }
+    },
+
+    // Category Tabs
+    categoryTab: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+    },
+
+    // Category Section
+    categorySection: {
+        marginTop: 20,
+        paddingHorizontal: 4,
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+
+    // Asset Grid
+    assetGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+
+    // Compact Card
+    compactCard: {
+        width: Platform.OS === 'web' ? '23%' : '48%',
+        minWidth: 140,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    cardSymbol: {
+        fontSize: 15,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    cardDetail: {
+        fontSize: 11,
+        marginBottom: 2,
+    },
+    cardCost: {
+        fontSize: 10,
+        marginBottom: 6,
+    },
+    cardValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    cardPL: {
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
+    },
 });

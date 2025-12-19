@@ -70,6 +70,7 @@ export const SummaryScreen = () => {
     const [marketReportVisible, setMarketReportVisible] = useState(false);
     const [marketReportData, setMarketReportData] = useState<any>(null);
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Render UI first, then load data progressively
@@ -185,6 +186,23 @@ export const SummaryScreen = () => {
         setPrices(newPrices);
         setDailyChanges(newDailyChanges);
         setIsInitialLoading(false);
+
+        // Fetch money market fund prices for Yedek Akçe profit calculation
+        const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+        const newFundPrices: Record<string, number> = {};
+        for (const item of fundItems) {
+            if (item.instrumentId) {
+                try {
+                    const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
+                    if (priceResult && priceResult.currentPrice) {
+                        newFundPrices[item.instrumentId] = priceResult.currentPrice;
+                    }
+                } catch (error) {
+                    console.error('Error fetching fund price:', error);
+                }
+            }
+        }
+        setFundPrices(newFundPrices);
     };
 
     // Immediate load on mount
@@ -565,6 +583,45 @@ export const SummaryScreen = () => {
                                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
                                             {isHidden ? '•••' : formatCurrency(cashBalance, 'TRY')}
                                         </Text>
+                                        {/* Show money market fund profit */}
+                                        {(() => {
+                                            let totalCost = 0;
+                                            let totalCurrentValue = 0;
+                                            cashItems.forEach(item => {
+                                                if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
+                                                    const livePrice = fundPrices[item.instrumentId];
+                                                    if (livePrice) {
+                                                        const currentValue = item.units * livePrice;
+                                                        const cost = item.units * item.averageCost;
+                                                        totalCurrentValue += currentValue;
+                                                        totalCost += cost;
+                                                    }
+                                                }
+                                            });
+                                            const profit = totalCurrentValue - totalCost;
+                                            if (totalCost > 0 && profit !== 0) {
+                                                return (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                                                        {profit >= 0 ? (
+                                                            <TrendingUp size={14} color={colors.success} strokeWidth={2} />
+                                                        ) : (
+                                                            <TrendingDown size={14} color={colors.danger} strokeWidth={2} />
+                                                        )}
+                                                        <Text style={{
+                                                            color: profit >= 0 ? colors.success : colors.danger,
+                                                            fontSize: 13,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            {isHidden ? '•••' : `${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')}`}
+                                                        </Text>
+                                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '500' }}>
+                                                            Kâr
+                                                        </Text>
+                                                    </View>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </TouchableOpacity>
                                 </View>
 

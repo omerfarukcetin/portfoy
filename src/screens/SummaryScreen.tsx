@@ -645,13 +645,15 @@ export const SummaryScreen = () => {
 
                                 {/* Portfolio Distribution - Donut Chart */}
                                 {portfolio.length > 0 && (
-                                    <View style={{
-                                        backgroundColor: colors.cardBackground,
-                                        borderRadius: 16,
-                                        padding: 24,
-                                        borderWidth: 1,
-                                        borderColor: colors.border
-                                    }}>
+                                    <View
+                                        {...(Platform.OS === 'web' ? { 'data-chart-card': 'true' } : {})}
+                                        style={{
+                                            backgroundColor: colors.cardBackground,
+                                            borderRadius: 16,
+                                            padding: 24,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                                             <View>
                                                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
@@ -703,6 +705,7 @@ export const SummaryScreen = () => {
                                                         centerTextFontSize={28}
                                                         centerSubtext="TOPLAM"
                                                         colors={colors}
+                                                        hideLegend={true}
                                                     />
                                                 )}
                                             </View>

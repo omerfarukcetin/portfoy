@@ -18,6 +18,7 @@ interface ShareableDonutChartProps {
     centerTextFontSize?: number;
     colors: any;
     legend?: React.ReactNode;
+    hideLegend?: boolean;
 }
 
 export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) => {
@@ -80,27 +81,29 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
                 />
             </View>
 
-            {/* Legend - Always included for download */}
-            <View style={styles.legend}>
-                {props.data.map((item, index) => {
-                    const total = props.data.reduce((sum, d) => sum + d.value, 0);
-                    const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
+            {/* Legend - Always included for download unless specifically hidden */}
+            {!props.hideLegend && (
+                <View style={styles.legend}>
+                    {props.data.map((item, index) => {
+                        const total = props.data.reduce((sum, d) => sum + d.value, 0);
+                        const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
 
-                    return (
-                        <View key={index} style={styles.legendItem}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                                <Text style={[styles.legendText, { color: props.colors.text }]} numberOfLines={1}>
-                                    {item.name}
+                        return (
+                            <View key={index} style={styles.legendItem}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                                    <Text style={[styles.legendText, { color: props.colors.text }]} numberOfLines={1}>
+                                        {item.name}
+                                    </Text>
+                                </View>
+                                <Text style={[styles.legendPercent, { color: props.colors.subText }]}>
+                                    {hidePrices ? '••%' : `%${percentage}`}
                                 </Text>
                             </View>
-                            <Text style={[styles.legendPercent, { color: props.colors.subText }]}>
-                                {hidePrices ? '••%' : `%${percentage}`}
-                            </Text>
-                        </View>
-                    );
-                })}
-            </View>
+                        );
+                    })}
+                </View>
+            )}
 
             {/* Watermark for privacy mode */}
             {

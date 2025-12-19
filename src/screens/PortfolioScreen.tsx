@@ -369,17 +369,19 @@ export const PortfolioScreen = () => {
                             <View key={category} style={styles.categorySection}>
                                 {/* Category Header */}
                                 <View style={styles.categoryHeader}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
-                                        <Text style={[styles.sectionTotal, { color: colors.text }]}>
-                                            {formatCurrency(categoryValues[category], displayCurrency)}
-                                        </Text>
+                                    <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
+                                            <Text style={[styles.sectionTotal, { color: colors.text }]}>
+                                                {formatCurrency(categoryValues[category], displayCurrency)}
+                                            </Text>
+                                        </View>
+                                        {currentCategoryCost > 0 && (
+                                            <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger, marginTop: 4 }]}>
+                                                {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                            </Text>
+                                        )}
                                     </View>
-                                    {currentCategoryCost > 0 && (
-                                        <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
-                                            {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
-                                        </Text>
-                                    )}
                                 </View>
 
 

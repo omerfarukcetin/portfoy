@@ -15,6 +15,7 @@ import { generateRecommendations, Recommendation } from '../services/advisorServ
 import { Skeleton } from '../components/Skeleton';
 import { NewsFeed } from '../components/NewsFeed';
 import { GradientCard } from '../components/GradientCard';
+import html2canvas from 'html2canvas';
 
 
 const screenWidth = Dimensions.get('window').width;
@@ -656,14 +657,36 @@ export const SummaryScreen = () => {
                                                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
                                                 <Text style={{ fontSize: 13, color: colors.subText, marginTop: 2 }}>Portföyünüzün sektörel dağılımı</Text>
                                             </View>
-                                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                                <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Download size={16} color={colors.subText} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <MoreHorizontal size={16} color={colors.subText} />
-                                                </TouchableOpacity>
-                                            </View>
+                                            <TouchableOpacity
+                                                style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
+                                                onPress={async () => {
+                                                    try {
+                                                        if (Platform.OS === 'web') {
+                                                            const chartCard = document.querySelector('[data-chart-card]') as HTMLElement;
+                                                            if (chartCard) {
+                                                                const canvas = await html2canvas(chartCard, {
+                                                                    backgroundColor: colors.cardBackground,
+                                                                    scale: 2
+                                                                });
+                                                                canvas.toBlob((blob) => {
+                                                                    if (blob) {
+                                                                        const url = URL.createObjectURL(blob);
+                                                                        const link = document.createElement('a');
+                                                                        link.download = `portfoy-dagilimi-${Date.now()}.png`;
+                                                                        link.href = url;
+                                                                        link.click();
+                                                                        URL.revokeObjectURL(url);
+                                                                    }
+                                                                });
+                                                            }
+                                                        }
+                                                    } catch (e) {
+                                                        console.error('Download error:', e);
+                                                    }
+                                                }}
+                                            >
+                                                <Download size={16} color={colors.subText} />
+                                            </TouchableOpacity>
                                         </View>
 
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 40 }}>

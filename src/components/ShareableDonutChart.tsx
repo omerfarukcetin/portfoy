@@ -70,27 +70,6 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
 
     const ChartContent = (
         <View style={[styles.container, { backgroundColor: props.colors.cardBackground }]}>
-            {/* Header with icon controls */}
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: props.colors.text }]}>
-                    Portföy Dağılımı
-                </Text>
-                <View style={styles.controls}>
-                    <TouchableOpacity
-                        style={[styles.iconButton, { backgroundColor: props.colors.border + '40' }]}
-                        onPress={() => setHidePrices(!hidePrices)}
-                    >
-                        <Text style={{ fontSize: 16 }}>{hidePrices ? '👁️' : '🙈'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.iconButton, { backgroundColor: props.colors.primary + '20' }]}
-                        onPress={handleShare}
-                    >
-                        <Text style={{ fontSize: 16 }}>💾</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
             {/* Chart */}
             <View style={styles.chartWrapper}>
                 <DonutChart
@@ -101,7 +80,7 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
                 />
             </View>
 
-            {/* Legend - Always included for download, hidden when prices hidden */}
+            {/* Legend - Always included for download */}
             <View style={styles.legend}>
                 {props.data.map((item, index) => {
                     const total = props.data.reduce((sum, d) => sum + d.value, 0);
@@ -124,13 +103,15 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
             </View>
 
             {/* Watermark for privacy mode */}
-            {hidePrices && (
-                <View style={styles.watermark}>
-                    <Text style={[styles.watermarkText, { color: props.colors.subText }]}>
-                        Tutarlar gizlendi
-                    </Text>
-                </View>
-            )}
+            {
+                hidePrices && (
+                    <View style={styles.watermark}>
+                        <Text style={[styles.watermarkText, { color: props.colors.subText }]}>
+                            Tutarlar gizlendi
+                        </Text>
+                    </View>
+                )
+            }
         </View>
     );
 

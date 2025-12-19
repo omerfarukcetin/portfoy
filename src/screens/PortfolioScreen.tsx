@@ -13,6 +13,19 @@ import { GradientCard } from '../components/GradientCard';
 import { AssetRow } from '../components/AssetRow';
 import { TickerIcon } from '../components/TickerIcon';
 
+const getCategoryColor = (category: string) => {
+    switch (category) {
+        case 'Hisse (BIST)': return '#007AFF';
+        case 'Hisse (ABD)': return '#FF9500';
+        case 'Fon': return '#34C759';
+        case 'Kripto': return '#5856D6';
+        case 'Altın/Gümüş': return '#FFD700';
+        case 'Yedek Akçe': return '#FF2D55';
+        case 'BES': return '#AF52DE';
+        default: return '#8E8E93';
+    }
+};
+
 const getCategoryIcon = (category: string) => {
     switch (category) {
         case 'Hisse (BIST)': return 'trending-up';
@@ -384,10 +397,11 @@ export const PortfolioScreen = () => {
                                 {/* Category Header */}
                                 <View style={styles.categoryHeader}>
                                     <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                            <Feather name={getCategoryIcon(category)} size={18} color={colors.primary} />
-                                            <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
-                                            <Text style={[styles.sectionTotal, { color: colors.text }]}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                            <View style={{ width: 4, height: 20, borderRadius: 2, backgroundColor: getCategoryColor(category) }} />
+                                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{category.toUpperCase()}</Text>
+                                            <View style={{ flex: 1 }} />
+                                            <Text style={[styles.sectionTotal, { color: colors.text, fontSize: 16 }]}>
                                                 {formatCurrency(categoryValues[category], displayCurrency)}
                                             </Text>
                                             {currentCategoryCost > 0 && (
@@ -531,28 +545,46 @@ export const PortfolioScreen = () => {
                                                     onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                     onLongPress={() => handleLongPress(item)}
                                                 >
-                                                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                                                        <Text style={[styles.cardSymbol, { color: colors.text, marginBottom: 0 }]}>
-                                                            {formatSymbol(item.instrumentId)}
-                                                        </Text>
-                                                        {changePercent !== 0 && (
-                                                            <Text style={{ fontSize: 10, color: changePercent > 0 ? colors.success : colors.danger, fontWeight: '600' }}>
-                                                                {changePercent > 0 ? '↑' : '↓'} %{Math.abs(changePercent).toFixed(2)}
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                                                        <View>
+                                                            <Text style={[styles.cardSymbol, { color: colors.text, marginBottom: 2 }]}>
+                                                                {formatSymbol(item.instrumentId)}
                                                             </Text>
-                                                        )}
-                                                    </View>
-                                                    <Text style={[styles.cardDetail, { color: colors.subText }]}>
-                                                        {formatCurrency(currentPrice, item.currency || 'TRY')} × {item.amount.toFixed(item.amount < 10 ? 2 : 0)}
-                                                    </Text>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                                                        <Text style={[styles.cardValue, { color: colors.text, marginBottom: 4 }]}>
-                                                            {formatCurrency(value, displayCurrency)}
-                                                        </Text>
-                                                        <View style={styles.cardPL}>
-                                                            <Text style={{ fontSize: 11, fontWeight: '700', color: isProfit ? colors.success : colors.danger }}>
-                                                                {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)} ({isProfit ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                            <Text style={{ fontSize: 10, color: colors.subText }}>{category}</Text>
+                                                        </View>
+                                                        <View style={{ alignItems: 'flex-end' }}>
+                                                            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                                                                {formatCurrency(value, displayCurrency)}
+                                                            </Text>
+                                                            <Text style={{ fontSize: 11, fontWeight: '600', color: isProfit ? colors.success : colors.danger }}>
+                                                                {isProfit ? '+' : ''}{profitPercent.toFixed(1)}%
                                                             </Text>
                                                         </View>
+                                                    </View>
+
+                                                    <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.1, marginBottom: 12 }} />
+
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                        <View>
+                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Fiyat</Text>
+                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>{formatCurrency(currentPrice, item.currency || 'TRY')}</Text>
+                                                        </View>
+                                                        <View style={{ alignItems: 'center' }}>
+                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Adet</Text>
+                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>{item.amount.toFixed(item.amount < 10 ? 2 : 0)}</Text>
+                                                        </View>
+                                                        <View style={{ alignItems: 'flex-end' }}>
+                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Günlük</Text>
+                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: changePercent >= 0 ? colors.success : colors.danger }}>
+                                                                {changePercent > 0 ? '↑' : changePercent < 0 ? '↓' : ''} {Math.abs(changePercent).toFixed(2)}%
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+
+                                                    <View style={{ marginTop: 12, backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15', paddingVertical: 4, borderRadius: 6, alignItems: 'center' }}>
+                                                        <Text style={{ fontSize: 11, fontWeight: '700', color: isProfit ? colors.success : colors.danger }}>
+                                                            {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)}
+                                                        </Text>
                                                     </View>
                                                 </TouchableOpacity>
                                             );

@@ -10,6 +10,25 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import { TickerIcon } from '../components/TickerIcon';
 import { MarketDataService } from '../services/marketData';
 
+// Helper component for Asset Initials Icon
+const AssetInitials = ({ name, color, size = 32 }: { name: string, color: string, size?: number }) => {
+    const initials = name.substring(0, 2).toUpperCase();
+    return (
+        <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: color + '20',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: color + '40'
+        }}>
+            <Text style={{ color: color, fontSize: size * 0.4, fontWeight: '700' }}>{initials}</Text>
+        </View>
+    );
+};
+
 export const TransactionsScreen = () => {
     const { realizedTrades, portfolio, updateAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
@@ -229,9 +248,20 @@ export const TransactionsScreen = () => {
                         <Text style={{ textAlign: 'center', color: colors.subText }}>{t('transactions.noOpenTrades')}</Text>
                     </View>
                 ) : Platform.OS === 'web' ? (
-                    // WEB: 3-COLUMN GRID LAYOUT
+                    // WEB: MODERN TABLE LAYOUT
                     <ScrollView contentContainerStyle={styles.scrollContent}>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                        <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                            {/* Table Header */}
+                            <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
+                                <Text style={[styles.columnHeader, { flex: 2 }]}>ASSET NAME ↑</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>QUANTITY ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>COST ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>TOTAL VALUE ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>DÜZENLE</Text>
+                                <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>SİL</Text>
+                            </View>
+
+                            {/* Table Rows */}
                             {portfolio.map((item) => {
                                 const getIconColor = (item: PortfolioItem) => {
                                     if (item.type === 'gold') return '#FFD700';
@@ -243,66 +273,51 @@ export const TransactionsScreen = () => {
                                 };
 
                                 return (
-                                    <View key={item.id} style={[styles.cardContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, width: 'calc(33.333% - 11px)', minWidth: 300 }]}>
-                                        <View style={{ padding: 16 }}>
-                                            {/* Header with Icon */}
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                                                <TickerIcon
-                                                    symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : item.instrumentId}
-                                                    color={getIconColor(item)}
-                                                    size={40}
-                                                />
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={[styles.symbol, { color: colors.text }]}>{item.customName || item.instrumentId}</Text>
-                                                    <Text style={[styles.details, { color: colors.subText }]}>
-                                                        {item.amount} Adet
-                                                    </Text>
-                                                </View>
-                                            </View>
+                                    <View key={item.id} style={[styles.tableRow, { borderBottomColor: colors.border + '40' }]}>
+                                        {/* Asset Name */}
+                                        <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                                            <AssetInitials
+                                                name={item.customName || item.instrumentId}
+                                                color={getIconColor(item)}
+                                            />
+                                            <Text style={[styles.tableText, { fontWeight: '700', color: colors.text }]}>
+                                                {item.customName || item.instrumentId}
+                                            </Text>
+                                        </View>
 
-                                            {/* Details */}
-                                            <View style={{ gap: 8, marginBottom: 12 }}>
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                    <Text style={{ color: colors.subText, fontSize: 13 }}>Maliyet</Text>
-                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
-                                                        {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                                                    </Text>
-                                                </View>
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                    <Text style={{ color: colors.subText, fontSize: 13 }}>Toplam Değer</Text>
-                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
-                                                        {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                                                    </Text>
-                                                </View>
-                                            </View>
+                                        {/* Quantity */}
+                                        <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
+                                            {item.amount} Adet
+                                        </Text>
 
-                                            {/* Action Buttons */}
-                                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        flex: 1,
-                                                        backgroundColor: colors.primary,
-                                                        paddingVertical: 10,
-                                                        borderRadius: 8,
-                                                        alignItems: 'center'
-                                                    }}
-                                                    onPress={() => openEditModal(item)}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Düzenle</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        flex: 1,
-                                                        backgroundColor: colors.danger,
-                                                        paddingVertical: 10,
-                                                        borderRadius: 8,
-                                                        alignItems: 'center'
-                                                    }}
-                                                    onPress={() => handleDelete(item)}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Sil</Text>
-                                                </TouchableOpacity>
-                                            </View>
+                                        {/* Cost */}
+                                        <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
+                                            {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                                        </Text>
+
+                                        {/* Total Value */}
+                                        <Text style={[styles.tableText, { flex: 1.5, color: colors.text, fontWeight: '600' }]}>
+                                            {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
+                                        </Text>
+
+                                        {/* Edit Action */}
+                                        <View style={[styles.tableCell, { flex: 1, alignItems: 'center' }]}>
+                                            <TouchableOpacity
+                                                style={[styles.actionBtn, { backgroundColor: 'rgba(255,255,255,0.05)' }]}
+                                                onPress={() => openEditModal(item)}
+                                            >
+                                                <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '600' }}>Düzenle</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {/* Delete Action */}
+                                        <View style={[styles.tableCell, { flex: 1, alignItems: 'center' }]}>
+                                            <TouchableOpacity
+                                                style={[styles.actionBtn, { backgroundColor: colors.danger }]}
+                                                onPress={() => handleDelete(item)}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Sil</Text>
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
                                 );
@@ -384,34 +399,107 @@ export const TransactionsScreen = () => {
 
                             {/* Trade List */}
                             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, marginBottom: 10 }}>İşlem Geçmişi</Text>
-                            {realizedTrades.slice().reverse().map(trade => {
-                                const cost = trade.buyPrice * trade.amount;
-                                const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
 
-                                return (
-                                    <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                        <View style={styles.row}>
-                                            <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
-                                                    {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                            {Platform.OS === 'web' ? (
+                                <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                    {/* Table Header */}
+                                    <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
+                                        <Text style={[styles.columnHeader, { flex: 2 }]}>ASSET NAME</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>QUANTITY</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>SELL PRICE</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>PROFIT / LOSS</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.2, textAlign: 'right' }]}>DATE</Text>
+                                    </View>
+
+                                    {/* Table Rows */}
+                                    {realizedTrades.slice().reverse().map(trade => {
+                                        const cost = trade.buyPrice * trade.amount;
+                                        const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
+                                        const getIconColor = (type: string) => {
+                                            switch (type) {
+                                                case 'gold': return '#FFD700';
+                                                case 'crypto': return '#AF52DE';
+                                                case 'stock': return '#007AFF';
+                                                case 'fund': return '#FF2D55';
+                                                case 'bes': return '#FF9500';
+                                                default: return '#8E8E93';
+                                            }
+                                        };
+
+                                        return (
+                                            <View key={trade.id} style={[styles.tableRow, { borderBottomColor: colors.border + '40' }]}>
+                                                {/* Asset Name */}
+                                                <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                                                    <AssetInitials
+                                                        name={trade.instrumentId}
+                                                        color={getIconColor(trade.type || '')}
+                                                    />
+                                                    <View>
+                                                        <Text style={[styles.tableText, { fontWeight: '700', color: colors.text }]}>
+                                                            {trade.instrumentId}
+                                                        </Text>
+                                                        <Text style={{ color: colors.subText, fontSize: 10, fontWeight: '600' }}>SATIŞ</Text>
+                                                    </View>
+                                                </View>
+
+                                                {/* Quantity */}
+                                                <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
+                                                    {trade.amount} Adet
                                                 </Text>
-                                                <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
-                                                    ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
+
+                                                {/* Sell Price */}
+                                                <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
+                                                    {formatCurrency(trade.sellPrice, trade.currency)}
+                                                </Text>
+
+                                                {/* Profit/Loss */}
+                                                <View style={[styles.tableCell, { flex: 1.5 }]}>
+                                                    <Text style={[styles.tableText, { color: trade.profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700' }]}>
+                                                        {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                                                    </Text>
+                                                    <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
+                                                        ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                    </Text>
+                                                </View>
+
+                                                {/* Date */}
+                                                <Text style={[styles.tableText, { flex: 1.2, color: colors.subText, textAlign: 'right', fontSize: 12 }]}>
+                                                    {new Date(trade.date).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                realizedTrades.slice().reverse().map(trade => {
+                                    const cost = trade.buyPrice * trade.amount;
+                                    const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
+
+                                    return (
+                                        <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                            <View style={styles.row}>
+                                                <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
+                                                        {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                                                    </Text>
+                                                    <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
+                                                        ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.row}>
+                                                <Text style={[styles.details, { color: colors.subText }]}>
+                                                    {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
+                                                </Text>
+                                                <Text style={[styles.details, { color: colors.subText }]}>
+                                                    {new Date(trade.date).toLocaleDateString()}
                                                 </Text>
                                             </View>
                                         </View>
-                                        <View style={styles.row}>
-                                            <Text style={[styles.details, { color: colors.subText }]}>
-                                                {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
-                                            </Text>
-                                            <Text style={[styles.details, { color: colors.subText }]}>
-                                                {new Date(trade.date).toLocaleDateString()}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                );
-                            })}
+                                    );
+                                })
+                            )}
                         </>
                     )}
                 </ScrollView>
@@ -673,4 +761,48 @@ const styles = StyleSheet.create({
     buttonText: {
         fontWeight: '600',
     },
+
+    // Web Table Styles
+    tableCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+        marginBottom: 20,
+    },
+    tableHeader: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+    },
+    columnHeader: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#8E8E93',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    tableRow: {
+        flexDirection: 'row',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        // hover effect would be added in CSS if it was web-only, 
+        // but here we use base style
+    },
+    tableCell: {
+        justifyContent: 'center',
+    },
+    tableText: {
+        fontSize: 14,
+    },
+    actionBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 8,
+        minWidth: 80,
+        alignItems: 'center',
+    }
 });

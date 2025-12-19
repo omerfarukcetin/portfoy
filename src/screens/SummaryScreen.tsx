@@ -430,7 +430,7 @@ export const SummaryScreen = () => {
                                     onPress={() => setIsHidden(!isHidden)}
                                     style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
                                 >
-                                    <Feather name={theme === 'dark' ? 'moon' : 'sun'} size={18} color={colors.text} />
+                                    <Feather name={isHidden ? 'eye-off' : 'eye'} size={18} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
                         </View>

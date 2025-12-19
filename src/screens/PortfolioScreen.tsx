@@ -353,8 +353,8 @@ export const PortfolioScreen = () => {
                                                     <View>
                                                         <Text style={[styles.symbol, { color: colors.text }]}>Nakit Portföy</Text>
                                                         {hasProfit && yaPL ? (
-                                                            <Text style={[styles.name, { color: colors.subText }]}>
-                                                                Maliyet: {formatCurrency(yaPL.cost, displayCurrency)}
+                                                            <Text style={[styles.name, { color: isProfit ? colors.success : colors.danger }]}>
+                                                                PPF Karı: {isProfit ? '+' : ''}{formatCurrency(yaPL.pl, displayCurrency)}
                                                             </Text>
                                                         ) : (
                                                             <Text style={[styles.name, { color: colors.subText }]}>Kullanılabilir Bakiye</Text>
@@ -364,11 +364,9 @@ export const PortfolioScreen = () => {
                                                 <View style={{ alignItems: 'flex-end' }}>
                                                     <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
                                                     {hasProfit && yaPL && (
-                                                        <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
-                                                            <Text style={{ color: isProfit ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
-                                                                {isProfit ? '+' : ''}{formatCurrency(yaPL.pl, displayCurrency)} ({isProfit ? '+' : ''}{plPercent.toFixed(1)}%)
-                                                            </Text>
-                                                        </View>
+                                                        <Text style={{ color: colors.subText, fontSize: 11 }}>
+                                                            Fon getirisi: {isProfit ? '+' : ''}{plPercent.toFixed(1)}%
+                                                        </Text>
                                                     )}
                                                 </View>
                                             </TouchableOpacity>

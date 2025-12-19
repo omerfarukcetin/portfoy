@@ -534,12 +534,12 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.06)',
+        borderColor: 'rgba(255,255,255,0.08)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
     },
 
     // Legacy / Shared Styles

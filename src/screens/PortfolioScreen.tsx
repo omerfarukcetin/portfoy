@@ -360,48 +360,100 @@ export const PortfolioScreen = () => {
 
 
                             {!isCollapsed && (
-                                category === 'Yedek Akçe' ? (() => {
-                                    const yaPL = categoryPL['Yedek Akçe'];
-                                    const profit = yaPL?.pl || 0;
-                                    const cost = yaPL?.cost || 0;
-                                    const isProfit = profit >= 0;
-                                    const plPercent = cost > 0 ? (profit / cost) * 100 : 0;
-                                    const hasFundPrices = Object.keys(fundPrices).length > 0;
+                                category === 'Yedek Akçe' ? (
+                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                        {cashItems.map((cashItem, index) => {
+                                            // Calculate values for each cash item
+                                            let itemCost = cashItem.amount;
+                                            let itemValue = cashItem.amount;
+                                            let itemProfit = 0;
+                                            let itemProfitPercent = 0;
+                                            let itemName = cashItem.name || 'Nakit';
 
-                                    return (
-                                        <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                            // PPF with live prices
+                                            if (cashItem.type === 'money_market_fund' && cashItem.units && cashItem.averageCost && cashItem.instrumentId) {
+                                                itemCost = cashItem.units * cashItem.averageCost;
+                                                const livePrice = fundPrices[cashItem.instrumentId];
+                                                if (livePrice) {
+                                                    itemValue = cashItem.units * livePrice;
+                                                } else {
+                                                    itemValue = cashItem.amount;
+                                                }
+                                                itemProfit = itemValue - itemCost;
+                                                itemProfitPercent = itemCost > 0 ? (itemProfit / itemCost) * 100 : 0;
+                                            }
+
+                                            // Convert to display currency
+                                            if (displayCurrency === 'USD' && cashItem.currency === 'TRY') {
+                                                itemValue = itemValue / usdRate;
+                                                itemCost = itemCost / usdRate;
+                                                itemProfit = itemProfit / usdRate;
+                                            }
+
+                                            const isPPF = cashItem.type === 'money_market_fund';
+                                            const isItemProfit = itemProfit >= 0;
+                                            const iconSymbol = isPPF ? '📈' : '💵';
+
+                                            return (
+                                                <React.Fragment key={cashItem.id}>
+                                                    {index > 0 && <View style={[styles.divider, { backgroundColor: colors.subText }]} />}
+                                                    <TouchableOpacity
+                                                        style={styles.itemRow}
+                                                        onPress={() => (navigation as any).navigate('CashManagement')}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <View style={styles.rowLeft}>
+                                                            <View style={{ backgroundColor: isPPF ? '#34C75920' : '#FFD70020', padding: 8, borderRadius: 10, minWidth: 36, alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 16 }}>{iconSymbol}</Text>
+                                                            </View>
+                                                            <View>
+                                                                <Text style={[styles.symbol, { color: colors.text }]}>{itemName}</Text>
+                                                                <Text style={[styles.name, { color: colors.subText }]}>
+                                                                    {isPPF
+                                                                        ? (cashItem.units ? `${cashItem.units.toFixed(2)} adet` : 'PPF')
+                                                                        : cashItem.currency
+                                                                    }
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                        <View style={{ alignItems: 'flex-end' }}>
+                                                            {isPPF && itemCost > 0 && (
+                                                                <Text style={{ color: colors.subText, fontSize: 10, marginBottom: 2 }}>
+                                                                    Maliyet: {formatCurrency(itemCost, displayCurrency)}
+                                                                </Text>
+                                                            )}
+                                                            <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(itemValue, displayCurrency)}</Text>
+                                                            {isPPF && itemProfit !== 0 && (
+                                                                <View style={{ backgroundColor: isItemProfit ? colors.success + '15' : colors.danger + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 4 }}>
+                                                                    <Text style={{ color: isItemProfit ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
+                                                                        {isItemProfit ? '+' : ''}{formatCurrency(itemProfit, displayCurrency)} ({isItemProfit ? '+' : ''}{itemProfitPercent.toFixed(1)}%)
+                                                                    </Text>
+                                                                </View>
+                                                            )}
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                        {cashItems.length === 0 && (
                                             <TouchableOpacity
                                                 style={styles.itemRow}
                                                 onPress={() => (navigation as any).navigate('CashManagement')}
                                                 activeOpacity={0.7}
                                             >
                                                 <View style={styles.rowLeft}>
-                                                    <TickerIcon symbol="TRY" color={colors.subText} />
+                                                    <View style={{ backgroundColor: '#FFD70020', padding: 8, borderRadius: 10, minWidth: 36, alignItems: 'center' }}>
+                                                        <Text style={{ fontSize: 16 }}>💰</Text>
+                                                    </View>
                                                     <View>
-                                                        <Text style={[styles.symbol, { color: colors.text }]}>Yedek Akçe</Text>
-                                                        {profit !== 0 ? (
-                                                            <Text style={[styles.name, { color: isProfit ? colors.success : colors.danger }]}>
-                                                                Kar: {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)} ({isProfit ? '+' : ''}{plPercent.toFixed(1)}%)
-                                                            </Text>
-                                                        ) : (
-                                                            <Text style={[styles.name, { color: colors.subText }]}>
-                                                                {!hasFundPrices && cashItems.some(c => c.type === 'money_market_fund') ? 'Fiyatlar yükleniyor...' : 'Nakit + PPF Toplamı'}
-                                                            </Text>
-                                                        )}
+                                                        <Text style={[styles.symbol, { color: colors.text }]}>Yedek Akçe Ekle</Text>
+                                                        <Text style={[styles.name, { color: colors.subText }]}>Nakit veya PPF ekleyin</Text>
                                                     </View>
                                                 </View>
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
-                                                    {cost > 0 && (
-                                                        <Text style={{ color: colors.subText, fontSize: 11 }}>
-                                                            Maliyet: {formatCurrency(cost, displayCurrency)}
-                                                        </Text>
-                                                    )}
-                                                </View>
                                             </TouchableOpacity>
-                                        </View>
-                                    );
-                                })() : (
+                                        )}
+                                    </View>
+                                ) : (
                                     <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
                                         {items.map((item, index) => {
                                             const currentPrice = prices[item.instrumentId] || 0;

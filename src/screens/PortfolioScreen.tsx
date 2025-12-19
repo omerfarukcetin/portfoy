@@ -164,11 +164,6 @@ export const PortfolioScreen = () => {
         }
     };
 
-    // Get all categories for tabs
-    const allCategories = ['Hisse (BIST)', 'Altın', 'Kripto', 'Fon', 'ABD ETF', 'BES', 'Yedek Akçe'].filter(cat =>
-        categoryValues[cat] > 0 || portfolio.some(i => getCategory(i) === cat)
-    );
-
     // --- Calculations & Grouping ---
     const categoryValues: Record<string, number> = {};
     const categoryPL: Record<string, { cost: number; pl: number }> = {};
@@ -268,6 +263,11 @@ export const PortfolioScreen = () => {
             pl: yedekAkceValue - yedekAkceCost
         };
     }
+
+    // Get all categories for tabs (defined after categoryValues and getCategory are available)
+    const allCategories = ['Hisse (BIST)', 'Altın', 'Kripto', 'Fon', 'ABD ETF', 'BES', 'Yedek Akçe'].filter(cat =>
+        categoryValues[cat] > 0 || portfolio.some(i => getCategory(i) === cat)
+    );
 
     // --- Styling Helpers ---
     const getCategoryColors = (category: string): [string, string] => {

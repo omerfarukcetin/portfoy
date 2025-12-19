@@ -400,15 +400,14 @@ export const PortfolioScreen = () => {
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                             <View style={{ width: 4, height: 20, borderRadius: 2, backgroundColor: getCategoryColor(category) }} />
                                             <Text style={[styles.sectionTitle, { color: colors.text }]}>{category.toUpperCase()}</Text>
-                                            {currentCategoryCost > 0 && (
-                                                <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 12, fontWeight: '700' }}>
-                                                    {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
-                                                </Text>
-                                            )}
-                                            <View style={{ flex: 1 }} />
                                             <Text style={[styles.sectionTotal, { color: colors.text, fontSize: 16 }]}>
                                                 {formatCurrency(categoryValues[category], displayCurrency)}
                                             </Text>
+                                            {currentCategoryCost > 0 && (
+                                                <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 13, fontWeight: '700' }}>
+                                                    {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                 </View>

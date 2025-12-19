@@ -362,9 +362,11 @@ export const PortfolioScreen = () => {
                             {!isCollapsed && (
                                 category === 'Yedek Akçe' ? (() => {
                                     const yaPL = categoryPL['Yedek Akçe'];
-                                    const hasProfit = yaPL && yaPL.pl !== 0;
-                                    const isProfit = yaPL && yaPL.pl >= 0;
-                                    const plPercent = yaPL && yaPL.cost > 0 ? (yaPL.pl / yaPL.cost) * 100 : 0;
+                                    const profit = yaPL?.pl || 0;
+                                    const cost = yaPL?.cost || 0;
+                                    const isProfit = profit >= 0;
+                                    const plPercent = cost > 0 ? (profit / cost) * 100 : 0;
+                                    const hasFundPrices = Object.keys(fundPrices).length > 0;
 
                                     return (
                                         <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
@@ -376,21 +378,23 @@ export const PortfolioScreen = () => {
                                                 <View style={styles.rowLeft}>
                                                     <TickerIcon symbol="TRY" color={colors.subText} />
                                                     <View>
-                                                        <Text style={[styles.symbol, { color: colors.text }]}>Nakit Portföy</Text>
-                                                        {hasProfit && yaPL ? (
+                                                        <Text style={[styles.symbol, { color: colors.text }]}>Yedek Akçe</Text>
+                                                        {profit !== 0 ? (
                                                             <Text style={[styles.name, { color: isProfit ? colors.success : colors.danger }]}>
-                                                                PPF Karı: {isProfit ? '+' : ''}{formatCurrency(yaPL.pl, displayCurrency)}
+                                                                Kar: {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)} ({isProfit ? '+' : ''}{plPercent.toFixed(1)}%)
                                                             </Text>
                                                         ) : (
-                                                            <Text style={[styles.name, { color: colors.subText }]}>Kullanılabilir Bakiye</Text>
+                                                            <Text style={[styles.name, { color: colors.subText }]}>
+                                                                {!hasFundPrices && cashItems.some(c => c.type === 'money_market_fund') ? 'Fiyatlar yükleniyor...' : 'Nakit + PPF Toplamı'}
+                                                            </Text>
                                                         )}
                                                     </View>
                                                 </View>
                                                 <View style={{ alignItems: 'flex-end' }}>
                                                     <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
-                                                    {hasProfit && yaPL && (
+                                                    {cost > 0 && (
                                                         <Text style={{ color: colors.subText, fontSize: 11 }}>
-                                                            Fon getirisi: {isProfit ? '+' : ''}{plPercent.toFixed(1)}%
+                                                            Maliyet: {formatCurrency(cost, displayCurrency)}
                                                         </Text>
                                                     )}
                                                 </View>

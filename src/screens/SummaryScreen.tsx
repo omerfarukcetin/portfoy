@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
+import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 
 import { PortfolioSwitcher } from '../components/PortfolioSwitcher';
 import { useTheme } from '../context/ThemeContext';
@@ -424,13 +424,13 @@ export const SummaryScreen = () => {
                                     onPress={() => (navigation as any).navigate('Alerts')}
                                     style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
                                 >
-                                    <Feather name="bell" size={18} color={colors.text} />
+                                    <Bell size={18} color={colors.text} />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => setIsHidden(!isHidden)}
                                     style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
                                 >
-                                    <Feather name={isHidden ? 'eye-off' : 'eye'} size={18} color={colors.text} />
+                                    {isHidden ? <EyeOff size={18} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -447,7 +447,7 @@ export const SummaryScreen = () => {
                                 >
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                                         <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 12 }}>
-                                            <Feather name="briefcase" size={24} color="rgba(255,255,255,0.9)" />
+                                            <Briefcase size={24} color="rgba(255,255,255,0.9)" />
                                         </View>
                                         <View>
                                             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }}>Toplam Varlıklar</Text>
@@ -470,7 +470,7 @@ export const SummaryScreen = () => {
                                         gap: 12
                                     }}>
                                         <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}>
-                                            <Feather name="trending-up" size={20} color={totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30'} />
+                                            <TrendingUp size={20} color={totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30'} />
                                         </View>
                                         <View>
                                             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>TOPLAM KÂR/ZARAR</Text>
@@ -505,7 +505,7 @@ export const SummaryScreen = () => {
                                     }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                                             <View style={{ backgroundColor: colors.background, padding: 10, borderRadius: 10 }}>
-                                                <Feather name="calendar" size={18} color={colors.subText} />
+                                                <Calendar size={18} color={colors.subText} />
                                             </View>
                                             <View style={{
                                                 backgroundColor: dailyProfit >= 0 ? '#E8F5E9' : '#FFEBEE',
@@ -535,7 +535,7 @@ export const SummaryScreen = () => {
                                     }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                                             <View style={{ backgroundColor: colors.background, padding: 10, borderRadius: 10 }}>
-                                                <Feather name="check-square" size={18} color={colors.subText} />
+                                                <CheckSquare size={18} color={colors.subText} />
                                             </View>
                                         </View>
                                         <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Gerçekleşen Kâr</Text>
@@ -558,7 +558,7 @@ export const SummaryScreen = () => {
                                     >
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                                             <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
-                                                <Feather name="archive" size={18} color="#FF9800" />
+                                                <Archive size={18} color="#FF9800" />
                                             </View>
                                         </View>
                                         <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
@@ -584,10 +584,10 @@ export const SummaryScreen = () => {
                                             </View>
                                             <View style={{ flexDirection: 'row', gap: 8 }}>
                                                 <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Feather name="download" size={16} color={colors.subText} />
+                                                    <Download size={16} color={colors.subText} />
                                                 </TouchableOpacity>
                                                 <TouchableOpacity style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Feather name="more-horizontal" size={16} color={colors.subText} />
+                                                    <MoreHorizontal size={16} color={colors.subText} />
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
@@ -648,7 +648,7 @@ export const SummaryScreen = () => {
                                 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Feather name="shield" size={18} color={colors.text} />
+                                            <Shield size={18} color={colors.text} />
                                             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Risk Analizi</Text>
                                         </View>
                                         <View style={{
@@ -721,7 +721,7 @@ export const SummaryScreen = () => {
                                     >
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                             <View style={{ backgroundColor: '#E8F5E9', padding: 8, borderRadius: 8 }}>
-                                                <Feather name="trending-up" size={16} color={colors.success} />
+                                                <TrendingUp size={16} color={colors.success} />
                                             </View>
                                             <View>
                                                 <Text style={{ fontSize: 11, color: colors.subText }}>EN İYİ PERFORMANS</Text>
@@ -758,7 +758,7 @@ export const SummaryScreen = () => {
                                     >
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                             <View style={{ backgroundColor: '#FFEBEE', padding: 8, borderRadius: 8 }}>
-                                                <Feather name="trending-down" size={16} color={colors.danger} />
+                                                <TrendingDown size={16} color={colors.danger} />
                                             </View>
                                             <View>
                                                 <Text style={{ fontSize: 11, color: colors.subText }}>EN KÖTÜ PERFORMANS</Text>
@@ -786,7 +786,7 @@ export const SummaryScreen = () => {
                                     }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <Feather name="activity" size={16} color={colors.text} />
+                                                <Activity size={16} color={colors.text} />
                                                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Piyasa Özeti</Text>
                                             </View>
                                             <TouchableOpacity>
@@ -851,7 +851,7 @@ export const SummaryScreen = () => {
                                     onPress={() => (navigation as any).navigate('Settings')}
                                     style={{ padding: 8, backgroundColor: colors.cardBackground, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}
                                 >
-                                    <Feather name="settings" size={20} color={colors.text} />
+                                    <Settings size={20} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
 
@@ -888,7 +888,7 @@ export const SummaryScreen = () => {
                                             borderRadius: 12
                                         }}
                                     >
-                                        <Feather name={isHidden ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.8)" />
+                                        {isHidden ? <EyeOff size={20} color="rgba(255,255,255,0.8)" strokeWidth={2} /> : <Eye size={20} color="rgba(255,255,255,0.8)" strokeWidth={2} />}
                                     </TouchableOpacity>
                                 </View>
                             </GradientCard>
@@ -983,7 +983,7 @@ export const SummaryScreen = () => {
                                 }}
                             >
                                 <View style={styles.insightHeader}>
-                                    <Feather name="trending-up" size={14} color={colors.success} />
+                                    <TrendingUp size={14} color={colors.success} />
                                     <Text style={[styles.insightTitle, { color: colors.success }]}>En İyi</Text>
                                 </View>
                                 {isInitialLoading ? (
@@ -1009,7 +1009,7 @@ export const SummaryScreen = () => {
                                 }}
                             >
                                 <View style={styles.insightHeader}>
-                                    <Feather name="trending-down" size={14} color={colors.danger} />
+                                    <TrendingDown size={14} color={colors.danger} />
                                     <Text style={[styles.insightTitle, { color: colors.danger }]}>En Kötü</Text>
                                 </View>
                                 {isInitialLoading ? (
@@ -1029,7 +1029,7 @@ export const SummaryScreen = () => {
                                 activeOpacity={0.7}
                             >
                                 <View style={styles.insightHeader}>
-                                    <Feather name="bar-chart-2" size={14} color={colors.primary} />
+                                    <BarChart2 size={14} color={colors.primary} />
                                     <Text style={[styles.insightTitle, { color: colors.primary }]}>Piyasa</Text>
                                 </View>
                                 {isInitialLoading ? (
@@ -1067,11 +1067,7 @@ export const SummaryScreen = () => {
                                                             {item.value ? formatCurrency(item.value, item.currency as any).replace('₺', '').replace('$', '') : '-'}
                                                         </Text>
                                                         <View style={styles.tickerChangeRow}>
-                                                            <Feather
-                                                                name={item.change >= 0 ? "arrow-up-right" : "arrow-down-right"}
-                                                                size={12}
-                                                                color={item.change >= 0 ? colors.success : colors.danger}
-                                                            />
+                                                            {item.change >= 0 ? <ArrowUpRight size={12} color={colors.success} strokeWidth={2} /> : <ArrowDownRight size={12} color={colors.danger} strokeWidth={2} />}
                                                             <Text style={[styles.tickerChange, { color: item.change >= 0 ? colors.success : colors.danger, fontSize: 11 }]}>
                                                                 %{Math.abs(item.change).toFixed(2)}
                                                             </Text>
@@ -1179,7 +1175,7 @@ export const SummaryScreen = () => {
                                             {isHidden ? '••••••' : formatCurrency(cashBalance, 'TRY')}
                                         </Text>
                                     )}
-                                    <Feather name="chevron-right" size={20} color={colors.subText} />
+                                    <ChevronRight size={20} color={colors.subText} />
                                 </View>
                             </GradientCard>
                         </View>
@@ -1191,7 +1187,7 @@ export const SummaryScreen = () => {
                 style={[styles.fab, { backgroundColor: colors.primary }]}
                 onPress={() => (navigation as any).navigate('AddInstrument')}
             >
-                <Feather name="plus" size={24} color="#fff" />
+                <Plus size={24} color="#fff" />
             </TouchableOpacity>
 
 
@@ -1208,7 +1204,7 @@ export const SummaryScreen = () => {
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Günlük Piyasa Raporu</Text>
                             <TouchableOpacity onPress={() => setMarketReportVisible(false)}>
-                                <Feather name="x" size={24} color={colors.subText} />
+                                <X size={24} color={colors.subText} />
                             </TouchableOpacity>
                         </View>
                         <Text style={[styles.modalDate, { color: colors.subText }]}>
@@ -1252,7 +1248,7 @@ export const SummaryScreen = () => {
                                     {/* Comprehensive Market Commentary */}
                                     <View style={styles.modalSection}>
                                         <View style={styles.noteHeader}>
-                                            <Feather name="trending-up" size={16} color={colors.primary} />
+                                            <TrendingUp size={16} color={colors.primary} />
                                             <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Günün Piyasa Yorumu</Text>
                                         </View>
                                         <Text style={[styles.noteText, { color: colors.text, lineHeight: 24 }]}>
@@ -1296,7 +1292,7 @@ export const SummaryScreen = () => {
                                     {recommendations.length > 0 && (
                                         <View style={styles.modalSection}>
                                             <View style={styles.noteHeader}>
-                                                <Feather name="zap" size={16} color={colors.primary} />
+                                                <Zap size={16} color={colors.primary} />
                                                 <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Kişisel Asistan</Text>
                                             </View>
                                             {recommendations.map((rec, idx) => (

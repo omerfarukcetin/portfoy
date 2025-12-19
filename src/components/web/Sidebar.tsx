@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+
+// Icon mapping for dynamic rendering
+const IconMap: { [key: string]: any } = {
+    'grid': LayoutGrid,
+    'pie-chart': PieChart,
+    'repeat': ArrowLeftRight,
+    'heart': Heart,
+    'settings': Settings,
+    'log-out': LogOut,
+    'file-text': FileText,
+};
 
 export const Sidebar = () => {
     const navigation = useNavigation<any>();
@@ -50,14 +61,14 @@ export const Sidebar = () => {
 
     // Menu items organized by section
     const mainMenuItems = [
-        { name: 'Summary', label: 'Genel Bakış', icon: 'grid', iconType: 'feather' },
-        { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart', iconType: 'feather' },
-        { name: 'Transactions', label: 'İşlemler', icon: 'repeat', iconType: 'feather' },
-        { name: 'Favorites', label: 'Takip Listesi', icon: 'heart', iconType: 'feather' },
+        { name: 'Summary', label: 'Genel Bakış', icon: 'grid' },
+        { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart' },
+        { name: 'Transactions', label: 'İşlemler', icon: 'repeat' },
+        { name: 'Favorites', label: 'Takip Listesi', icon: 'heart' },
     ];
 
     const preferenceItems = [
-        { name: 'Settings', label: 'Ayarlar', icon: 'settings', iconType: 'feather' },
+        { name: 'Settings', label: 'Ayarlar', icon: 'settings' },
     ];
 
     const handleLogout = async () => {
@@ -66,6 +77,8 @@ export const Sidebar = () => {
 
     const renderNavItem = (item: any) => {
         const isActive = currentRoute === item.name;
+        const IconComponent = IconMap[item.icon] || LayoutGrid;
+
         return (
             <TouchableOpacity
                 key={item.name}
@@ -79,10 +92,10 @@ export const Sidebar = () => {
                     styles.iconContainer,
                     isActive && [styles.iconContainerActive, { backgroundColor: colors.primary + '20' }]
                 ]}>
-                    <Feather
-                        name={item.icon as any}
+                    <IconComponent
                         size={18}
                         color={isActive ? colors.primary : colors.subText}
+                        strokeWidth={2}
                     />
                 </View>
                 <Text
@@ -131,7 +144,7 @@ export const Sidebar = () => {
                 <View style={[styles.userProfile, { borderTopColor: colors.border }]}>
                     <View style={styles.userInfo}>
                         <View style={[styles.avatar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                            <Feather name="file-text" size={16} color={colors.subText} />
+                            <FileText size={16} color={colors.subText} strokeWidth={2} />
                         </View>
                         <View style={styles.userDetails}>
                             <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
@@ -144,7 +157,7 @@ export const Sidebar = () => {
                         style={styles.logoutButton}
                         onPress={handleLogout}
                     >
-                        <Feather name="log-out" size={18} color={colors.subText} />
+                        <LogOut size={18} color={colors.subText} strokeWidth={2} />
                     </TouchableOpacity>
                 </View>
             )}

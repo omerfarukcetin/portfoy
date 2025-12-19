@@ -511,81 +511,25 @@ export const PortfolioScreen = () => {
                                         )}
                                     </View>
                                 ) : (
-                                    /* Regular assets grid */
-                                    <View style={styles.assetGrid}>
-                                        {items.map((item) => {
+                                    /* Regular assets grid - Compact for mobile */
+                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                        {items.map((item, index) => {
                                             const currentPrice = item.customCurrentPrice || prices[item.instrumentId] || 0;
                                             const changePercent = dailyChanges[item.instrumentId] || 0;
-                                            let value = item.amount * currentPrice;
-                                            let cost = item.amount * item.averageCost;
-
-                                            if (item.type === 'bes') {
-                                                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
-                                                cost = item.besPrincipal || 0;
-                                            }
-
-                                            // Currency conversion
-                                            if (displayCurrency === 'USD' && item.currency === 'TRY') {
-                                                value = value / usdRate;
-                                                cost = cost / usdRate;
-                                            } else if (displayCurrency === 'TRY' && item.currency === 'USD') {
-                                                value = value * usdRate;
-                                                cost = cost * usdRate;
-                                            }
-
-                                            const profit = value - cost;
-                                            const profitPercent = cost > 0 ? (profit / cost) * 100 : 0;
-                                            const isProfit = profit >= 0;
 
                                             return (
-                                                <TouchableOpacity
-                                                    key={item.id}
-                                                    style={[styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                                    onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
-                                                    onLongPress={() => handleLongPress(item)}
-                                                >
-                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                                                        <View>
-                                                            <Text style={[styles.cardSymbol, { color: colors.text, marginBottom: 2 }]}>
-                                                                {formatSymbol(item.instrumentId)}
-                                                            </Text>
-                                                            <Text style={{ fontSize: 10, color: colors.subText }}>{category}</Text>
-                                                        </View>
-                                                        <View style={{ alignItems: 'flex-end' }}>
-                                                            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
-                                                                {formatCurrency(value, displayCurrency)}
-                                                            </Text>
-                                                            <Text style={{ fontSize: 11, fontWeight: '600', color: isProfit ? colors.success : colors.danger }}>
-                                                                {isProfit ? '+' : ''}{profitPercent.toFixed(1)}%
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-
-                                                    <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.1, marginBottom: 12 }} />
-
-                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                        <View>
-                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Fiyat</Text>
-                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>{formatCurrency(currentPrice, item.currency || 'TRY')}</Text>
-                                                        </View>
-                                                        <View style={{ alignItems: 'center' }}>
-                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Adet</Text>
-                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>{item.amount.toFixed(item.amount < 10 ? 2 : 0)}</Text>
-                                                        </View>
-                                                        <View style={{ alignItems: 'flex-end' }}>
-                                                            <Text style={{ fontSize: 9, color: colors.subText, textTransform: 'uppercase', marginBottom: 2 }}>Günlük</Text>
-                                                            <Text style={{ fontSize: 12, fontWeight: '600', color: changePercent >= 0 ? colors.success : colors.danger }}>
-                                                                {changePercent > 0 ? '↑' : changePercent < 0 ? '↓' : ''} {Math.abs(changePercent).toFixed(2)}%
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-
-                                                    <View style={{ marginTop: 12, backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15', paddingVertical: 4, borderRadius: 6, alignItems: 'center' }}>
-                                                        <Text style={{ fontSize: 11, fontWeight: '700', color: isProfit ? colors.success : colors.danger }}>
-                                                            {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)}
-                                                        </Text>
-                                                    </View>
-                                                </TouchableOpacity>
+                                                <React.Fragment key={item.id}>
+                                                    {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                                                    <AssetRow
+                                                        item={item}
+                                                        currentPrice={currentPrice}
+                                                        changePercent={changePercent}
+                                                        displayCurrency={displayCurrency}
+                                                        usdRate={usdRate}
+                                                        onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
+                                                        onLongPress={() => handleLongPress(item)}
+                                                    />
+                                                </React.Fragment>
                                             );
                                         })}
                                     </View>

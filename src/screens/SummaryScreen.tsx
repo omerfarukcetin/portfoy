@@ -1080,7 +1080,7 @@ export const SummaryScreen = () => {
 
                         {/* Chart Preview */}
                         {portfolioChartVisible && (
-                            <View style={{ marginTop: 4 }}>
+                            <View style={{ marginTop: 4, marginBottom: 8 }}>
                                 <PortfolioChart currentValue={totalPortfolioTry} history={history} isMobile={true} />
                             </View>
                         )}

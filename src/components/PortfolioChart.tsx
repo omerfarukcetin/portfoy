@@ -33,12 +33,14 @@ const generateDemoData = (days: number, startValue: number) => {
 interface PortfolioChartProps {
     currentValue: number;
     history?: Array<{ date: string; valueTry: number }>;
+    isMobile?: boolean;
 }
 
-export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, history = [] }) => {
+export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, history = [], isMobile = false }) => {
     const { colors, fontScale } = useTheme();
     const [range, setRange] = useState<'1W' | '1M' | '3M'>('1W');
     const screenWidth = Dimensions.get('window').width;
+    const chartWidth = isMobile ? screenWidth - 32 : screenWidth - 60;
 
     // Helper to filter history based on range
     const getHistoryData = (range: '1W' | '1M' | '3M') => {
@@ -119,14 +121,14 @@ export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, hi
 
             <LineChart
                 data={chartData}
-                width={screenWidth - 60} // Container padding * 2 + parent padding
-                height={220}
+                width={chartWidth}
+                height={isMobile ? 180 : 220}
                 chartConfig={chartConfig}
                 bezier
                 style={{
                     marginVertical: 8,
                     borderRadius: 16,
-                    marginLeft: -10 // Adjust for left padding of chart
+                    marginLeft: isMobile ? -20 : -10
                 }}
                 withInnerLines={true}
                 withOuterLines={false}
@@ -167,6 +169,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         borderWidth: 1,
         alignItems: 'center',
+        paddingHorizontal: 8, // Reduce internal horizontal padding for mobile
     },
     header: {
         width: '100%',

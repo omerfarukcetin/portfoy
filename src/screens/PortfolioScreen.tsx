@@ -393,6 +393,8 @@ export const PortfolioScreen = () => {
                                             const isPPF = cashItem.type === 'money_market_fund';
                                             const isItemProfit = itemProfit >= 0;
                                             const iconSymbol = isPPF ? '📈' : '💵';
+                                            const livePrice = isPPF && cashItem.instrumentId ? fundPrices[cashItem.instrumentId] : 0;
+                                            const unitPrice = livePrice || (cashItem.averageCost || 0);
 
                                             return (
                                                 <React.Fragment key={cashItem.id}>
@@ -409,21 +411,21 @@ export const PortfolioScreen = () => {
                                                             <View>
                                                                 <Text style={[styles.symbol, { color: colors.text }]}>{itemName}</Text>
                                                                 <Text style={[styles.name, { color: colors.subText }]}>
-                                                                    {isPPF
-                                                                        ? (cashItem.units ? `${cashItem.units.toFixed(2)} adet` : 'PPF')
+                                                                    {isPPF && cashItem.units
+                                                                        ? `${formatCurrency(unitPrice, displayCurrency)} × ${cashItem.units.toFixed(2)} Adet`
                                                                         : cashItem.currency
                                                                     }
                                                                 </Text>
                                                             </View>
                                                         </View>
                                                         <View style={{ alignItems: 'flex-end' }}>
-                                                            {isPPF && itemCost > 0 && (
+                                                            {isPPF && itemCost > 0 && Platform.OS === 'web' && (
                                                                 <Text style={{ color: colors.subText, fontSize: 10, marginBottom: 2 }}>
-                                                                    Maliyet: {formatCurrency(itemCost, displayCurrency)}
+                                                                    Maliyet: {formatCurrency(cashItem.averageCost || 0, displayCurrency)}
                                                                 </Text>
                                                             )}
                                                             <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(itemValue, displayCurrency)}</Text>
-                                                            {isPPF && itemProfit !== 0 && (
+                                                            {isPPF && (
                                                                 <View style={{ backgroundColor: isItemProfit ? colors.success + '15' : colors.danger + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 4 }}>
                                                                     <Text style={{ color: isItemProfit ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
                                                                         {isItemProfit ? '+' : ''}{formatCurrency(itemProfit, displayCurrency)} ({isItemProfit ? '+' : ''}{itemProfitPercent.toFixed(1)}%)

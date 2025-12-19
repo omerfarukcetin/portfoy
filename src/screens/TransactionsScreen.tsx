@@ -275,11 +275,7 @@ export const TransactionsScreen = () => {
                                 return (
                                     <View key={item.id} style={[styles.tableRow, { borderBottomColor: colors.border + '40' }]}>
                                         {/* Asset Name */}
-                                        <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-                                            <AssetInitials
-                                                name={item.customName || item.instrumentId}
-                                                color={getIconColor(item)}
-                                            />
+                                        <View style={[styles.tableCell, { flex: 2, alignItems: 'flex-start' }]}>
                                             <Text style={[styles.tableText, { fontWeight: '700', color: colors.text }]}>
                                                 {item.customName || item.instrumentId}
                                             </Text>
@@ -429,11 +425,7 @@ export const TransactionsScreen = () => {
                                         return (
                                             <View key={trade.id} style={[styles.tableRow, { borderBottomColor: colors.border + '40' }]}>
                                                 {/* Asset Name */}
-                                                <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-                                                    <AssetInitials
-                                                        name={trade.instrumentId}
-                                                        color={getIconColor(trade.type || '')}
-                                                    />
+                                                <View style={[styles.tableCell, { flex: 2, alignItems: 'flex-start' }]}>
                                                     <View>
                                                         <Text style={[styles.tableText, { fontWeight: '700', color: colors.text }]}>
                                                             {trade.instrumentId}

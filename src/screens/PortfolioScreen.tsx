@@ -31,9 +31,12 @@ export const PortfolioScreen = () => {
     const [usdRate, setUsdRate] = useState(1);
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
-    // Edit Modal State
-    const [editModalVisible, setEditModalVisible] = useState(false);
-    const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
+    // Edit### 5. Yeni Arayüz İyileştirmeleri (Feedback Revizyonu)
+- ** Varlık Adı ve Değişim **: Portföy ekranında günlük % değişim, varlık adının hemen sağına küçük ve şık bir şekilde taşındı.
+- ** Minimalist Görünüm **: Maliyet ve Kâr / Zarar bölümlerindeki arka plan kutuları kaldırılarak daha yalın ve temiz bir tasarıma geçildi.
+- ** Sola Dayalı Yerleşim **: Tüm varlık bilgileri sola dayalı hale getirilerek okunabilirlik artırıldı.
+- ** İşlemler Tablosu Sadeleştirme **: Tablo satırlarındaki harf ikonları kaldırıldı, sadece metin bazlı ve sola dayalı profesyonel görünüme geçildi.
+        itingItem] = useState<PortfolioItem | null>(null);
     const [editAmount, setEditAmount] = useState('');
     const [editCost, setEditCost] = useState('');
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -516,28 +519,30 @@ export const PortfolioScreen = () => {
                                                     onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                     onLongPress={() => handleLongPress(item)}
                                                 >
-                                                    <Text style={[styles.cardSymbol, { color: colors.text }]}>
-                                                        {formatSymbol(item.instrumentId)}
-                                                    </Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                                                        <Text style={[styles.cardSymbol, { color: colors.text, marginBottom: 0 }]}>
+                                                            {formatSymbol(item.instrumentId)}
+                                                        </Text>
+                                                        {changePercent !== 0 && (
+                                                            <Text style={{ fontSize: 10, color: changePercent > 0 ? colors.success : colors.danger, fontWeight: '600' }}>
+                                                                {changePercent > 0 ? '↑' : '↓'} %{Math.abs(changePercent).toFixed(2)}
+                                                            </Text>
+                                                        )}
+                                                    </View>
                                                     <Text style={[styles.cardDetail, { color: colors.subText }]}>
                                                         {formatCurrency(currentPrice, item.currency || 'TRY')} × {item.amount.toFixed(item.amount < 10 ? 2 : 0)}
                                                     </Text>
-                                                    <Text style={[styles.cardCost, { color: colors.subText }]}>
+                                                    <Text style={[styles.cardCost, { color: colors.subText, marginBottom: 4 }]}>
                                                         Maliyet: {formatCurrency(cost, displayCurrency)}
                                                     </Text>
-                                                    <Text style={[styles.cardValue, { color: colors.text }]}>
+                                                    <Text style={[styles.cardValue, { color: colors.text, marginBottom: 4 }]}>
                                                         {formatCurrency(value, displayCurrency)}
                                                     </Text>
-                                                    <View style={[styles.cardPL, { backgroundColor: isProfit ? colors.success + '20' : colors.danger + '20' }]}>
+                                                    <View style={styles.cardPL}>
                                                         <Text style={{ fontSize: 11, fontWeight: '600', color: isProfit ? colors.success : colors.danger }}>
                                                             {isProfit ? '+' : ''}{formatCurrency(profit, displayCurrency)} ({isProfit ? '+' : ''}{profitPercent.toFixed(1)}%)
                                                         </Text>
                                                     </View>
-                                                    {changePercent !== 0 && (
-                                                        <Text style={{ fontSize: 10, color: changePercent > 0 ? colors.success : colors.danger, marginTop: 4 }}>
-                                                            {changePercent > 0 ? '↑' : '↓'} {Math.abs(changePercent).toFixed(2)}%
-                                                        </Text>
-                                                    )}
                                                 </TouchableOpacity>
                                             );
                                         })}

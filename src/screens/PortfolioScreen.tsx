@@ -370,17 +370,17 @@ export const PortfolioScreen = () => {
                                 {/* Category Header */}
                                 <View style={styles.categoryHeader}>
                                     <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                             <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
                                             <Text style={[styles.sectionTotal, { color: colors.text }]}>
                                                 {formatCurrency(categoryValues[category], displayCurrency)}
                                             </Text>
+                                            {currentCategoryCost > 0 && (
+                                                <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 12, fontWeight: '700' }}>
+                                                    {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
+                                                </Text>
+                                            )}
                                         </View>
-                                        {currentCategoryCost > 0 && (
-                                            <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger, marginTop: 4 }]}>
-                                                {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
-                                            </Text>
-                                        )}
                                     </View>
                                 </View>
 
@@ -528,9 +528,6 @@ export const PortfolioScreen = () => {
                                                     </View>
                                                     <Text style={[styles.cardDetail, { color: colors.subText }]}>
                                                         {formatCurrency(currentPrice, item.currency || 'TRY')} × {item.amount.toFixed(item.amount < 10 ? 2 : 0)}
-                                                    </Text>
-                                                    <Text style={[styles.cardCost, { color: colors.subText, marginBottom: 4 }]}>
-                                                        Maliyet: {formatCurrency(cost, displayCurrency)}
                                                     </Text>
                                                     <Text style={[styles.cardValue, { color: colors.text, marginBottom: 4 }]}>
                                                         {formatCurrency(value, displayCurrency)}

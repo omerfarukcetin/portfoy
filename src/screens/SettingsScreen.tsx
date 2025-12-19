@@ -210,6 +210,7 @@ export const SettingsScreen = () => {
                 <Section title="Görünüm">
                     <Item
                         label="🌐 Dil / Language"
+                        icon="globe"
                         value={language === 'tr' ? 'Türkçe' : 'English'}
                         onPress={() => {
                             setLanguage(language === 'tr' ? 'en' : 'tr');
@@ -217,6 +218,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Tema"
+                        icon="moon"
                         value={theme === 'light' ? 'Açık' : theme === 'dark' ? 'Koyu' : theme === 'gray' ? 'Gri' : theme === 'navy' ? 'Lacivert' : theme === 'cream' ? 'Krem' : 'Adaçayı'}
                         onPress={() => {
                             const themes = ['light', 'dark', 'gray', 'navy', 'cream', 'sage'] as const;
@@ -226,6 +228,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Yazı Boyutu"
+                        icon="type"
                         value={fontSize === 'small' ? 'Küçük' : fontSize === 'medium' ? 'Orta' : 'Büyük'}
                         onPress={() => {
                             const sizes = ['small', 'medium', 'large'] as const;
@@ -235,17 +238,20 @@ export const SettingsScreen = () => {
                     />
                     <ToggleItem
                         label="Portföy Grafiği"
+                        icon="bar-chart-2"
                         value={portfolioChartVisible}
                         onValueChange={togglePortfolioChart}
                     />
                     <ToggleItem
                         label="Piyasa Özeti Seridi"
+                        icon="trending-up"
                         value={marketSummaryVisible}
                         onValueChange={toggleMarketSummary}
                     />
                     {marketSummaryVisible && (
                         <Item
                             label="Şeridi Düzenle"
+                            icon="settings"
                             value={`${selectedMarketInstruments.length} Seçili`}
                             onPress={() => setInstrumentsModalVisible(true)}
                             isLast
@@ -257,11 +263,13 @@ export const SettingsScreen = () => {
                 <Section title="Tercihler">
                     <Item
                         label="Hisse Formatı"
+                        icon="hash"
                         value={symbolCase === 'uppercase' ? 'THYAO' : 'Thyao'}
                         onPress={() => setSymbolCase(symbolCase === 'uppercase' ? 'titlecase' : 'uppercase')}
                     />
                     <Item
                         label="Risk İştahı"
+                        icon="activity"
                         value={riskAppetite === 'low' ? 'Düşük (%30)' : riskAppetite === 'medium' ? 'Orta (%20)' : 'Yüksek (%10)'}
                         onPress={() => {
                             const risks = ['low', 'medium', 'high'] as const;
@@ -271,6 +279,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Başlangıç Ekranı"
+                        icon="home"
                         value={startScreen === 'Summary' ? 'Özet' : startScreen === 'Portfolio' ? 'Portföy' : 'Favoriler'}
                         onPress={() => {
                             const screens = ['Summary', 'Portfolio', 'Favorites'] as const;

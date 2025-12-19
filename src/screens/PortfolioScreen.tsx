@@ -31,12 +31,9 @@ export const PortfolioScreen = () => {
     const [usdRate, setUsdRate] = useState(1);
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
-    // Edit### 5. Yeni Arayüz İyileştirmeleri (Feedback Revizyonu)
-- ** Varlık Adı ve Değişim **: Portföy ekranında günlük % değişim, varlık adının hemen sağına küçük ve şık bir şekilde taşındı.
-- ** Minimalist Görünüm **: Maliyet ve Kâr / Zarar bölümlerindeki arka plan kutuları kaldırılarak daha yalın ve temiz bir tasarıma geçildi.
-- ** Sola Dayalı Yerleşim **: Tüm varlık bilgileri sola dayalı hale getirilerek okunabilirlik artırıldı.
-- ** İşlemler Tablosu Sadeleştirme **: Tablo satırlarındaki harf ikonları kaldırıldı, sadece metin bazlı ve sola dayalı profesyonel görünüme geçildi.
-        itingItem] = useState<PortfolioItem | null>(null);
+    // Edit Modal State
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
     const [editAmount, setEditAmount] = useState('');
     const [editCost, setEditCost] = useState('');
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);

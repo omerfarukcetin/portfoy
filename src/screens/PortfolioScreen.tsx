@@ -259,36 +259,23 @@ export const PortfolioScreen = () => {
         }
     };
 
-    // Get category icon using Feather
-    const getCategoryIcon = (category: string, size: number = 16) => {
-        const iconColor = {
-            'Altın': '#FFD700',
-            'Gümüş': '#C0C0C0',
-            'Döviz': '#34C759',
-            'Hisse (BIST)': '#007AFF',
-            'Kripto': '#AF52DE',
-            'BES': '#FF9500',
-            'Fon': '#FF2D55',
-            'ABD ETF': '#0A84FF',
-            'Yedek Akçe': '#8E8E93',
-        }[category] || '#8E8E93';
-
-        // Using verified Feather icon names
-        const iconName = {
-            'Altın': 'sun',
-            'Gümüş': 'moon',
-            'Döviz': 'dollar-sign',
-            'Hisse (BIST)': 'trending-up',
-            'Kripto': 'zap',
-            'BES': 'shield',
-            'Fon': 'pie-chart',
-            'ABD ETF': 'briefcase',
-            'Yedek Akçe': 'inbox',
-        }[category] || 'folder';
+    // Get category icon using emojis for reliable web rendering
+    const getCategoryIcon = (category: string) => {
+        const iconConfig = {
+            'Altın': { emoji: '🥇', color: '#FFD700' },
+            'Gümüş': { emoji: '🥈', color: '#C0C0C0' },
+            'Döviz': { emoji: '💵', color: '#34C759' },
+            'Hisse (BIST)': { emoji: '📈', color: '#007AFF' },
+            'Kripto': { emoji: '₿', color: '#AF52DE' },
+            'BES': { emoji: '🏛️', color: '#FF9500' },
+            'Fon': { emoji: '📊', color: '#FF2D55' },
+            'ABD ETF': { emoji: '🇺🇸', color: '#0A84FF' },
+            'Yedek Akçe': { emoji: '💰', color: '#8E8E93' },
+        }[category] || { emoji: '📦', color: '#8E8E93' };
 
         return (
-            <View style={{ backgroundColor: iconColor + '20', padding: 6, borderRadius: 8 }}>
-                <Feather name={iconName as any} size={size} color={iconColor} />
+            <View style={{ backgroundColor: iconConfig.color + '20', padding: 6, borderRadius: 8, minWidth: 28, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14 }}>{iconConfig.emoji}</Text>
             </View>
         );
     };

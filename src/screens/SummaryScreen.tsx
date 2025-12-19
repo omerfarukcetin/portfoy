@@ -563,66 +563,68 @@ export const SummaryScreen = () => {
                                     </View>
 
                                     {/* Yedek Akçe */}
-                                    <TouchableOpacity
-                                        style={{
-                                            flex: 1,
-                                            backgroundColor: colors.cardBackground,
-                                            borderRadius: 16,
-                                            padding: 20,
-                                            borderWidth: 1,
-                                            borderColor: colors.border
-                                        }}
-                                        onPress={() => (navigation as any).navigate('CashManagement')}
-                                    >
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                                            <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
-                                                <Archive size={18} color="#FF9800" />
-                                            </View>
-                                        </View>
-                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
-                                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
-                                            {isHidden ? '•••' : formatCurrency(cashBalance, 'TRY')}
-                                        </Text>
-                                        {/* Show money market fund profit */}
-                                        {(() => {
-                                            let totalCost = 0;
-                                            let totalCurrentValue = 0;
-                                            cashItems.forEach(item => {
-                                                if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
-                                                    const livePrice = fundPrices[item.instrumentId];
-                                                    if (livePrice) {
-                                                        const currentValue = item.units * livePrice;
-                                                        const cost = item.units * item.averageCost;
-                                                        totalCurrentValue += currentValue;
-                                                        totalCost += cost;
-                                                    }
+                                    {(() => {
+                                        // Calculate PPF profit to show total value including gains
+                                        let ppfCost = 0;
+                                        let ppfCurrentValue = 0;
+                                        cashItems.forEach(item => {
+                                            if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
+                                                const livePrice = fundPrices[item.instrumentId];
+                                                if (livePrice) {
+                                                    ppfCurrentValue += item.units * livePrice;
+                                                    ppfCost += item.units * item.averageCost;
                                                 }
-                                            });
-                                            const profit = totalCurrentValue - totalCost;
-                                            if (totalCost > 0 && profit !== 0) {
-                                                return (
+                                            }
+                                        });
+                                        const ppfProfit = ppfCurrentValue - ppfCost;
+                                        // Total value = cashBalance (which already includes PPF at cost) - ppfCost + ppfCurrentValue
+                                        // Or simply: cashBalance + ppfProfit
+                                        const totalCashValue = cashBalance + ppfProfit;
+
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    flex: 1,
+                                                    backgroundColor: colors.cardBackground,
+                                                    borderRadius: 16,
+                                                    padding: 20,
+                                                    borderWidth: 1,
+                                                    borderColor: colors.border
+                                                }}
+                                                onPress={() => (navigation as any).navigate('CashManagement')}
+                                            >
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                                    <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
+                                                        <Archive size={18} color="#FF9800" />
+                                                    </View>
+                                                </View>
+                                                <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
+                                                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                                    {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
+                                                </Text>
+                                                {/* Show money market fund profit */}
+                                                {ppfCost > 0 && ppfProfit !== 0 && (
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                                                        {profit >= 0 ? (
+                                                        {ppfProfit >= 0 ? (
                                                             <TrendingUp size={14} color={colors.success} strokeWidth={2} />
                                                         ) : (
                                                             <TrendingDown size={14} color={colors.danger} strokeWidth={2} />
                                                         )}
                                                         <Text style={{
-                                                            color: profit >= 0 ? colors.success : colors.danger,
+                                                            color: ppfProfit >= 0 ? colors.success : colors.danger,
                                                             fontSize: 13,
                                                             fontWeight: '600'
                                                         }}>
-                                                            {isHidden ? '•••' : `${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')}`}
+                                                            {isHidden ? '•••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`}
                                                         </Text>
                                                         <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '500' }}>
                                                             Kâr
                                                         </Text>
                                                     </View>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                    </TouchableOpacity>
+                                                )}
+                                            </TouchableOpacity>
+                                        );
+                                    })()}
                                 </View>
 
                                 {/* Portfolio Distribution - Donut Chart */}

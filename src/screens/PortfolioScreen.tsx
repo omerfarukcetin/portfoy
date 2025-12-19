@@ -273,17 +273,18 @@ export const PortfolioScreen = () => {
             'Yedek Akçe': '#8E8E93',
         }[category] || '#8E8E93';
 
+        // Using verified Feather icon names
         const iconName = {
-            'Altın': 'circle',
-            'Gümüş': 'circle',
+            'Altın': 'sun',
+            'Gümüş': 'moon',
             'Döviz': 'dollar-sign',
             'Hisse (BIST)': 'trending-up',
-            'Kripto': 'activity',
-            'BES': 'home',
-            'Fon': 'layers',
+            'Kripto': 'zap',
+            'BES': 'shield',
+            'Fon': 'pie-chart',
             'ABD ETF': 'briefcase',
-            'Yedek Akçe': 'archive',
-        }[category] || 'box';
+            'Yedek Akçe': 'inbox',
+        }[category] || 'folder';
 
         return (
             <View style={{ backgroundColor: iconColor + '20', padding: 6, borderRadius: 8 }}>

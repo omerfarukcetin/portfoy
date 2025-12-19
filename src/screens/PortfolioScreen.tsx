@@ -349,8 +349,8 @@ export const PortfolioScreen = () => {
                                         <Text style={[styles.sectionTotal, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
                                         <Text style={{ fontSize: 12, color: colors.subText }}>{isCollapsed ? '▼' : '▲'}</Text>
                                     </View>
-                                    {/* Hide category P/L on mobile */}
-                                    {Platform.OS === 'web' && (category !== 'Yedek Akçe' || categoryPL['Yedek Akçe']?.cost > 0) && currentCategoryCost > 0 && (
+                                    {/* Show P/L for all categories including Yedek Akçe */}
+                                    {Platform.OS === 'web' && currentCategoryCost > 0 && (
                                         <Text style={[styles.categoryPL, { color: isProfitable ? colors.success : colors.danger }]}>
                                             {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
                                         </Text>

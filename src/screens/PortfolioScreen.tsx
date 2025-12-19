@@ -335,24 +335,46 @@ export const PortfolioScreen = () => {
 
 
                             {!isCollapsed && (
-                                category === 'Yedek Akçe' ? (
-                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
-                                        <TouchableOpacity
-                                            style={styles.itemRow}
-                                            onPress={() => (navigation as any).navigate('CashManagement')}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={styles.rowLeft}>
-                                                <TickerIcon symbol="TRY" color={colors.subText} />
-                                                <View>
-                                                    <Text style={[styles.symbol, { color: colors.text }]}>Nakit Portföy</Text>
-                                                    <Text style={[styles.name, { color: colors.subText }]}>Kullanılabilir Bakiye</Text>
+                                category === 'Yedek Akçe' ? (() => {
+                                    const yaPL = categoryPL['Yedek Akçe'];
+                                    const hasProfit = yaPL && yaPL.pl !== 0;
+                                    const isProfit = yaPL && yaPL.pl >= 0;
+                                    const plPercent = yaPL && yaPL.cost > 0 ? (yaPL.pl / yaPL.cost) * 100 : 0;
+
+                                    return (
+                                        <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                            <TouchableOpacity
+                                                style={styles.itemRow}
+                                                onPress={() => (navigation as any).navigate('CashManagement')}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.rowLeft}>
+                                                    <TickerIcon symbol="TRY" color={colors.subText} />
+                                                    <View>
+                                                        <Text style={[styles.symbol, { color: colors.text }]}>Nakit Portföy</Text>
+                                                        {hasProfit && yaPL ? (
+                                                            <Text style={[styles.name, { color: colors.subText }]}>
+                                                                Maliyet: {formatCurrency(yaPL.cost, displayCurrency)}
+                                                            </Text>
+                                                        ) : (
+                                                            <Text style={[styles.name, { color: colors.subText }]}>Kullanılabilir Bakiye</Text>
+                                                        )}
+                                                    </View>
                                                 </View>
-                                            </View>
-                                            <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ) : (
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
+                                                    {hasProfit && yaPL && (
+                                                        <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
+                                                            <Text style={{ color: isProfit ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
+                                                                {isProfit ? '+' : ''}{formatCurrency(yaPL.pl, displayCurrency)} ({isProfit ? '+' : ''}{plPercent.toFixed(1)}%)
+                                                            </Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })() : (
                                     <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
                                         {items.map((item, index) => {
                                             const currentPrice = prices[item.instrumentId] || 0;
@@ -526,5 +548,11 @@ const styles = StyleSheet.create({
         width: '100%',
         opacity: 0.08,
         marginLeft: 60, // Indent divider to align with text start (iOS style)
+    },
+    plBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginTop: 4,
     }
 });

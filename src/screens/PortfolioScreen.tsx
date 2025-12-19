@@ -287,7 +287,7 @@ export const PortfolioScreen = () => {
                 <PortfolioSwitcher />
                 <View style={styles.headerRight}>
                     <TouchableOpacity onPress={onRefresh} disabled={isRefreshing}>
-                        <Feather name={isRefreshing ? "loader" : "refresh-ccw"} size={20} color={isRefreshing ? colors.subText : colors.primary} />
+                        <Text style={{ fontSize: 18 }}>{isRefreshing ? '⏳' : '🔄'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={() => setDisplayCurrency(prev => prev === 'TRY' ? 'USD' : 'TRY')}
@@ -322,7 +322,7 @@ export const PortfolioScreen = () => {
                                 <View style={{ alignItems: 'flex-end' }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         <Text style={[styles.sectionTotal, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
-                                        <Feather name={isCollapsed ? "chevron-down" : "chevron-up"} size={16} color={colors.subText} />
+                                        <Text style={{ fontSize: 12, color: colors.subText }}>{isCollapsed ? '▼' : '▲'}</Text>
                                     </View>
                                     {/* Hide category P/L on mobile */}
                                     {Platform.OS === 'web' && (category !== 'Yedek Akçe' || categoryPL['Yedek Akçe']?.cost > 0) && currentCategoryCost > 0 && (

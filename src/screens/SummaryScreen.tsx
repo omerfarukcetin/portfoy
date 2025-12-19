@@ -430,7 +430,7 @@ export const SummaryScreen = () => {
                                     onPress={() => setIsHidden(!isHidden)}
                                     style={{ padding: 10, backgroundColor: colors.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
                                 >
-                                    {isHidden ? <EyeOff size={18} color={colors.text} />
+                                    {isHidden ? <EyeOff size={18} color={colors.text} strokeWidth={2} /> : <Eye size={18} color={colors.text} strokeWidth={2} />}
                                 </TouchableOpacity>
                             </View>
                         </View>

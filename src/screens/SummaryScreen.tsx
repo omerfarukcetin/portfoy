@@ -282,16 +282,31 @@ export const SummaryScreen = () => {
             calcCostBasisTry += costTry;
         });
 
-        // Add Cash
+        // Add Cash (includes PPF at cost basis)
         calcTotalTry += cashBalance;
         calcTotalUsd += cashBalance / (usdRate || 1);
+
+        // Add PPF profit (difference between current value and cost)
+        let ppfProfit = 0;
+        cashItems.forEach(item => {
+            if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
+                const livePrice = fundPrices[item.instrumentId];
+                if (livePrice) {
+                    const currentValue = item.units * livePrice;
+                    const cost = item.units * item.averageCost;
+                    ppfProfit += currentValue - cost;
+                }
+            }
+        });
+        calcTotalTry += ppfProfit;
+        calcTotalUsd += ppfProfit / (usdRate || 1);
 
         // Update state
         setTotalPortfolioTry(calcTotalTry);
         setTotalPortfolioUsd(calcTotalUsd);
         setTotalCostBasisTry(calcCostBasisTry);
         setDailyProfit(calcDailyProfit);
-    }, [portfolio, prices, dailyChanges, usdRate, cashBalance]);
+    }, [portfolio, prices, dailyChanges, usdRate, cashBalance, cashItems, fundPrices]);
 
     // Sync calculated totals with Context (for History Tracking)
     useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Briefcase, TrendingUp, Coins, DollarSign, Building, PiggyBank, BarChart3, Archive, Layers } from 'lucide-react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
@@ -259,6 +260,23 @@ export const PortfolioScreen = () => {
         }
     };
 
+    // Get category icon
+    const getCategoryIcon = (category: string, size: number = 16) => {
+        const iconProps = { size, strokeWidth: 2 };
+        switch (category) {
+            case 'Altın': return <Coins {...iconProps} color="#FFD700" />;
+            case 'Gümüş': return <Coins {...iconProps} color="#C0C0C0" />;
+            case 'Döviz': return <DollarSign {...iconProps} color="#34C759" />;
+            case 'Hisse (BIST)': return <TrendingUp {...iconProps} color="#007AFF" />;
+            case 'Kripto': return <BarChart3 {...iconProps} color="#AF52DE" />;
+            case 'BES': return <Building {...iconProps} color="#FF9500" />;
+            case 'Fon': return <Layers {...iconProps} color="#FF2D55" />;
+            case 'ABD ETF': return <Briefcase {...iconProps} color="#0A84FF" />;
+            case 'Yedek Akçe': return <Archive {...iconProps} color="#8E8E93" />;
+            default: return <PiggyBank {...iconProps} color="#8E8E93" />;
+        }
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {/* Header */}
@@ -294,7 +312,10 @@ export const PortfolioScreen = () => {
                     return (
                         <View key={category} style={[styles.sectionContainer, isLargeScreen && styles.sectionContainerWeb]}>
                             <TouchableOpacity onPress={() => toggleCategory(category)} style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    {getCategoryIcon(category)}
+                                    <Text style={[styles.sectionTitle, { color: colors.subText }]}>{category}</Text>
+                                </View>
                                 <View style={{ alignItems: 'flex-end' }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         <Text style={[styles.sectionTotal, { color: colors.text }]}>{formatCurrency(categoryValues[category], displayCurrency)}</Text>
@@ -430,6 +451,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
     },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     scrollContent: { paddingBottom: 100, paddingHorizontal: Platform.OS === 'web' ? 16 : 12 },

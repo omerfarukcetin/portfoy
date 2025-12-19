@@ -209,16 +209,16 @@ export const TransactionsScreen = () => {
             {/* Tab Control */}
             <View style={[styles.tabContainer, { backgroundColor: colors.cardBackground }]}>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === 'open' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                    style={[styles.tab, { backgroundColor: activeTab === 'open' ? colors.primary : colors.inputBackground }]}
                     onPress={() => setActiveTab('open')}
                 >
-                    <Text style={[styles.tabText, { color: activeTab === 'open' ? colors.primary : colors.subText }]}>{t('transactions.openPositions')}</Text>
+                    <Text style={[styles.tabText, { color: activeTab === 'open' ? '#fff' : colors.subText }]}>{t('transactions.openPositions')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === 'closed' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                    style={[styles.tab, { backgroundColor: activeTab === 'closed' ? colors.primary : colors.inputBackground }]}
                     onPress={() => setActiveTab('closed')}
                 >
-                    <Text style={[styles.tabText, { color: activeTab === 'closed' ? colors.primary : colors.subText }]}>{t('transactions.closedPositions')}</Text>
+                    <Text style={[styles.tabText, { color: activeTab === 'closed' ? '#fff' : colors.subText }]}>{t('transactions.closedPositions')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -505,22 +505,26 @@ const styles = StyleSheet.create({
     },
     tabContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingTop: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
+        justifyContent: 'center',
+        paddingTop: 12,
+        paddingBottom: 12,
+        paddingHorizontal: 16,
+        gap: 8,
     },
     tab: {
+        flex: 1,
         paddingVertical: 10,
         paddingHorizontal: 20,
+        borderRadius: 12,
+        alignItems: 'center',
     },
     tabText: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
     },
     scrollContent: {
         paddingBottom: 100,
-        paddingTop: 20,
+        paddingTop: 16,
         paddingHorizontal: 15,
     },
     // Modern card container (iOS style)
@@ -616,14 +620,14 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
     },
     modalContent: {
-        width: '80%',
-        padding: 20,
-        borderRadius: 16,
+        width: Platform.OS === 'web' ? 400 : '85%',
+        padding: 24,
+        borderRadius: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowRadius: 12,
+        elevation: 8,
     },
     modalTitle: {
         fontSize: 20,

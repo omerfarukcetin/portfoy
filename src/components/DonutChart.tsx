@@ -72,7 +72,11 @@ export const DonutChart: React.FC<DonutChartProps> = ({
                         <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '600' }}>
                             Toplam
                         </Text>
-                        <Text style={{ fontSize: centerTextFontSize, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                        <Text
+                            style={{ fontSize: centerTextFontSize, color: colors.text, fontWeight: '700', marginTop: 2, textAlign: 'center' }}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                        >
                             {centerText}
                         </Text>
                         {centerSubtext && (

@@ -19,9 +19,10 @@ interface ShareableDonutChartProps {
     colors: any;
     legend?: React.ReactNode;
     hideLegend?: boolean;
+    isCompact?: boolean;
 }
 
-export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) => {
+export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = ({ isCompact = false, ...props }) => {
     const [hidePrices, setHidePrices] = useState(false);
     const chartRef = useRef<any>(null);
 
@@ -70,7 +71,7 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = (props) =
     const displayCenterSubtext = hidePrices ? undefined : props.centerSubtext;
 
     const ChartContent = (
-        <View style={[styles.container, { backgroundColor: props.colors.cardBackground }]}>
+        <View style={[styles.container, { backgroundColor: props.colors.cardBackground }, isCompact && { padding: 0, marginVertical: 0 }]}>
             {/* Chart */}
             <View style={styles.chartWrapper}>
                 <DonutChart

@@ -1101,10 +1101,12 @@ export const SummaryScreen = () => {
                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
                                             size={120}
                                             strokeWidth={16}
-                                            centerText={isHidden ? '••••' : `%${((pieData[0]?.population / totalPortfolioTry) * 100).toFixed(0)}`}
-                                            centerSubtext={pieData[0]?.name || ''}
+                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                            centerSubtext=""
+                                            centerTextFontSize={14}
                                             colors={colors}
                                             hideLegend={true}
+                                            isCompact={true}
                                         />
                                     </View>
                                     <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
@@ -1125,7 +1127,7 @@ export const SummaryScreen = () => {
                         )}
 
                         {/* Quick Insights Row */}
-                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 30, marginTop: 4 }}>
                             <TouchableOpacity
                                 style={{
                                     flex: 1,

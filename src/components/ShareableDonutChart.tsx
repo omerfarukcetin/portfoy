@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import { DonutChart } from './DonutChart';
 import html2canvas from 'html2canvas';
@@ -22,42 +22,52 @@ interface ShareableDonutChartProps {
     isCompact?: boolean;
 }
 
-export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = ({ isCompact = false, ...props }) => {
+export interface ShareableDonutChartHandle {
+    captureImage: () => Promise<void>;
+}
+
+export const ShareableDonutChart = forwardRef<ShareableDonutChartHandle, ShareableDonutChartProps>(({ isCompact = false, ...props }, ref) => {
     const [hidePrices, setHidePrices] = useState(false);
     const chartRef = useRef<any>(null);
+
+    useImperativeHandle(ref, () => ({
+        captureImage: handleShare
+    }));
 
     const handleShare = async () => {
         try {
             if (Platform.OS === 'web') {
-                // Web: Use html2canvas
                 const element = chartRef.current;
                 if (!element) return;
 
                 const canvas = await html2canvas(element, {
                     backgroundColor: props.colors.cardBackground,
-                    scale: 2, // Higher quality
+                    scale: 3, // High quality
+                    useCORS: true,
+                    logging: false
                 });
 
-                // Convert to blob and download
                 canvas.toBlob((blob) => {
                     if (blob) {
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
-                        link.download = `portfolio-distribution-${Date.now()}.png`;
+                        link.download = `portfoy-dagilimi-${Date.now()}.png`;
                         link.href = url;
                         link.click();
                         URL.revokeObjectURL(url);
                     }
-                });
+                }, 'image/png', 1.0);
             } else {
-                // Mobile: Use ViewShot
-                const uri = await chartRef.current.capture();
-                Alert.alert('Başarılı', 'Görsel kaydedildi!');
-                // TODO: Share or save to gallery
+                if (chartRef.current && chartRef.current.capture) {
+                    const uri = await chartRef.current.capture();
+                    // In a real app, we would use expo-sharing to share or save
+                    // For now, we show success
+                    Alert.alert('Başarılı', 'Görsel galeriye kaydedilmeye hazır.');
+                }
             }
         } catch (error) {
-            console.error('Screenshot error:', error);
-            Alert.alert('Hata', 'Görsel oluşturulamadı');
+            console.error('Capture error:', error);
+            Alert.alert('Hata', 'Görsel oluşturulamadı. Lütfen tekrar deneyin.');
         }
     };
 
@@ -132,7 +142,7 @@ export const ShareableDonutChart: React.FC<ShareableDonutChartProps> = ({ isComp
             {ChartContent}
         </ViewShot>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

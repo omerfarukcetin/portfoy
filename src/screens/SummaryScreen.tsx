@@ -9,8 +9,8 @@ import { usePortfolio } from '../context/PortfolioContext';
 import { useSettings } from '../context/SettingsContext';
 import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
-import { ShareableDonutChart } from '../components/ShareableDonutChart';
-import { PortfolioChart } from '../components/PortfolioChart';
+import { ShareableDonutChart, ShareableDonutChartHandle } from '../components/ShareableDonutChart';
+import { PortfolioChart, PortfolioChartHandle } from '../components/PortfolioChart';
 import { generateRecommendations, Recommendation } from '../services/advisorService';
 import { Skeleton } from '../components/Skeleton';
 import { NewsFeed } from '../components/NewsFeed';
@@ -43,20 +43,27 @@ export const SummaryScreen = () => {
     const {
         portfolio,
         cashItems,
-        cashBalance,
         history,
+        totalValueTry,
+        totalValueUsd,
+        cashBalance,
         updateTotalValue,
         totalRealizedProfitTry,
         totalRealizedProfitUsd
     } = usePortfolio();
+
+    const donutChartRef = useRef<ShareableDonutChartHandle>(null);
+    const portfolioChartRef = useRef<PortfolioChartHandle>(null);
     const { marketSummaryVisible, selectedMarketInstruments, portfolioChartVisible, cashThreshold } = useSettings();
     const [refreshing, setRefreshing] = useState(false);
+
+    // Local state for managed data
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [usdRate, setUsdRate] = useState(0);
 
-    // Persist portfolio values to prevent flash during navigation
+    // Persist portfolio values for UI
     const [totalPortfolioTry, setTotalPortfolioTry] = useState(0);
     const [totalPortfolioUsd, setTotalPortfolioUsd] = useState(0);
     const [totalCostBasisTry, setTotalCostBasisTry] = useState(0);
@@ -661,31 +668,7 @@ export const SummaryScreen = () => {
                                             </View>
                                             <TouchableOpacity
                                                 style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
-                                                onPress={async () => {
-                                                    try {
-                                                        if (Platform.OS === 'web') {
-                                                            const chartCard = document.querySelector('[data-chart-card]') as HTMLElement;
-                                                            if (chartCard) {
-                                                                const canvas = await html2canvas(chartCard, {
-                                                                    backgroundColor: colors.cardBackground,
-                                                                    scale: 2
-                                                                });
-                                                                canvas.toBlob((blob) => {
-                                                                    if (blob) {
-                                                                        const url = URL.createObjectURL(blob);
-                                                                        const link = document.createElement('a');
-                                                                        link.download = `portfoy-dagilimi-${Date.now()}.png`;
-                                                                        link.href = url;
-                                                                        link.click();
-                                                                        URL.revokeObjectURL(url);
-                                                                    }
-                                                                });
-                                                            }
-                                                        }
-                                                    } catch (e) {
-                                                        console.error('Download error:', e);
-                                                    }
-                                                }}
+                                                onPress={() => donutChartRef.current?.captureImage()}
                                             >
                                                 <Download size={16} color={colors.subText} />
                                             </TouchableOpacity>
@@ -1081,7 +1064,21 @@ export const SummaryScreen = () => {
                         {/* Chart Preview */}
                         {portfolioChartVisible && (
                             <View style={{ marginTop: 4, marginBottom: 8 }}>
-                                <PortfolioChart currentValue={totalPortfolioTry} history={history} isMobile={true} />
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
+                                    <View />
+                                    <TouchableOpacity
+                                        onPress={() => portfolioChartRef.current?.captureImage()}
+                                        style={{ padding: 6, backgroundColor: colors.cardBackground, borderRadius: 6, borderWidth: 1, borderColor: colors.border }}
+                                    >
+                                        <Download size={14} color={colors.subText} />
+                                    </TouchableOpacity>
+                                </View>
+                                <PortfolioChart
+                                    ref={portfolioChartRef}
+                                    currentValue={totalPortfolioTry}
+                                    history={history}
+                                    isMobile={true}
+                                />
                             </View>
                         )}
 
@@ -1090,14 +1087,20 @@ export const SummaryScreen = () => {
                             <Card style={{ padding: 16 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
-                                    <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
-                                        <ArrowUpRight size={18} color={colors.primary} />
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        <TouchableOpacity onPress={() => donutChartRef.current?.captureImage()}>
+                                            <Download size={18} color={colors.subText} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
+                                            <ArrowUpRight size={18} color={colors.primary} />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <View style={{ width: 120, height: 120 }}>
                                         <ShareableDonutChart
+                                            ref={donutChartRef}
                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
                                             size={120}
                                             strokeWidth={16}

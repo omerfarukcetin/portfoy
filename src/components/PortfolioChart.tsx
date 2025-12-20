@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform, Alert } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
+import html2canvas from 'html2canvas';
+// @ts-ignore
+import ViewShot from 'react-native-view-shot';
 
-// Demo Data Generator
+// ... existing generateDemoData logic ...
 const generateDemoData = (days: number, startValue: number) => {
     const data = [];
     const labels = [];
@@ -36,11 +39,55 @@ interface PortfolioChartProps {
     isMobile?: boolean;
 }
 
-export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, history = [], isMobile = false }) => {
+export interface PortfolioChartHandle {
+    captureImage: () => Promise<void>;
+}
+
+export const PortfolioChart = forwardRef<PortfolioChartHandle, PortfolioChartProps>(({ currentValue, history = [], isMobile = false }, ref) => {
     const { colors, fontScale } = useTheme();
     const [range, setRange] = useState<'1W' | '1M' | '3M'>('1W');
+    const chartRef = useRef<any>(null);
     const screenWidth = Dimensions.get('window').width;
     const chartWidth = isMobile ? screenWidth - 32 : screenWidth - 60;
+
+    useImperativeHandle(ref, () => ({
+        captureImage: handleCapture
+    }));
+
+    const handleCapture = async () => {
+        try {
+            if (Platform.OS === 'web') {
+                const element = chartRef.current;
+                if (!element) return;
+
+                const canvas = await html2canvas(element, {
+                    backgroundColor: colors.cardBackground,
+                    scale: 3,
+                    useCORS: true,
+                    logging: false
+                });
+
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = `portfoy-grafigi-${Date.now()}.png`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    }
+                }, 'image/png', 1.0);
+            } else {
+                if (chartRef.current && chartRef.current.capture) {
+                    const uri = await chartRef.current.capture();
+                    Alert.alert('Başarılı', 'Görsel kaydedilmeye hazır.');
+                }
+            }
+        } catch (error) {
+            console.error('Capture error:', error);
+            Alert.alert('Hata', 'Görsel oluşturulamadı.');
+        }
+    };
 
     // Helper to filter history based on range
     const getHistoryData = (range: '1W' | '1M' | '3M') => {
@@ -64,9 +111,6 @@ export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, hi
             }
             return '';
         });
-
-        // Add current value as the last point if it's different/newer
-        // (Optional optimization)
 
         return { data, labels };
     };
@@ -112,11 +156,10 @@ export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, hi
         }
     };
 
-    return (
+    const ChartContainer = (
         <View style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
             <View style={styles.header}>
                 <Text style={[styles.title, { color: colors.text, fontSize: 18 * fontScale }]}>Portföy Değeri</Text>
-                {/* Changes badge could go here */}
             </View>
 
             <LineChart
@@ -160,7 +203,21 @@ export const PortfolioChart: React.FC<PortfolioChartProps> = ({ currentValue, hi
             </View>
         </View>
     );
-};
+
+    if (Platform.OS === 'web') {
+        return (
+            <div ref={chartRef} style={{ width: '100%' }}>
+                {ChartContainer}
+            </div>
+        );
+    }
+
+    return (
+        <ViewShot ref={chartRef} options={{ format: 'png', quality: 1.0 }}>
+            {ChartContainer}
+        </ViewShot>
+    );
+});
 
 const styles = StyleSheet.create({
     container: {

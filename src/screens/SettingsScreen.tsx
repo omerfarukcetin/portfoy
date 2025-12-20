@@ -8,7 +8,28 @@ import { exportPortfolioData, importPortfolioData } from '../utils/exportImport'
 import { uploadBackup, downloadBackup } from '../services/cloudService';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import {
+    ChevronDown,
+    LogOut,
+    User,
+    Globe,
+    Moon,
+    Type,
+    BarChart2,
+    TrendingUp,
+    Settings,
+    Hash,
+    Activity,
+    Home,
+    Cloud,
+    CloudDownload,
+    Upload,
+    Download,
+    Trash2,
+    AlertCircle,
+    X,
+    ChevronRight
+} from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -48,43 +69,49 @@ export const SettingsScreen = () => {
         </View>
     );
 
-    const Item = ({ label, value, onPress, isLast, icon, type = 'arrow', color }: { label: string, value?: string | React.ReactNode, onPress?: () => void, isLast?: boolean, icon?: string, type?: 'arrow' | 'switch' | 'none', color?: string }) => (
-        <TouchableOpacity
-            style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-            onPress={onPress}
-            disabled={!onPress}
-            activeOpacity={onPress ? 0.6 : 1}
-        >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {icon && <Feather name={icon as any} size={18} color={color || colors.text} style={{ marginRight: 12 }} />}
-                <Text style={[styles.itemLabel, { color: color || colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {typeof value === 'string' ? (
-                    <Text style={[styles.itemValue, { color: colors.subText, fontSize: 15 * fontScale }]}>{value}</Text>
-                ) : (
-                    value
-                )}
-                {type === 'arrow' && <Feather name="chevron-right" size={18} color={colors.subText} style={{ marginLeft: 6 }} />}
-            </View>
-        </TouchableOpacity>
-    );
+    const Item = ({ label, value, onPress, isLast, icon, type = 'arrow', color }: { label: string, value?: string | React.ReactNode, onPress?: () => void, isLast?: boolean, icon?: any, type?: 'arrow' | 'switch' | 'none', color?: string }) => {
+        const IconComponent = icon;
+        return (
+            <TouchableOpacity
+                style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
+                onPress={onPress}
+                disabled={!onPress}
+                activeOpacity={onPress ? 0.6 : 1}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {IconComponent && <IconComponent size={18} color={color || colors.text} style={{ marginRight: 12 }} />}
+                    <Text style={[styles.itemLabel, { color: color || colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {typeof value === 'string' ? (
+                        <Text style={[styles.itemValue, { color: colors.subText, fontSize: 15 * fontScale }]}>{value}</Text>
+                    ) : (
+                        value
+                    )}
+                    {type === 'arrow' && <ChevronRight size={18} color={colors.subText} style={{ marginLeft: 6 }} />}
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
-    const ToggleItem = ({ label, value, onValueChange, isLast, icon }: { label: string, value: boolean, onValueChange: (val: boolean) => void, isLast?: boolean, icon?: string }) => (
-        <View style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {icon && <Feather name={icon as any} size={18} color={colors.text} style={{ marginRight: 12 }} />}
-                <Text style={[styles.itemLabel, { color: colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
+    const ToggleItem = ({ label, value, onValueChange, isLast, icon }: { label: string, value: boolean, onValueChange: (val: boolean) => void, isLast?: boolean, icon?: any }) => {
+        const IconComponent = icon;
+        return (
+            <View style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {IconComponent && <IconComponent size={18} color={colors.text} style={{ marginRight: 12 }} />}
+                    <Text style={[styles.itemLabel, { color: colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
+                </View>
+                <Switch
+                    value={value}
+                    onValueChange={onValueChange}
+                    trackColor={{ false: '#767577', true: colors.primary }}
+                    thumbColor={'#fff'}
+                    ios_backgroundColor="#3e3e3e"
+                />
             </View>
-            <Switch
-                value={value}
-                onValueChange={onValueChange}
-                trackColor={{ false: '#767577', true: colors.primary }}
-                thumbColor={'#fff'}
-                ios_backgroundColor="#3e3e3e"
-            />
-        </View>
-    );
+        );
+    };
 
     // --- Actions ---
     const handleReset = () => {
@@ -173,7 +200,7 @@ export const SettingsScreen = () => {
             {/* Header */}
             <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                    <Feather name="chevron-down" size={28} color={colors.text} />
+                    <ChevronDown size={28} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Ayarlar</Text>
             </View>
@@ -192,13 +219,13 @@ export const SettingsScreen = () => {
                                 <Text style={{ color: colors.subText, fontSize: 12 }}>Standart Üyelik</Text>
                             </View>
                             <TouchableOpacity onPress={() => logout()} style={{ padding: 8 }}>
-                                <Feather name="log-out" size={20} color={colors.danger} />
+                                <LogOut size={20} color={colors.danger} />
                             </TouchableOpacity>
                         </TouchableOpacity>
                     ) : (
                         <Item
                             label="Giriş Yap / Kayıt Ol"
-                            icon="user"
+                            icon={User}
                             color={colors.primary}
                             onPress={() => navigation.navigate('Login')}
                             isLast
@@ -210,7 +237,7 @@ export const SettingsScreen = () => {
                 <Section title="Görünüm">
                     <Item
                         label="🌐 Dil / Language"
-                        icon="globe"
+                        icon={Globe}
                         value={language === 'tr' ? 'Türkçe' : 'English'}
                         onPress={() => {
                             setLanguage(language === 'tr' ? 'en' : 'tr');
@@ -218,7 +245,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Tema"
-                        icon="moon"
+                        icon={Moon}
                         value={theme === 'light' ? 'Açık' : theme === 'dark' ? 'Koyu' : theme === 'gray' ? 'Gri' : theme === 'navy' ? 'Lacivert' : theme === 'cream' ? 'Krem' : 'Adaçayı'}
                         onPress={() => {
                             const themes = ['light', 'dark', 'gray', 'navy', 'cream', 'sage'] as const;
@@ -228,7 +255,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Yazı Boyutu"
-                        icon="type"
+                        icon={Type}
                         value={fontSize === 'small' ? 'Küçük' : fontSize === 'medium' ? 'Orta' : 'Büyük'}
                         onPress={() => {
                             const sizes = ['small', 'medium', 'large'] as const;
@@ -238,20 +265,20 @@ export const SettingsScreen = () => {
                     />
                     <ToggleItem
                         label="Portföy Grafiği"
-                        icon="bar-chart-2"
+                        icon={BarChart2}
                         value={portfolioChartVisible}
                         onValueChange={togglePortfolioChart}
                     />
                     <ToggleItem
                         label="Piyasa Özeti Seridi"
-                        icon="trending-up"
+                        icon={TrendingUp}
                         value={marketSummaryVisible}
                         onValueChange={toggleMarketSummary}
                     />
                     {marketSummaryVisible && (
                         <Item
                             label="Şeridi Düzenle"
-                            icon="settings"
+                            icon={Settings}
                             value={`${selectedMarketInstruments.length} Seçili`}
                             onPress={() => setInstrumentsModalVisible(true)}
                             isLast
@@ -263,13 +290,13 @@ export const SettingsScreen = () => {
                 <Section title="Tercihler">
                     <Item
                         label="Hisse Formatı"
-                        icon="hash"
+                        icon={Hash}
                         value={symbolCase === 'uppercase' ? 'THYAO' : 'Thyao'}
                         onPress={() => setSymbolCase(symbolCase === 'uppercase' ? 'titlecase' : 'uppercase')}
                     />
                     <Item
                         label="Risk İştahı"
-                        icon="activity"
+                        icon={Activity}
                         value={riskAppetite === 'low' ? 'Düşük (%30)' : riskAppetite === 'medium' ? 'Orta (%20)' : 'Yüksek (%10)'}
                         onPress={() => {
                             const risks = ['low', 'medium', 'high'] as const;
@@ -279,7 +306,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Başlangıç Ekranı"
-                        icon="home"
+                        icon={Home}
                         value={startScreen === 'Summary' ? 'Özet' : startScreen === 'Portfolio' ? 'Portföy' : 'Favoriler'}
                         onPress={() => {
                             const screens = ['Summary', 'Portfolio', 'Favorites'] as const;
@@ -294,17 +321,17 @@ export const SettingsScreen = () => {
                 <Section title="Veri Yönetimi">
                     <Item
                         label="Buluta Yedekle"
-                        icon="cloud"
+                        icon={Cloud}
                         onPress={handleCloudBackup}
                     />
                     <Item
                         label="Buluttan İndir"
-                        icon="download-cloud"
+                        icon={CloudDownload}
                         onPress={handleCloudRestore}
                     />
                     <Item
                         label="Verileri Dışa Aktar"
-                        icon="upload"
+                        icon={Upload}
                         onPress={async () => {
                             try {
                                 await exportPortfolioData(portfolios, activePortfolioId);
@@ -314,7 +341,7 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Verileri İçe Aktar"
-                        icon="download"
+                        icon={Download}
                         onPress={async () => {
                             Alert.alert(
                                 'Dikkat',
@@ -342,12 +369,12 @@ export const SettingsScreen = () => {
                     />
                     <Item
                         label="Geçmişi Temizle"
-                        icon="trash-2"
+                        icon={Trash2}
                         onPress={handleClearHistory}
                     />
                     <Item
                         label="Tümünü Sıfırla"
-                        icon="alert-circle"
+                        icon={AlertCircle}
                         color={colors.danger}
                         onPress={handleReset}
                         isLast
@@ -365,7 +392,7 @@ export const SettingsScreen = () => {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Piyasa Araçları</Text>
                             <TouchableOpacity onPress={() => setInstrumentsModalVisible(false)}>
-                                <Feather name="x" size={24} color={colors.text} />
+                                <X size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
                         <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}>

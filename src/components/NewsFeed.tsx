@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Globe, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { NewsService, NewsItem } from '../services/newsService';
 import { Skeleton } from './Skeleton';
@@ -116,7 +116,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ keywords }) => {
         return (
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Feather name="globe" size={20} color={colors.subText} />
+                    <Globe size={20} color={colors.subText} />
                     <Text style={[styles.headerTitle, { color: colors.subText }]}>Piyasa Gündemi</Text>
                 </View>
                 {[1, 2, 3].map(i => (
@@ -135,7 +135,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ keywords }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Feather name="globe" size={20} color={colors.primary} />
+                <Globe size={20} color={colors.primary} />
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Piyasa Gündemi</Text>
             </View>
 
@@ -154,7 +154,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ keywords }) => {
 
                     <View style={styles.readMoreRow}>
                         <Text style={[styles.readMoreText, { color: colors.subText }]}>Habere Git</Text>
-                        <Feather name="external-link" size={12} color={colors.subText} />
+                        <ExternalLink size={12} color={colors.subText} />
                     </View>
                 </TouchableOpacity>
             ))}

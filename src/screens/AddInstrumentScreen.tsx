@@ -7,7 +7,7 @@ import { Instrument } from '../types';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { useFavorites } from '../context/FavoritesContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Star, CheckCircle } from 'lucide-react-native';
 
 export const AddInstrumentScreen = () => {
     const [query, setQuery] = useState('');
@@ -323,13 +323,13 @@ export const AddInstrumentScreen = () => {
                                                         }
                                                     }}
                                                 >
-                                                    <Ionicons
-                                                        name={isFavorite(item.id) ? "star" : "star-outline"}
+                                                    <Star
                                                         size={24}
                                                         color={isFavorite(item.id) ? "#FFD700" : colors.subText}
+                                                        fill={isFavorite(item.id) ? "#FFD700" : "none"}
                                                     />
                                                 </TouchableOpacity>
-                                                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                                                <CheckCircle size={24} color={colors.primary} />
                                             </TouchableOpacity>
                                         );
                                     }}
@@ -427,10 +427,10 @@ export const AddInstrumentScreen = () => {
                                                                 }
                                                             }}
                                                         >
-                                                            <Ionicons
-                                                                name={isFavorite(item.id) ? "star" : "star-outline"}
+                                                            <Star
                                                                 size={24}
                                                                 color={isFavorite(item.id) ? "#FFD700" : colors.subText}
+                                                                fill={isFavorite(item.id) ? "#FFD700" : "none"}
                                                             />
                                                         </TouchableOpacity>
                                                         <View style={[styles.typeBadge, { backgroundColor: colors.primary + '20' }]}>

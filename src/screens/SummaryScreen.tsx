@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 
@@ -16,6 +16,8 @@ import { Skeleton } from '../components/Skeleton';
 import { NewsFeed } from '../components/NewsFeed';
 import { GradientCard } from '../components/GradientCard';
 import html2canvas from 'html2canvas';
+// @ts-ignore
+import ViewShot from 'react-native-view-shot';
 
 
 const screenWidth = Dimensions.get('window').width;
@@ -49,7 +51,13 @@ export const SummaryScreen = () => {
         cashBalance,
         updateTotalValue,
         totalRealizedProfitTry,
-        totalRealizedProfitUsd
+        totalRealizedProfitUsd,
+        prices: contextPrices,
+        dailyChanges: contextDailyChanges,
+        currentUsdRate: contextUsdRate,
+        lastPricesUpdate,
+        refreshAllPrices,
+        activePortfolio
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -59,9 +67,6 @@ export const SummaryScreen = () => {
 
     // Local state for managed data
     const [isInitialLoading, setIsInitialLoading] = useState(true);
-    const [prices, setPrices] = useState<Record<string, number>>({});
-    const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
-    const [usdRate, setUsdRate] = useState(0);
 
     // Persist portfolio values for UI
     const [totalPortfolioTry, setTotalPortfolioTry] = useState(0);
@@ -81,28 +86,59 @@ export const SummaryScreen = () => {
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    const distCardWebRef = useRef<any>(null);
+    const distCardMobileRef = useRef<any>(null);
+
+    const captureDistributionCard = async () => {
+        try {
+            if (Platform.OS === 'web') {
+                const element = distCardWebRef.current?.getElement?.() || distCardWebRef.current;
+                if (!element) return;
+                const canvas = await html2canvas(element, {
+                    backgroundColor: colors.cardBackground,
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                });
+
+                const dataUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `portfoy-dagilimi-${Date.now()}.png`;
+                link.href = dataUrl;
+                link.click();
+            } else {
+                const ref = distCardMobileRef.current || distCardWebRef.current;
+                if (ref && ref.capture) {
+                    const uri = await ref.capture();
+                    Alert.alert('Başarılı', 'Görsel kaydedilmeye hazır.');
+                }
+            }
+        } catch (error) {
+            console.error('Capture error:', error);
+            Alert.alert('Hata', 'Görsel oluşturulamadı.');
+        }
+    };
+
     // Render UI first, then load data progressively
     useEffect(() => {
-        // Fetch prices immediately (critical for portfolio display)
-        fetchPrices();
-
         // Defer market summary data to load after UI renders
         const marketDataTimer = setTimeout(() => {
             fetchMarketData();
         }, 100);
 
-        refreshIntervalRef.current = setInterval(() => {
-            fetchPrices();
+        const mInterval = setInterval(() => {
             fetchMarketData();
-        }, 5 * 60 * 1000); // Auto-refresh every 5 minutes
+        }, 5 * 60 * 1000); // Auto-refresh market data every 5 minutes
 
         return () => {
             clearTimeout(marketDataTimer);
-            if (refreshIntervalRef.current) {
-                clearInterval(refreshIntervalRef.current);
-            }
+            clearInterval(mInterval);
         };
-    }, [portfolio.length]);
+    }, []);
+
+    const prices = contextPrices;
+    const dailyChanges = contextDailyChanges;
+    const usdRate = contextUsdRate;
 
     const fetchMarketReport = async () => {
         setMarketReportData(null);
@@ -150,7 +186,7 @@ export const SummaryScreen = () => {
             ]);
 
             // Set all values at once
-            if (usdData?.currentPrice) setUsdRate(usdData.currentPrice);
+            // Context handles currentUsdRate
             if (goldData?.currentPrice) setGoldPrice(goldData.currentPrice);
             if (silverData?.currentPrice) setSilverPrice(silverData.currentPrice);
             if (bist?.currentPrice) setBistData({ price: bist.currentPrice, change: (bist as any).change24h || 0 });
@@ -164,38 +200,16 @@ export const SummaryScreen = () => {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await fetchPrices();
-        await fetchMarketData(); // Call new market data fetch
+        await Promise.all([
+            refreshAllPrices(),
+            fetchMarketData()
+        ]);
         setRefreshing(false);
     };
 
     const fetchPrices = async () => {
-        const newPrices: Record<string, number> = {};
-        const newDailyChanges: Record<string, number> = {};
-
-        // Fetch USD/TRY rate
-        const rateData = await MarketDataService.getYahooPrice('TRY=X');
-        if (rateData && rateData.currentPrice) {
-            newDailyChanges['USD'] = (rateData as any).change24h || 0;
-        }
-
-        // Fetch all prices in parallel using batch API
-        const priceResults = await MarketDataService.fetchMultiplePrices(portfolio);
-
-        // Process results
-        for (const item of portfolio) {
-            const priceData = priceResults[item.instrumentId];
-            if (priceData && priceData.currentPrice) {
-                newPrices[item.instrumentId] = priceData.currentPrice;
-                newDailyChanges[item.instrumentId] = (priceData as any).change24h || 0;
-            }
-        }
-
-        setPrices(newPrices);
-        setDailyChanges(newDailyChanges);
-        setIsInitialLoading(false);
-
-        // Fetch money market fund prices for Yedek Akçe profit calculation
+        // This is now handled by Context.refreshAllPrices()
+        // But we still need to fetch fund prices for PPF if not moved to context yet.
         const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
         const newFundPrices: Record<string, number> = {};
         for (const item of fundItems) {
@@ -211,25 +225,13 @@ export const SummaryScreen = () => {
             }
         }
         setFundPrices(newFundPrices);
+        setIsInitialLoading(false);
     };
 
     // Immediate load on mount
     useEffect(() => {
-        fetchPrices();
+        fetchPrices(); // Fund prices
         fetchMarketData();
-    }, []);
-
-    // Auto-refresh prices every 5 minutes
-    useEffect(() => {
-        refreshIntervalRef.current = setInterval(() => {
-            fetchPrices();
-        }, 5 * 60 * 1000);
-
-        return () => {
-            if (refreshIntervalRef.current) {
-                clearInterval(refreshIntervalRef.current);
-            }
-        };
     }, []);
 
     // Calculate Totals and update state
@@ -314,7 +316,7 @@ export const SummaryScreen = () => {
         setTotalPortfolioUsd(calcTotalUsd);
         setTotalCostBasisTry(calcCostBasisTry);
         setDailyProfit(calcDailyProfit);
-    }, [portfolio, prices, dailyChanges, usdRate, cashBalance, cashItems, fundPrices]);
+    }, [portfolio, contextPrices, contextDailyChanges, contextUsdRate, cashBalance, cashItems, fundPrices]);
 
     // Sync calculated totals with Context (for History Tracking)
     useEffect(() => {
@@ -326,6 +328,27 @@ export const SummaryScreen = () => {
             return () => clearTimeout(timer);
         }
     }, [totalPortfolioTry, totalPortfolioUsd]);
+
+    // Calculate Yedek Akçe totals (reusable for both mobile and web)
+    const { totalCashValue, ppfProfit, ppfCost } = React.useMemo(() => {
+        let cost = 0;
+        let currentValue = 0;
+        cashItems.forEach(item => {
+            if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
+                const livePrice = fundPrices[item.instrumentId];
+                if (livePrice) {
+                    currentValue += item.units * livePrice;
+                    cost += item.units * item.averageCost;
+                }
+            }
+        });
+        const profit = currentValue - cost;
+        return {
+            totalCashValue: cashBalance + profit,
+            ppfProfit: profit,
+            ppfCost: cost
+        };
+    }, [cashBalance, cashItems, fundPrices]);
 
     // Generate news keywords from portfolio
     const newsKeywords = React.useMemo(() => {
@@ -458,6 +481,9 @@ export const SummaryScreen = () => {
                                 <Text style={{ fontSize: 14, color: colors.subText, marginTop: 4 }}>
                                     İşte bugünkü finansal özetin
                                 </Text>
+                                <Text style={{ fontSize: 11, color: colors.subText, marginTop: 4, opacity: 0.8 }}>
+                                    {lastPricesUpdate > 0 ? `Veriler Gerçek Zamanlıdır • Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Veriler Güncelleniyor...'}
+                                </Text>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                 <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
@@ -586,136 +612,116 @@ export const SummaryScreen = () => {
                                     </View>
 
                                     {/* Yedek Akçe */}
-                                    {(() => {
-                                        // Calculate PPF profit to show total value including gains
-                                        let ppfCost = 0;
-                                        let ppfCurrentValue = 0;
-                                        cashItems.forEach(item => {
-                                            if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
-                                                const livePrice = fundPrices[item.instrumentId];
-                                                if (livePrice) {
-                                                    ppfCurrentValue += item.units * livePrice;
-                                                    ppfCost += item.units * item.averageCost;
-                                                }
-                                            }
-                                        });
-                                        const ppfProfit = ppfCurrentValue - ppfCost;
-                                        // Total value = cashBalance (which already includes PPF at cost) - ppfCost + ppfCurrentValue
-                                        // Or simply: cashBalance + ppfProfit
-                                        const totalCashValue = cashBalance + ppfProfit;
-
-                                        return (
-                                            <TouchableOpacity
-                                                style={{
-                                                    flex: 1,
-                                                    backgroundColor: colors.cardBackground,
-                                                    borderRadius: 16,
-                                                    padding: 20,
-                                                    borderWidth: 1,
-                                                    borderColor: colors.border
-                                                }}
-                                                onPress={() => (navigation as any).navigate('CashManagement')}
-                                            >
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                                                    <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
-                                                        <Archive size={18} color="#FF9800" />
-                                                    </View>
-                                                </View>
-                                                <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
-                                                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
-                                                    {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
-                                                </Text>
-                                                {/* Show money market fund profit */}
-                                                {ppfCost > 0 && ppfProfit !== 0 && (
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                                                        {ppfProfit >= 0 ? (
-                                                            <TrendingUp size={14} color={colors.success} strokeWidth={2} />
-                                                        ) : (
-                                                            <TrendingDown size={14} color={colors.danger} strokeWidth={2} />
-                                                        )}
-                                                        <Text style={{
-                                                            color: ppfProfit >= 0 ? colors.success : colors.danger,
-                                                            fontSize: 13,
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            {isHidden ? '•••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`}
-                                                        </Text>
-                                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '500' }}>
-                                                            Kâr
-                                                        </Text>
-                                                    </View>
+                                    <TouchableOpacity
+                                        style={{
+                                            flex: 1,
+                                            backgroundColor: colors.cardBackground,
+                                            borderRadius: 16,
+                                            padding: 20,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => (navigation as any).navigate('CashManagement')}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: '#FFF3E0', padding: 10, borderRadius: 10 }}>
+                                                <Archive size={18} color="#FF9800" />
+                                            </View>
+                                        </View>
+                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Yedek Akçe</Text>
+                                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                            {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
+                                        </Text>
+                                        {/* Show money market fund profit */}
+                                        {ppfCost > 0 && ppfProfit !== 0 && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                                                {ppfProfit >= 0 ? (
+                                                    <TrendingUp size={14} color={colors.success} strokeWidth={2} />
+                                                ) : (
+                                                    <TrendingDown size={14} color={colors.danger} strokeWidth={2} />
                                                 )}
-                                            </TouchableOpacity>
-                                        );
-                                    })()}
+                                                <Text style={{
+                                                    color: ppfProfit >= 0 ? colors.success : colors.danger,
+                                                    fontSize: 13,
+                                                    fontWeight: '600'
+                                                }}>
+                                                    {isHidden ? '•••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`}
+                                                </Text>
+                                                <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '500' }}>
+                                                    Kâr
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
                                 </View>
 
                                 {/* Portfolio Distribution - Donut Chart */}
                                 {portfolio.length > 0 && (
-                                    <View
-                                        {...(Platform.OS === 'web' ? { 'data-chart-card': 'true' } : {})}
-                                        style={{
-                                            backgroundColor: colors.cardBackground,
-                                            borderRadius: 16,
-                                            padding: 24,
-                                            borderWidth: 1,
-                                            borderColor: colors.border
-                                        }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                                            <View>
-                                                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
-                                                <Text style={{ fontSize: 13, color: colors.subText, marginTop: 2 }}>Portföyünüzün sektörel dağılımı</Text>
-                                            </View>
-                                            <TouchableOpacity
-                                                style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
-                                                onPress={() => donutChartRef.current?.captureImage()}
-                                            >
-                                                <Download size={16} color={colors.subText} />
-                                            </TouchableOpacity>
-                                        </View>
-
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 40 }}>
-                                            {/* Donut Chart */}
-                                            <View style={{ alignItems: 'center' }}>
-                                                {isInitialLoading ? (
-                                                    <Skeleton width={220} height={220} borderRadius={110} />
-                                                ) : (
-                                                    <ShareableDonutChart
-                                                        data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                        size={220}
-                                                        strokeWidth={28}
-                                                        centerText={isHidden ? '••••' : `${(totalPortfolioTry / 1000).toFixed(0)}K`}
-                                                        centerTextFontSize={28}
-                                                        centerSubtext="TOPLAM"
-                                                        colors={colors}
-                                                        hideLegend={true}
-                                                    />
-                                                )}
+                                    <ViewShot ref={distCardWebRef} options={{ format: 'png', quality: 1.0 }} style={{ width: '100%' }}>
+                                        <View
+                                            {...(Platform.OS === 'web' ? { 'data-chart-card': 'true' } : {})}
+                                            style={{
+                                                backgroundColor: colors.cardBackground,
+                                                borderRadius: 16,
+                                                padding: 24,
+                                                borderWidth: 1,
+                                                borderColor: colors.border
+                                            }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                                <View>
+                                                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
+                                                    <Text style={{ fontSize: 13, color: colors.subText, marginTop: 2 }}>Portföyünüzün sektörel dağılımı</Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={{ padding: 8, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
+                                                    onPress={() => captureDistributionCard()}
+                                                >
+                                                    <Download size={16} color={colors.subText} />
+                                                </TouchableOpacity>
                                             </View>
 
-                                            {/* Legend - 2 column grid */}
-                                            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-                                                {pieData.map((item, index) => {
-                                                    const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                    const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-                                                    return (
-                                                        <View key={index} style={{ width: '45%', marginBottom: 8 }}>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color }} />
-                                                                <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 40 }}>
+                                                {/* Donut Chart */}
+                                                <View style={{ alignItems: 'center' }}>
+                                                    {isInitialLoading ? (
+                                                        <Skeleton width={220} height={220} borderRadius={110} />
+                                                    ) : (
+                                                        <ShareableDonutChart
+                                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                            size={220}
+                                                            strokeWidth={28}
+                                                            centerText={isHidden ? '••••' : `${(totalPortfolioTry / 1000).toFixed(0)}K`}
+                                                            centerSubtext="TOPLAM"
+                                                            colors={colors}
+                                                            hideLegend={true}
+                                                        />
+                                                    )}
+                                                </View>
+
+                                                {/* Legend - 2 column grid */}
+                                                <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                                                    {pieData.map((item, index) => {
+                                                        const total = pieData.reduce((sum, d) => sum + d.population, 0);
+                                                        const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
+                                                        return (
+                                                            <View key={index} style={{ width: '45%', marginBottom: 8 }}>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color }} />
+                                                                    <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
+                                                                </View>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4, marginLeft: 18 }}>
+                                                                    <Text style={{ fontSize: 16, color: colors.text, fontWeight: '700' }}>{percentage}%</Text>
+                                                                    <Text style={{ fontSize: 12, color: colors.subText }}>
+                                                                        {isHidden ? '•••' : formatCurrency(item.population, 'TRY')}
+                                                                    </Text>
+                                                                </View>
                                                             </View>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4, marginLeft: 18 }}>
-                                                                <Text style={{ fontSize: 16, color: colors.text, fontWeight: '700' }}>{percentage}%</Text>
-                                                                <Text style={{ fontSize: 12, color: colors.subText }}>
-                                                                    {isHidden ? '•••' : formatCurrency(item.population, 'TRY')}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    );
-                                                })}
+                                                        );
+                                                    })}
+                                                </View>
                                             </View>
                                         </View>
-                                    </View>
+                                    </ViewShot>
                                 )}
                             </View>
 
@@ -932,6 +938,9 @@ export const SummaryScreen = () => {
                                 <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
                                     Selam! 👋
                                 </Text>
+                                <Text style={{ fontSize: 10, color: colors.subText, marginTop: 2 }}>
+                                    {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
+                                </Text>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                 <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
@@ -1016,7 +1025,7 @@ export const SummaryScreen = () => {
                                 </Card>
 
                                 {/* Yedek Akçe */}
-                                <Card style={{ flex: 1, padding: 12 }} onPress={() => (navigation as any).navigate('CashManagement')}>
+                                <Card style={{ flex: 1, padding: 12, minHeight: 85 }} onPress={() => (navigation as any).navigate('CashManagement')}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                         <View style={{ backgroundColor: colors.warning + '15', padding: 6, borderRadius: 8 }}>
                                             <Archive size={14} color={colors.warning} />
@@ -1024,9 +1033,22 @@ export const SummaryScreen = () => {
                                         <Text style={{ fontSize: 10, color: colors.subText, fontWeight: '600' }}>NAKİT</Text>
                                     </View>
                                     <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
-                                        {isHidden ? '•••' : formatCurrency(cashBalance, 'TRY')}
+                                        {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
                                     </Text>
-                                    <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>Yönetmek için dokun</Text>
+                                    {ppfCost > 0 && ppfProfit !== 0 ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                            <Text style={{
+                                                color: ppfProfit >= 0 ? colors.success : colors.danger,
+                                                fontSize: 10,
+                                                fontWeight: '700'
+                                            }}>
+                                                {isHidden ? '•••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`}
+                                            </Text>
+                                            <Text style={{ color: colors.subText, fontSize: 9 }}>kâr</Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>Yönetmek için dokun</Text>
+                                    )}
                                 </Card>
                             </View>
 
@@ -1084,49 +1106,51 @@ export const SummaryScreen = () => {
 
                         {/* Distribution Card */}
                         {portfolio.length > 0 && (
-                            <Card style={{ padding: 16 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
-                                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                                        <TouchableOpacity onPress={() => donutChartRef.current?.captureImage()}>
-                                            <Download size={18} color={colors.subText} />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
-                                            <ArrowUpRight size={18} color={colors.primary} />
-                                        </TouchableOpacity>
+                            <ViewShot ref={distCardMobileRef} options={{ format: 'png', quality: 1.0 }}>
+                                <Card style={{ padding: 16 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
+                                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                                            <TouchableOpacity onPress={() => captureDistributionCard()}>
+                                                <Download size={18} color={colors.subText} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
+                                                <ArrowUpRight size={18} color={colors.primary} />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                </View>
 
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={{ width: 120, height: 120 }}>
-                                        <ShareableDonutChart
-                                            ref={donutChartRef}
-                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                            size={120}
-                                            strokeWidth={16}
-                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
-                                            centerSubtext=""
-                                            centerTextFontSize={14}
-                                            colors={colors}
-                                            hideLegend={true}
-                                            isCompact={true}
-                                        />
-                                    </View>
-                                    <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
-                                        {pieData.slice(0, 4).map((item, index) => (
-                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                                                    <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.name}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ width: 120, height: 120 }}>
+                                            <ShareableDonutChart
+                                                ref={donutChartRef}
+                                                data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                                size={120}
+                                                strokeWidth={16}
+                                                centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                                centerSubtext=""
+                                                centerTextFontSize={14}
+                                                colors={colors}
+                                                hideLegend={true}
+                                                isCompact={true}
+                                            />
+                                        </View>
+                                        <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
+                                            {pieData.slice(0, 4).map((item, index) => (
+                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                                                        <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.name}</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '700' }}>
+                                                        {((item.population / totalPortfolioTry) * 100).toFixed(0)}%
+                                                    </Text>
                                                 </View>
-                                                <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '700' }}>
-                                                    {((item.population / totalPortfolioTry) * 100).toFixed(0)}%
-                                                </Text>
-                                            </View>
-                                        ))}
+                                            ))}
+                                        </View>
                                     </View>
-                                </View>
-                            </Card>
+                                </Card>
+                            </ViewShot>
                         )}
 
                         {/* Quick Insights Row */}
@@ -1198,6 +1222,17 @@ export const SummaryScreen = () => {
                         <ScrollView style={styles.modalBody}>
                             {marketReportData ? (
                                 <>
+                                    {/* Portfolio Info (moved here) */}
+                                    <View style={styles.headerInfo}>
+                                        <View style={styles.titleRow}>
+                                            <Briefcase size={Platform.OS === 'web' ? 24 : 20} color={colors.primary} strokeWidth={2.5} />
+                                            <Text style={[styles.title, { color: colors.text }]}>{activePortfolio?.name || 'Ana Portföy'}</Text>
+                                        </View>
+                                        <Text style={[styles.lastUpdated, { color: colors.subText }]}>
+                                            {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
+                                        </Text>
+                                    </View>
+
                                     <View style={styles.modalSection}>
                                         <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Piyasa Özeti</Text>
                                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -1313,10 +1348,6 @@ export const SummaryScreen = () => {
                                 <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
                             )}
 
-                            {/* News Feed - Always visible in modal */}
-                            <View style={{ marginTop: 24, paddingBottom: 40, paddingHorizontal: 4 }}>
-                                <NewsFeed keywords={newsKeywords} />
-                            </View>
                         </ScrollView>
                     </View>
                 </View>
@@ -1350,6 +1381,25 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         letterSpacing: -0.5,
+    },
+    headerInfo: {
+        flex: 1,
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 2,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: -0.5,
+    },
+    lastUpdated: {
+        fontSize: 11,
+        fontWeight: '500',
+        opacity: 0.8,
     },
     iconButton: {
         padding: 8,

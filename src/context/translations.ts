@@ -6,6 +6,7 @@ export const translations = {
             portfolio: 'Portföy',
             transactions: 'İşlemler',
             favorites: 'Favoriler',
+            analytics: 'Analiz',
             settings: 'Ayarlar',
         },
         // Common
@@ -128,6 +129,7 @@ export const translations = {
             portfolio: 'Portfolio',
             transactions: 'Transactions',
             favorites: 'Favorites',
+            analytics: 'Analysis',
             settings: 'Settings',
         },
         // Common

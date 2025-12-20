@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Switch, Alert } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAlerts } from '../context/AlertContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Plus, BellOff, Trash2, XCircle } from 'lucide-react-native';
 import { formatCurrency } from '../utils/formatting';
 
 export const AlertsScreen = () => {
@@ -100,14 +100,14 @@ export const AlertsScreen = () => {
                         style={[styles.addButton, { backgroundColor: colors.primary }]}
                         onPress={() => setModalVisible(true)}
                     >
-                        <Ionicons name="add" size={20} color="#fff" />
+                        <Plus size={20} color="#fff" />
                         <Text style={styles.addButtonText}>Yeni</Text>
                     </TouchableOpacity>
                 </View>
 
                 {activeAlerts.length === 0 ? (
                     <View style={[styles.emptyCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                        <Ionicons name="notifications-off-outline" size={48} color={colors.subText} />
+                        <BellOff size={48} color={colors.subText} />
                         <Text style={[styles.emptyText, { color: colors.subText }]}>Henüz alarm yok</Text>
                         <Text style={[styles.emptyDesc, { color: colors.subText }]}>Fiyat alarmı eklemek için "Yeni" butonuna tıklayın</Text>
                     </View>
@@ -128,7 +128,7 @@ export const AlertsScreen = () => {
                                     trackColor={{ false: colors.border, true: colors.success }}
                                 />
                                 <TouchableOpacity onPress={() => handleDeleteAlert(alert.id, alert.instrumentName)}>
-                                    <Ionicons name="trash-outline" size={22} color={colors.danger} />
+                                    <Trash2 size={22} color={colors.danger} />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -148,7 +148,7 @@ export const AlertsScreen = () => {
                                     </Text>
                                 </View>
                                 <TouchableOpacity onPress={() => removeAlert(alert.id)}>
-                                    <Ionicons name="close-circle-outline" size={24} color={colors.subText} />
+                                    <XCircle size={24} color={colors.subText} />
                                 </TouchableOpacity>
                             </View>
                         ))}

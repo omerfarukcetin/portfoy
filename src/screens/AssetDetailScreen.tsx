@@ -5,7 +5,7 @@ import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
-import { Feather } from '@expo/vector-icons';
+import { ChevronDown, LogOut } from 'lucide-react-native';
 import { useSettings } from '../context/SettingsContext';
 import { TickerIcon } from '../components/TickerIcon';
 import { TransactionTimeline } from '../components/TransactionTimeline';
@@ -282,7 +282,7 @@ export const AssetDetailScreen = () => {
             {/* Custom Header - Fixed at top */}
             <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                    <Feather name="chevron-down" size={32} color={colors.text} />
+                    <ChevronDown size={32} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.screenTitle}>İşlem Detayı</Text>
             </View>
@@ -400,7 +400,7 @@ export const AssetDetailScreen = () => {
                     style={styles.actionButton}
                     onPress={() => (navigation as any).navigate('SellAsset', { id: item.id })}
                 >
-                    <Feather name="log-out" size={20} color="#FFF" />
+                    <LogOut size={20} color="#FFF" />
                     <Text style={styles.actionText}>Satış Yap</Text>
                 </TouchableOpacity>
 

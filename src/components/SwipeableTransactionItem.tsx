@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Feather } from '@expo/vector-icons';
+import { Trash2 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 
 interface SwipeableTransactionItemProps {
@@ -65,7 +65,7 @@ export const SwipeableTransactionItem: React.FC<SwipeableTransactionItemProps> =
                     onPress={handleDelete}
                     activeOpacity={0.8}
                 >
-                    <Feather name="trash-2" size={22} color="#fff" />
+                    <Trash2 size={22} color="#fff" />
                     <Text style={styles.deleteText}>Sil</Text>
                 </TouchableOpacity>
             </Animated.View>

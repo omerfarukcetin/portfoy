@@ -13,6 +13,7 @@ import { AssetDetailScreen } from '../screens/AssetDetailScreen';
 import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
+import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -79,6 +80,9 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 } else if (route.name === 'Favorites') {
                     Icon = Star;
                     activeColor = '#FFCC00';
+                } else if (route.name === 'Analytics') {
+                    Icon = PieChart;
+                    activeColor = colors.primary;
                 }
 
                 const onPress = () => {
@@ -290,6 +294,11 @@ const HomeTabNavigator = () => {
                 component={FavoritesScreen}
                 options={{ title: t('nav.favorites') }}
             />
+            <Tab.Screen
+                name="Analytics"
+                component={AnalyticsScreen}
+                options={{ title: t('nav.analytics') }}
+            />
         </Tab.Navigator>
     );
 };
@@ -325,6 +334,7 @@ const WebNavigator = () => {
         { name: 'Portfolio', label: 'Portföy', Icon: PieChart },
         { name: 'AddInstrument', label: 'Ekle', Icon: Plus },
         { name: 'Transactions', label: 'İşlemler', Icon: Repeat },
+        { name: 'Analytics', label: 'Analiz', Icon: PieChart },
         { name: 'Settings', label: 'Ayarlar', Icon: Settings },
     ];
 
@@ -348,6 +358,7 @@ const WebNavigator = () => {
                             <Stack.Screen name="Portfolio" component={PortfolioScreen} />
                             <Stack.Screen name="Transactions" component={TransactionsScreen} />
                             <Stack.Screen name="Favorites" component={FavoritesScreen} />
+                            <Stack.Screen name="Analytics" component={AnalyticsScreen} />
                             <Stack.Screen name="Settings" component={SettingsScreen} />
                             <Stack.Screen
                                 name="AddInstrument"
@@ -431,6 +442,7 @@ const MainNavigator = () => {
                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
             />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
+            <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analiz' }} />
         </Stack.Navigator>
     );
 };
@@ -443,8 +455,8 @@ export const AppNavigator = () => {
 
     // Get page titles based on language
     const getPageTitle = (routeName: string) => {
-        const APP_NAME = language === 'tr' ? 'Portföy Cepte' : 'Portfolio Pocket';
-        const titles: Record<string, string> = language === 'tr' ? {
+        const APP_NAME = 'Portföy Cepte';
+        const titles: Record<string, string> = {
             'Summary': `Özet - ${APP_NAME}`,
             'Portfolio': `Portföy - ${APP_NAME}`,
             'Transactions': `İşlemler - ${APP_NAME}`,
@@ -456,25 +468,30 @@ export const AppNavigator = () => {
             'AssetDetail': `Varlık Detayı - ${APP_NAME}`,
             'Login': `Giriş Yap - ${APP_NAME}`,
             'Register': `Kayıt Ol - ${APP_NAME}`,
-        } : {
-            'Summary': `Summary - ${APP_NAME}`,
-            'Portfolio': `Portfolio - ${APP_NAME}`,
-            'Transactions': `Transactions - ${APP_NAME}`,
-            'Favorites': `Favorites - ${APP_NAME}`,
-            'Settings': `Settings - ${APP_NAME}`,
-            'AddInstrument': `Add Asset - ${APP_NAME}`,
-            'SellAsset': `Sell Asset - ${APP_NAME}`,
-            'CashManagement': `Cash Reserve - ${APP_NAME}`,
-            'AssetDetail': `Asset Detail - ${APP_NAME}`,
-            'Login': `Login - ${APP_NAME}`,
-            'Register': `Register - ${APP_NAME}`,
+            'Analytics': `Analiz - ${APP_NAME}`,
+            'Main': APP_NAME,
         };
+
+        // If language is not Turkish, we still prefer Turkish titles as per user request
         return titles[routeName] || APP_NAME;
     };
 
     // Update document title on web when route changes
     useEffect(() => {
         if (Platform.OS === 'web' && navigationRef.current) {
+            // Set initial title
+            const setInitialTitle = () => {
+                const currentRoute = navigationRef.current?.getCurrentRoute();
+                if (currentRoute) {
+                    document.title = getPageTitle(currentRoute.name);
+                } else {
+                    document.title = language === 'tr' ? 'Portföy Cepte' : 'Portfolio Pocket';
+                }
+            };
+
+            // Small delay to ensure navigator is ready
+            const timer = setTimeout(setInitialTitle, 100);
+
             const unsubscribe = navigationRef.current.addListener('state', () => {
                 const currentRoute = navigationRef.current?.getCurrentRoute();
                 if (currentRoute) {
@@ -484,9 +501,12 @@ export const AppNavigator = () => {
                     }
                 }
             });
-            return unsubscribe;
+            return () => {
+                unsubscribe();
+                clearTimeout(timer);
+            };
         }
-    }, [language]);
+    }, [language, navigationRef]);
 
     // Show loading indicator while checking auth state
     if (isLoading) {

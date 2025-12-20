@@ -7,7 +7,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { showAlert } from '../utils/alerts';
 import { formatCurrency } from '../utils/formatting';
 import { MarketDataService } from '../services/marketData';
-import { Feather } from '@expo/vector-icons';
 
 export const SellAssetScreen = () => {
     const route = useRoute();

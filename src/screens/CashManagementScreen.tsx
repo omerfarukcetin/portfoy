@@ -4,13 +4,13 @@ import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
 import { showAlert } from '../utils/alerts';
-import { Feather } from '@expo/vector-icons';
+import { Plus, Inbox, TrendingDown, Trash2, X, DollarSign, TrendingUp, Percent } from 'lucide-react-native';
 import { CashItem } from '../types';
 import { MarketDataService } from '../services/marketData';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const CashManagementScreen = () => {
-    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem } = usePortfolio();
+    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<CashItem | null>(null);
@@ -282,10 +282,10 @@ export const CashManagementScreen = () => {
 
     const getTypeIcon = (type: string) => {
         switch (type) {
-            case 'cash': return 'dollar-sign';
-            case 'money_market_fund': return 'trending-up';
-            case 'deposit': return 'percent';
-            default: return 'dollar-sign';
+            case 'cash': return DollarSign;
+            case 'money_market_fund': return TrendingUp;
+            case 'deposit': return Percent;
+            default: return DollarSign;
         }
     };
 
@@ -335,7 +335,7 @@ export const CashManagementScreen = () => {
             <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Yedek Akçe</Text>
                 <TouchableOpacity onPress={openAddModal} style={[styles.addButton, { backgroundColor: colors.primary }]}>
-                    <Feather name="plus" size={20} color="#fff" />
+                    <Plus size={20} color="#fff" />
                 </TouchableOpacity>
             </View>
 
@@ -361,7 +361,7 @@ export const CashManagementScreen = () => {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {cashItems.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <Feather name="inbox" size={64} color={colors.subText} />
+                        <Inbox size={64} color={colors.subText} />
                         <Text style={[styles.emptyText, { color: colors.subText }]}>
                             Henüz yedek akçe eklemediniz
                         </Text>
@@ -414,7 +414,10 @@ export const CashManagementScreen = () => {
                             >
                                 <View style={styles.itemHeader}>
                                     <View style={styles.itemTitleRow}>
-                                        <Feather name={getTypeIcon(item.type) as any} size={20} color={colors.primary} />
+                                        {(() => {
+                                            const Icon = getTypeIcon(item.type);
+                                            return <Icon size={20} color={colors.primary} />;
+                                        })()}
                                         <View style={{ marginLeft: 12, flex: 1 }}>
                                             <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
                                             <Text style={[styles.itemType, { color: colors.subText }]}>
@@ -427,11 +430,11 @@ export const CashManagementScreen = () => {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         {item.type === 'money_market_fund' && item.units && (
                                             <TouchableOpacity onPress={() => handleSellPPF(item)} style={[styles.deleteButton, { backgroundColor: colors.success + '15' }]}>
-                                                <Feather name="trending-down" size={16} color={colors.success} />
+                                                <TrendingDown size={16} color={colors.success} />
                                             </TouchableOpacity>
                                         )}
                                         <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
-                                            <Feather name="trash-2" size={18} color={colors.danger} />
+                                            <Trash2 size={18} color={colors.danger} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -486,7 +489,7 @@ export const CashManagementScreen = () => {
                                 {editingItem ? 'Düzenle' : 'Yeni Ekle'}
                             </Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Feather name="x" size={24} color={colors.subText} />
+                                <X size={24} color={colors.subText} />
                             </TouchableOpacity>
                         </View>
 

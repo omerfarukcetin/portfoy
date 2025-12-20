@@ -5,7 +5,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import { useTheme } from '../context/ThemeContext';
 import { MarketDataService } from '../services/marketData';
 import { formatCurrency } from '../utils/formatting';
-import { Ionicons } from '@expo/vector-icons';
+import { XCircle, Plus } from 'lucide-react-native';
 import { TickerIcon } from '../components/TickerIcon';
 
 export const FavoritesScreen = () => {
@@ -162,7 +162,7 @@ export const FavoritesScreen = () => {
                                             onPress={() => removeFavorite(item.id)}
                                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                         >
-                                            <Ionicons name="close-circle" size={24} color={colors.danger} />
+                                            <XCircle size={24} color={colors.danger} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -177,7 +177,7 @@ export const FavoritesScreen = () => {
                     style={[styles.fab, { backgroundColor: colors.primary }]}
                     onPress={() => (navigation as any).navigate('AddInstrument')}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Plus size={28} color="#fff" />
                 </TouchableOpacity>
             )}
         </View>

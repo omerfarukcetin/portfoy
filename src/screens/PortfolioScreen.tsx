@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
@@ -41,7 +41,19 @@ const getCategoryIcon = (category: string) => {
 };
 
 export const PortfolioScreen = () => {
-    const { portfolio, deleteAsset, updateAsset, cashBalance, activePortfolio, cashItems } = usePortfolio();
+    const {
+        portfolio,
+        deleteAsset,
+        updateAsset,
+        cashBalance,
+        activePortfolio,
+        cashItems,
+        prices: contextPrices,
+        dailyChanges: contextDailyChanges,
+        currentUsdRate: contextUsdRate,
+        lastPricesUpdate,
+        refreshAllPrices
+    } = usePortfolio();
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
     const navigation = useNavigation();
@@ -49,13 +61,9 @@ export const PortfolioScreen = () => {
     const isLargeScreen = Platform.OS === 'web' && width >= 768;
 
     const [refreshing, setRefreshing] = useState(false);
-    const [prices, setPrices] = useState<Record<string, number>>({});
-    const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [displayCurrency, setDisplayCurrency] = useState<'TRY' | 'USD'>('TRY');
-    const [usdRate, setUsdRate] = useState(1);
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
     // Edit Modal State
@@ -70,60 +78,34 @@ export const PortfolioScreen = () => {
         return symbol.toUpperCase();
     };
 
-    // Auto-refresh prices every 5 minutes
+    // Auto-refresh fund prices specifically
     useEffect(() => {
         fetchPrices();
-        refreshIntervalRef.current = setInterval(() => fetchPrices(), 5 * 60 * 1000);
-        return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
     }, [portfolio.length]);
+
+    const prices = contextPrices;
+    const dailyChanges = contextDailyChanges;
+    const usdRate = contextUsdRate;
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await fetchPrices();
+        await Promise.all([
+            refreshAllPrices(),
+            fetchPrices() // for fund prices
+        ]);
         setRefreshing(false);
     };
 
     const fetchPrices = async () => {
-        setIsRefreshing(true);
-        const newPrices: Record<string, number> = {};
-        const newDailyChanges: Record<string, number> = {};
-        const newErrors: Record<string, string> = {};
-
-        const rateData = await MarketDataService.getYahooPrice('TRY=X');
-        if (rateData?.currentPrice) setUsdRate(rateData.currentPrice);
-
-        // Filter out custom assets - they don't need price fetching
-        const regularItems = portfolio.filter(item => !item.customCurrentPrice);
-        const priceResults = await MarketDataService.fetchMultiplePrices(regularItems);
-
-        for (const item of portfolio) {
-            // Skip custom assets - use their stored price
-            if (item.customCurrentPrice) {
-                newPrices[item.instrumentId] = item.customCurrentPrice;
-                newDailyChanges[item.instrumentId] = 0;
-                continue;
-            }
-
-            const priceData = priceResults[item.instrumentId];
-            if (priceData) {
-                if ((priceData as any).error) newErrors[item.instrumentId] = (priceData as any).error;
-                else if (priceData.currentPrice) {
-                    newPrices[item.instrumentId] = priceData.currentPrice;
-                    newDailyChanges[item.instrumentId] = (priceData as any).change24h || 0;
-                }
-            }
-        }
-
-        setPrices(newPrices);
-        setDailyChanges(newDailyChanges);
-        setErrors(newErrors);
-
-        // Fetch fund prices for PPF
+        // This primarily handles Money Market Fund prices for PPF now
         const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+        if (fundItems.length === 0) return;
+
         const newFundPrices: Record<string, number> = {};
         for (const item of fundItems) {
             try {
-                const priceResult = await MarketDataService.getYahooPrice(item.instrumentId!);
+                // Using getTefasPrice if available or Yahoo
+                const priceResult = await MarketDataService.getTefasPrice(item.instrumentId!);
                 if (priceResult && priceResult.currentPrice) {
                     newFundPrices[item.instrumentId!] = priceResult.currentPrice;
                 }
@@ -132,8 +114,6 @@ export const PortfolioScreen = () => {
             }
         }
         setFundPrices(newFundPrices);
-
-        setIsRefreshing(false);
     };
 
     const handleLongPress = (item: PortfolioItem) => {
@@ -339,8 +319,8 @@ export const PortfolioScreen = () => {
             <View style={[styles.header, { backgroundColor: colors.cardBackground, paddingTop: Platform.OS === 'web' ? 20 : 10 }]}>
                 <PortfolioSwitcher />
                 <View style={styles.headerRight}>
-                    <TouchableOpacity onPress={onRefresh} disabled={isRefreshing}>
-                        <Text style={{ fontSize: 18 }}>{isRefreshing ? '⏳' : '🔄'}</Text>
+                    <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+                        <Text style={{ fontSize: 18 }}>{refreshing ? '⏳' : '🔄'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={() => setDisplayCurrency(prev => prev === 'TRY' ? 'USD' : 'TRY')}
@@ -721,6 +701,19 @@ const styles = StyleSheet.create({
     cardCost: {
         fontSize: 10,
         marginBottom: 6,
+    },
+    headerInfo: {
+        flex: 1,
+    },
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+    },
+    lastUpdated: {
+        fontSize: 11,
+        fontWeight: '500',
+        opacity: 0.8,
+        marginTop: 2,
     },
     cardValue: {
         fontSize: 16,

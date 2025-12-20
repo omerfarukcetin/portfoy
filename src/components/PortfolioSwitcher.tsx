@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, FlatList, TextInput, Alert } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Edit2, Trash2, Check, ChevronDown, X, Plus } from 'lucide-react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
@@ -169,7 +169,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                             onPress={() => startEditing(item)}
                             style={{ padding: 6 }}
                         >
-                            <Feather name="edit-2" size={16} color={colors.subText} />
+                            <Edit2 size={16} color={colors.subText} />
                         </TouchableOpacity>
 
                         {item.id !== activePortfolio?.id && (
@@ -190,13 +190,13 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                 }}
                                 style={{ padding: 6 }}
                             >
-                                <Feather name="trash-2" size={16} color={colors.subText} />
+                                <Trash2 size={16} color={colors.subText} />
                             </TouchableOpacity>
                         )}
 
                         {item.id === activePortfolio?.id && (
                             <View style={{ padding: 6 }}>
-                                <Feather name="check" size={18} color={colors.primary} />
+                                <Check size={18} color={colors.primary} />
                             </View>
                         )}
                     </View>
@@ -215,7 +215,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                 <Text style={[styles.triggerText, { color: colors.text, fontSize: 14 * fontScale }]} numberOfLines={1}>
                     {activePortfolio?.name || 'Portföy Seç'}
                 </Text>
-                <Feather name="chevron-down" size={16} color={colors.subText} style={{ marginLeft: 4 }} />
+                <ChevronDown size={16} color={colors.subText} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
 
             <Modal
@@ -239,7 +239,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                 setIsCreating(false);
                                 setEditingPortfolioId(null);
                             }}>
-                                <Feather name="x" size={24} color={colors.subText} />
+                                <X size={24} color={colors.subText} />
                             </TouchableOpacity>
                         </View>
 
@@ -294,7 +294,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                         setPortfolioNameInput('');
                                     }}
                                 >
-                                    <Feather name="plus" size={20} color={colors.primary} />
+                                    <Plus size={20} color={colors.primary} />
                                     <Text style={[styles.addButtonText, { color: colors.primary }]}>Yeni Portföy Oluştur</Text>
                                 </TouchableOpacity>
                             </>

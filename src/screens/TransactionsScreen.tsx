@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatCurrency } from '../utils/formatting';
 import { PortfolioItem } from '../types';
-import { Ionicons } from '@expo/vector-icons';
+import { Pencil, Trash2 } from 'lucide-react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { TickerIcon } from '../components/TickerIcon';
 import { MarketDataService } from '../services/marketData';
@@ -169,7 +169,7 @@ export const TransactionsScreen = () => {
                                 }}
                                 onPress={() => openEditModal(item)}
                             >
-                                <Ionicons name="create-outline" size={18} color="#fff" />
+                                <Pencil size={18} color="#fff" />
                                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Düzenle</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -184,7 +184,7 @@ export const TransactionsScreen = () => {
                                 }}
                                 onPress={() => handleDelete(item)}
                             >
-                                <Ionicons name="trash-outline" size={18} color="#fff" />
+                                <Trash2 size={18} color="#fff" />
                                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Sil</Text>
                             </TouchableOpacity>
                         </View>
@@ -203,7 +203,7 @@ export const TransactionsScreen = () => {
                     openEditModal(data.item);
                 }}
             >
-                <Ionicons name="create-outline" size={24} color="#fff" />
+                <Pencil size={24} color="#fff" />
                 <Text style={styles.backTextWhite}>Düzenle</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -213,7 +213,7 @@ export const TransactionsScreen = () => {
                     handleDelete(data.item);
                 }}
             >
-                <Ionicons name="trash-outline" size={24} color="#fff" />
+                <Trash2 size={24} color="#fff" />
                 <Text style={styles.backTextWhite}>Sil</Text>
             </TouchableOpacity>
         </View>

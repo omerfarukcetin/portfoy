@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText } from 'lucide-react-native';
+import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText, Briefcase } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +14,7 @@ const IconMap: { [key: string]: any } = {
     'settings': Settings,
     'log-out': LogOut,
     'file-text': FileText,
+    'bar-chart': PieChart,
 };
 
 export const Sidebar = () => {
@@ -28,7 +29,7 @@ export const Sidebar = () => {
             // Method 1: Try window.location
             if (Platform.OS === 'web') {
                 const path = window.location.hash || window.location.pathname;
-                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings)/i);
+                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Analytics|Settings)/i);
                 if (routeMatch) {
                     const newRoute = routeMatch[1];
                     if (newRoute !== currentRoute) {
@@ -65,6 +66,7 @@ export const Sidebar = () => {
         { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart' },
         { name: 'Transactions', label: 'İşlemler', icon: 'repeat' },
         { name: 'Favorites', label: 'Takip Listesi', icon: 'heart' },
+        { name: 'Analytics', label: 'Analiz', icon: 'bar-chart' },
     ];
 
     const preferenceItems = [
@@ -114,20 +116,24 @@ export const Sidebar = () => {
     return (
         <View style={[styles.sidebar, { backgroundColor: colors.cardBackground, borderRightColor: colors.border }]}>
             {/* Logo */}
-            <View style={styles.logo}>
+            <TouchableOpacity
+                style={styles.logo}
+                onPress={() => navigation.navigate('Summary')}
+            >
                 <View style={styles.logoRow}>
                     <View style={[styles.logoIcon, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.logoIconText}>P</Text>
+                        <Briefcase size={20} color="#fff" strokeWidth={2.5} />
                     </View>
                     <View>
-                        <Text style={styles.logoText}>
-                            <Text style={{ color: colors.primary }}>Portföy</Text>
-                            <Text style={{ color: colors.success }}>Cepte</Text>
+                        <Text style={[styles.logoText, { color: colors.text }]}>
+                            Portföy <Text style={{ color: colors.primary }}>Cepte</Text>
                         </Text>
-                        <Text style={[styles.logoSubtext, { color: colors.subText }]}>YATIRIM ASİSTANI</Text>
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>BETA</Text>
+                        </View>
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Main Menu Section */}
             <View style={styles.nav}>
@@ -197,14 +203,26 @@ const styles = StyleSheet.create({
     },
     logoText: {
         fontSize: 18,
-        fontWeight: '700',
-        letterSpacing: -0.3,
+        fontWeight: '800',
+        letterSpacing: -0.5,
+    },
+    badge: {
+        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+        marginTop: 2,
+    },
+    badgeText: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: '#007AFF',
     },
     logoSubtext: {
         fontSize: 9,
         fontWeight: '600',
         letterSpacing: 1,
-        marginTop: 2,
     },
     sectionLabel: {
         fontSize: 11,

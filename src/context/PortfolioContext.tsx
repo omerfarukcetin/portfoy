@@ -29,6 +29,12 @@ interface PortfolioContextType {
     totalRealizedProfitUsd: number;
     isLoading: boolean;
 
+    // Real-time Pricing State
+    prices: Record<string, number>;
+    dailyChanges: Record<string, number>;
+    lastPricesUpdate: number;
+    currentUsdRate: number;
+
     // Multi-portfolio functions
     createPortfolio: (name: string, color: string, icon: string) => Promise<void>;
     deletePortfolio: (id: string) => Promise<void>;
@@ -41,7 +47,7 @@ interface PortfolioContextType {
     addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
     updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number }) => Promise<void>;
-    sellAsset: (id: string, amount: number, sellPrice: number) => Promise<void>;
+    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
 
@@ -59,6 +65,7 @@ interface PortfolioContextType {
     importData: (portfolios: Portfolio[], activePortfolioId: string) => Promise<void>;
     getPortfolioTotalValue: () => number;
     getPortfolioDistribution: () => { name: string; value: number; color: string }[];
+    refreshAllPrices: () => Promise<void>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -80,6 +87,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [totalValueTry, setTotalValueTry] = useState(0);
     const [totalValueUsd, setTotalValueUsd] = useState(0);
     const [currentUsdRate, setCurrentUsdRate] = useState(30);
+
+    // Real-time Pricing State
+    const [prices, setPrices] = useState<Record<string, number>>({});
+    const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
+    const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
+
+    const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
 
     // Derived active portfolio
     const activePortfolio = portfolios.find(p => p.id === activePortfolioId) || null;
@@ -110,6 +124,25 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         loadData();
         fetchCurrentUsdRate();
     }, [user?.uid]);
+
+    // Setup periodic price refresh
+    useEffect(() => {
+        if (portfolio.length > 0) {
+            refreshAllPrices();
+
+            // Clear existing timer if any
+            if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
+
+            // Refresh every 60 seconds
+            priceRefreshTimer.current = setInterval(() => {
+                refreshAllPrices();
+            }, 60 * 1000);
+        }
+
+        return () => {
+            if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
+        };
+    }, [portfolio.length]);
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -524,7 +557,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 // Keep the original dateAdded (first purchase date)
             };
 
-            console.log(`✅ Merged ${instrument.symbol}: ${existing.amount} + ${amount} = ${totalAmount} @ ${weightedAverageCost.toFixed(2)}`);
+            console.log(`✅ Merged ${instrument.symbol}: ${existing.amount} + ${amount} = ${totalAmount} @${weightedAverageCost.toFixed(2)} `);
         } else {
             // Add as new item
             let originalCostUsd = 0;
@@ -558,7 +591,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             };
 
             newPortfolio.push(newItem);
-            console.log(`✅ Added new ${instrument.symbol}: ${amount} @ ${cost}`);
+            console.log(`✅ Added new ${instrument.symbol}: ${amount} @${cost} `);
         }
 
         await updateActivePortfolio({ items: newPortfolio });
@@ -699,7 +732,49 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const refreshPrices = async () => {
         setIsLoading(true);
         await fetchCurrentUsdRate();
+        await refreshAllPrices();
         setIsLoading(false);
+    };
+
+    const refreshAllPrices = async () => {
+        if (portfolio.length === 0) return;
+
+        console.log('🔄 Refreshing all prices from Context...');
+        const newPrices: Record<string, number> = {};
+        const newDailyChanges: Record<string, number> = {};
+
+        try {
+            // Fetch USD/TRY rate
+            const rateData = await MarketDataService.getYahooPrice('TRY=X');
+            if (rateData && rateData.currentPrice) {
+                setCurrentUsdRate(rateData.currentPrice);
+            }
+
+            // Fetch all prices in parallel using batch API
+            const regularItems = portfolio.filter(item => !item.customCurrentPrice);
+            const priceResults = await MarketDataService.fetchMultiplePrices(regularItems);
+
+            for (const item of portfolio) {
+                if (item.customCurrentPrice) {
+                    newPrices[item.instrumentId] = item.customCurrentPrice;
+                    newDailyChanges[item.instrumentId] = 0;
+                    continue;
+                }
+
+                const priceData = priceResults[item.instrumentId];
+                if (priceData && priceData.currentPrice) {
+                    newPrices[item.instrumentId] = priceData.currentPrice;
+                    newDailyChanges[item.instrumentId] = (priceData as any).change24h || 0;
+                }
+            }
+
+            setPrices(prev => ({ ...prev, ...newPrices }));
+            setDailyChanges(prev => ({ ...prev, ...newDailyChanges }));
+            setLastPricesUpdate(Date.now());
+            console.log('✅ All prices refreshed in Context');
+        } catch (e) {
+            console.error('❌ Failed to refresh all prices:', e);
+        }
     };
 
     const updateTotalValue = async (valTry: number, valUsd: number) => {
@@ -784,17 +859,18 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Group by type
         portfolio.forEach(item => {
             const typeName = getTypeName(item.type);
-            const value = item.currency === 'TRY'
-                ? item.amount * item.averageCost // Note: This uses cost, should use current price if available. 
-                // However, for distribution calculation in SummaryScreen we use current prices.
-                // Let's use the same logic as SummaryScreen if possible, but here we might not have prices handy in context.
-                // Actually, SummaryScreen calculates distribution itself.
-                // To make this robust, we should probably rely on the totalValueTry which is updated with current prices.
-                : item.amount * item.averageCost * currentUsdRate;
+            const livePrice = prices[item.instrumentId] || item.customCurrentPrice || item.averageCost;
 
-            // Wait, we need current value for accurate distribution, not cost.
-            // But context doesn't store current prices of individual items, only total value.
-            // We might need to approximate or fetch prices.
+            let value = item.amount * livePrice;
+
+            // Convert to TRY if needed
+            if (item.currency === 'USD') {
+                value = value * (currentUsdRate || 1);
+            }
+
+            if (item.type === 'bes') {
+                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
+            }
             // For now, let's use the cost basis or better yet, let's rely on the fact that 
             // the AI screen will fetch prices or we can pass prices to it.
             // OR, we can just use the item's cost for now as an approximation if prices aren't available,
@@ -899,7 +975,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             clearHistory,
             importData,
             getPortfolioTotalValue,
-            getPortfolioDistribution
+            getPortfolioDistribution,
+            refreshAllPrices,
+            prices,
+            dailyChanges,
+            lastPricesUpdate,
+            currentUsdRate
         }}>
             {children}
         </PortfolioContext.Provider>

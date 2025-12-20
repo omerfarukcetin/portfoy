@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Keyboard
 import { useTheme } from '../context/ThemeContext';
 import { usePortfolio } from '../context/PortfolioContext';
 import { NewsService } from '../services/newsService';
-import { Ionicons } from '@expo/vector-icons';
+import { Bot, PieChart, Newspaper, AlertCircle, Lightbulb, Wallet, ArrowUp } from 'lucide-react-native';
 
 interface Message {
     id: string;
@@ -15,11 +15,11 @@ interface Message {
 }
 
 const SUGGESTED_COMMANDS = [
-    { id: 'analyze', text: 'Analiz Et', icon: 'pie-chart' },
-    { id: 'news', text: 'Haberler', icon: 'newspaper' },
-    { id: 'risk', text: 'Risk Durumum', icon: 'alert-circle' },
-    { id: 'advice', text: 'Tavsiye Ver', icon: 'bulb' },
-    { id: 'cash', text: 'Nakit', icon: 'wallet' },
+    { id: 'analyze', text: 'Analiz Et', icon: PieChart },
+    { id: 'news', text: 'Haberler', icon: Newspaper },
+    { id: 'risk', text: 'Risk Durumum', icon: AlertCircle },
+    { id: 'advice', text: 'Tavsiye Ver', icon: Lightbulb },
+    { id: 'cash', text: 'Nakit', icon: Wallet },
 ];
 
 export const AIAnalysisScreen = () => {
@@ -314,7 +314,7 @@ export const AIAnalysisScreen = () => {
             ]}>
                 {!isUser && (
                     <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                        <Ionicons name="logo-android" size={16} color="#fff" />
+                        <Bot size={16} color="#fff" />
                     </View>
                 )}
                 <View style={[
@@ -373,7 +373,7 @@ export const AIAnalysisScreen = () => {
                             style={[styles.chip, { backgroundColor: colors.cardBackground, borderColor: colors.primary }]}
                             onPress={() => handleSend(cmd.text)}
                         >
-                            <Ionicons name={cmd.icon as any} size={14} color={colors.primary} style={{ marginRight: 5 }} />
+                            <cmd.icon size={14} color={colors.primary} style={{ marginRight: 5 }} />
                             <Text style={[styles.chipText, { color: colors.primary }]}>{cmd.text}</Text>
                         </TouchableOpacity>
                     ))}
@@ -393,7 +393,7 @@ export const AIAnalysisScreen = () => {
                         onPress={() => handleSend()}
                         disabled={!inputText.trim()}
                     >
-                        <Ionicons name="arrow-up" size={20} color="#fff" />
+                        <ArrowUp size={20} color="#fff" />
                     </TouchableOpacity>
                 </View>
             </View>

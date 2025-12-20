@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
-import { Feather } from '@expo/vector-icons';
+import { ArrowDownCircle, Info } from 'lucide-react-native';
 
 interface Transaction {
     id: string;
@@ -47,7 +47,7 @@ export const TransactionTimeline: React.FC<TransactionTimelineProps> = ({
                 {/* Left: Icon + Line */}
                 <View style={styles.timelineLeft}>
                     <View style={[styles.iconContainer, { backgroundColor: colors.success + '20' }]}>
-                        <Feather name="arrow-down-circle" size={20} color={colors.success} />
+                        <ArrowDownCircle size={20} color={colors.success} />
                     </View>
                     {/* Vertical line (hidden for last item in future) */}
                     <View style={[styles.verticalLine, { backgroundColor: 'transparent' }]} />
@@ -89,7 +89,7 @@ export const TransactionTimeline: React.FC<TransactionTimelineProps> = ({
 
             {/* Future Feature Notice */}
             <View style={[styles.notice, { backgroundColor: colors.background }]}>
-                <Feather name="info" size={14} color={colors.subText} />
+                <Info size={14} color={colors.subText} />
                 <Text style={[styles.noticeText, { color: colors.subText, fontSize: 11 * fontScale }]}>
                     Detaylı işlem geçmişi yakında eklenecek
                 </Text>

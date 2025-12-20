@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft } from 'lucide-react-native';
 
 export const LoginScreen = () => {
     const { colors, fontScale } = useTheme();
@@ -45,7 +45,7 @@ export const LoginScreen = () => {
         >
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Giriş Yap</Text>
             </View>

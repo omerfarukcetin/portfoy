@@ -187,12 +187,13 @@ export const PortfolioScreen = () => {
         // Check for custom category first
         if (item.customCategory) return item.customCategory;
         if (item.type === 'bes' || id.startsWith('BES')) return 'BES';
+        if (item.type === 'forex' || ['USD', 'EUR', 'GBP', 'RUB', 'CHF', 'CAD', 'AUD', 'JPY'].includes(id)) return 'Döviz';
         if (item.type === 'fund' || (id.length === 3 && !['BTC', 'ETH', 'SOL', 'USD', 'EUR', 'GBP'].includes(id))) return 'Fon';
         // Silver detection
         if (item.type === 'silver' || id.includes('SILVER') || id.includes('GUMUS') || id.includes('GÜMÜŞ')) return 'Gümüş';
         if (item.type === 'gold' || id.includes('GOLD') || ['GRAM', 'CEYREK', 'TAM'].includes(id)) return 'Altın';
         if (item.type === 'crypto' || ['BTC', 'ETH', 'USDT'].includes(id)) return 'Kripto';
-        if (['SCHG', 'VOO', 'QQQ', 'SPY', 'USD', 'ABD'].includes(id) || (item.currency === 'USD' && item.type === 'stock')) return 'ABD ETF';
+        if (['SCHG', 'VOO', 'QQQ', 'SPY', 'ABD'].includes(id) || (item.currency === 'USD' && item.type === 'stock')) return 'ABD ETF';
         if (item.currency === 'USD' || id.includes('USD') || id.includes('EUR')) return 'Döviz';
         return 'Hisse (BIST)';
     };

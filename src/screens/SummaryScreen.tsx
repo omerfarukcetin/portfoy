@@ -427,13 +427,13 @@ export const SummaryScreen = () => {
         else if (item.type === 'fund' || (id.length === 3 && !['BTC', 'ETH', 'SOL', 'XRP', 'USD', 'EUR', 'GBP'].includes(id))) {
             category = 'Fon';
         }
+        // Forex (USD, EUR, etc.)
+        else if (item.type === 'forex' || ['USD', 'EUR', 'GBP', 'RUB', 'JPY'].includes(id)) {
+            category = 'Döviz';
+        }
         // US ETFs - check before generic USD
         else if (item.currency === 'USD' && (item.type === 'stock' || ['VOO', 'QQQ', 'SPY', 'VTI', 'SCHD', 'JEPI', 'ARKK', 'SCHG', 'OPTGY', 'OPT25'].includes(id))) {
             category = 'ABD ETF';
-        }
-        // Forex (USD, EUR, etc.)
-        else if (['USD', 'EUR', 'GBP', 'JPY'].includes(id)) {
-            category = 'Döviz';
         }
 
         categoryValues[category] = (categoryValues[category] || 0) + valueTry;

@@ -4,7 +4,7 @@ export interface Instrument {
   id: string;
   symbol: string;
   name: string;
-  type: 'stock' | 'crypto' | 'fund' | 'gold' | 'metal' | 'bes';
+  type: 'stock' | 'crypto' | 'fund' | 'gold' | 'metal' | 'bes' | 'forex';
   currentPrice?: number;
   currency?: string;
   lastUpdated?: number;

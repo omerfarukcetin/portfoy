@@ -292,7 +292,7 @@ export const PortfolioScreen = () => {
     }
 
     // Get all categories for tabs (defined after categoryValues and getCategory are available)
-    const allCategories = ['Hisse (BIST)', 'Altın', 'Kripto', 'Fon', 'ABD ETF', 'BES', 'Yedek Akçe'].filter(cat =>
+    const allCategories = ['Hisse (BIST)', 'Altın', 'Gümüş', 'Kripto', 'Fon', 'ABD ETF', 'Döviz', 'BES', 'Yedek Akçe'].filter(cat =>
         categoryValues[cat] > 0 || portfolio.some(i => getCategory(i) === cat)
     );
 

@@ -3,8 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio } from '../types';
 import { MarketDataService } from '../services/marketData';
 import { useAuth } from './AuthContext';
-import { RealtimeChannel } from '@supabase/supabase-js';
-import { SupabaseService } from '../services/supabaseService';
+import { saveUserPortfolios, loadUserPortfolios, migrateToFirestore } from '../services/firestoreService';
 
 interface HistoryPoint {
     date: string;
@@ -96,7 +95,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
 
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
-    const realtimeSubscription = useRef<RealtimeChannel | null>(null);
 
     // Derived active portfolio
     const activePortfolio = portfolios.find(p => p.id === activePortfolioId) || null;
@@ -126,13 +124,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         loadData();
         fetchCurrentUsdRate();
-
-        return () => {
-            if (realtimeSubscription.current) {
-                console.log('🔌 Unsubscribing from real-time updates...');
-                realtimeSubscription.current.unsubscribe();
-            }
-        };
     }, [user?.uid]);
 
     // Setup periodic price refresh
@@ -174,18 +165,21 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             await AsyncStorage.setItem('activePortfolioId', activeId);
             setPortfolios(newPortfolios);
 
-            // If user is logged in, sync to Supabase
+            // If user is logged in, sync to Firestore
             if (user?.uid) {
-                console.log('☁️ Syncing to Supabase:', activeId);
-                // For now, we use a single portfolio save call, but we should refine this
-                const activeP = newPortfolios.find(p => p.id === activeId);
-                if (activeP) {
-                    await SupabaseService.savePortfolio(user.uid, activeP);
-                }
-                console.log('✅ Supabase sync completed');
+                console.log('☁️ Syncing specific active portfolio to Firestore:', activeId);
+                await saveUserPortfolios(user.uid, newPortfolios, activeId);
+                console.log('✅ Firestore sync completed successfully');
+            } else {
+                console.log('⚠️ User not logged in, skipping Firestore sync');
             }
         } catch (e) {
             console.error('❌ Failed to save portfolios:', e);
+            // Only show alert for critical errors to avoid spamming
+            // if (Platform.OS === 'web') {
+            //     console.error('Web save error details:', e);
+            //     window.alert('Veriler kaydedilirken bir hata oluştu! Lütfen internet bağlantınızı kontrol edin.');
+            // }
         }
     };
 
@@ -223,82 +217,80 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setIsLoading(true);
             console.log('📥 loadData: Starting...');
 
-            // Clear previous subscription if it exists
-            if (realtimeSubscription.current) {
-                realtimeSubscription.current.unsubscribe();
-                realtimeSubscription.current = null;
-            }
-
-            // 1. IF USER IS LOGGED IN -> USE SUPABASE WITH REAL-TIME SYNC
+            // If user is logged in, try to load from Firestore first
             if (user?.uid) {
-                console.log('📥 loadData: User logged in, setting up Supabase sync for:', user.uid);
+                console.log('📥 loadData: User logged in, trying Firestore:', user.uid);
+                try {
+                    const firestoreData = await loadUserPortfolios(user.uid);
+                    console.log('📥 loadData: Firestore returned', firestoreData.portfolios.length, 'portfolios');
 
-                // Try initial load from Supabase
-                const initialData = await SupabaseService.loadUserPortfolios(user.uid);
+                    if (firestoreData.portfolios.length > 0) {
+                        // User has data in Firestore
+                        const portfolio = firestoreData.portfolios.find(p => p.id === (firestoreData.activePortfolioId || firestoreData.portfolios[0].id));
+                        console.log('📥 loadData: Active portfolio has', portfolio?.items?.length || 0, 'items');
 
-                if (initialData.portfolios.length > 0) {
-                    setPortfolios(initialData.portfolios);
-                    setActivePortfolioId(initialData.activePortfolioId || initialData.portfolios[0].id);
-                } else {
-                    // MIGRATION: Check if there's data in Firestore still
-                    console.log('📥 loadData: No data in Supabase, checking Firebase/AsyncStorage for migration...');
+                        setPortfolios(firestoreData.portfolios);
+                        setActivePortfolioId(firestoreData.activePortfolioId || firestoreData.portfolios[0].id);
+                        console.log('✅ loadData: Loaded portfolios from Firestore');
+                        return;
+                    } else {
+                        console.log('📥 loadData: No Firestore data, checking AsyncStorage...');
+                        // Check if there's local data to migrate
+                        const storedPortfolios = await AsyncStorage.getItem('portfolios');
+                        if (storedPortfolios) {
+                            const parsedPortfolios = JSON.parse(storedPortfolios);
+                            const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
+                            console.log('📥 loadData: Found AsyncStorage data with', parsedPortfolios.length, 'portfolios');
 
-                    try {
-                        // Dynamically import firestore service only when needed
-                        const { loadUserPortfolios } = await import('../services/firestoreService');
-                        const firebaseData = await loadUserPortfolios(user.uid);
-
-                        if (firebaseData.portfolios.length > 0) {
-                            console.log('🔄 MIGRATING: Found Firebase data, moving to Supabase...');
-                            for (const p of firebaseData.portfolios) {
-                                await SupabaseService.savePortfolio(user.uid, p);
-                            }
-                            setPortfolios(firebaseData.portfolios);
-                            setActivePortfolioId(firebaseData.activePortfolioId || firebaseData.portfolios[0].id);
+                            // Migrate to Firestore
+                            await migrateToFirestore(user.uid, parsedPortfolios, storedActiveId || 'default');
+                            setPortfolios(parsedPortfolios);
+                            setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
+                            console.log('✅ loadData: Migrated local data to Firestore');
                             return;
                         }
-                    } catch (migrationError) {
-                        console.warn('Migration from Firebase failed:', migrationError);
                     }
 
-                    // If no Firebase, check AsyncStorage
-                    const localData = await AsyncStorage.getItem('portfolios');
-                    if (localData) {
-                        const parsed = JSON.parse(localData);
-                        const localActiveId = await AsyncStorage.getItem('activePortfolioId');
-                        for (const p of parsed) {
-                            await SupabaseService.savePortfolio(user.uid, p);
-                        }
-                        setPortfolios(parsed);
-                        setActivePortfolioId(localActiveId || parsed[0]?.id || 'default');
-                    }
+                    // No data anywhere - create default portfolio
+                    console.log('📥 loadData: No data anywhere, creating default');
+                    const defaultPortfolio: Portfolio = {
+                        id: 'default',
+                        name: 'Ana Portföy',
+                        color: '#007AFF',
+                        icon: '💼',
+                        createdAt: Date.now(),
+                        items: [],
+                        cashBalance: 0,
+                        cashItems: [],
+                        realizedTrades: [],
+                        history: []
+                    };
+                    await savePortfolios([defaultPortfolio], 'default');
+                    setActivePortfolioId('default');
+                    return;
+                } catch (firestoreError) {
+                    console.error('❌ loadData: Firestore load error, falling back to local:', firestoreError);
                 }
-
-                // Setup subscription
-                realtimeSubscription.current = SupabaseService.subscribeToUserPortfolios(user.uid, () => {
-                    console.log('🔔 Supabase Update: Received real-time change notification');
-                    loadData(); // Re-load to get fresh data
-                });
-
-                return;
+            } else {
+                console.log('📥 loadData: User NOT logged in, using AsyncStorage only');
             }
 
-            // 2. IF USER NOT LOGGED IN -> USE ASYNC STORAGE
-            console.log('📥 loadData: User NOT logged in, using local storage');
+            // Fallback: Load from AsyncStorage (for non-logged-in users or on error)
             const storedPortfolios = await AsyncStorage.getItem('portfolios');
             const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
 
             if (storedPortfolios) {
-                const parsed = JSON.parse(storedPortfolios);
-                setPortfolios(parsed);
-                if (storedActiveId && parsed.find((p: Portfolio) => p.id === storedActiveId)) {
+                const parsedPortfolios = JSON.parse(storedPortfolios);
+                setPortfolios(parsedPortfolios);
+
+                if (storedActiveId && parsedPortfolios.find((p: Portfolio) => p.id === storedActiveId)) {
                     setActivePortfolioId(storedActiveId);
-                } else if (parsed.length > 0) {
-                    setActivePortfolioId(parsed[0].id);
+                } else if (parsedPortfolios.length > 0) {
+                    setActivePortfolioId(parsedPortfolios[0].id);
                 }
             } else {
-                // Create default if completely empty
-                const defaultP: Portfolio = {
+                // No data - create default empty portfolio
+                const defaultPortfolio: Portfolio = {
                     id: 'default',
                     name: 'Ana Portföy',
                     color: '#007AFF',
@@ -310,15 +302,20 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     realizedTrades: [],
                     history: []
                 };
-                setPortfolios([defaultP]);
+                setPortfolios([defaultPortfolio]);
                 setActivePortfolioId('default');
             }
         } catch (error) {
-            console.error('❌ loadData failed:', error);
+            console.error('Failed to load data', error);
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Reload data when user changes
+    useEffect(() => {
+        loadData();
+    }, [user?.uid]);
 
     // Multi-portfolio functions
     const createPortfolio = async (name: string, color: string, icon: string) => {

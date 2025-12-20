@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../services/supabaseClient';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../services/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
 import { ArrowLeft } from 'lucide-react-native';
 
@@ -20,19 +21,15 @@ export const LoginScreen = () => {
 
         setIsLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-
-            if (error) throw error;
-
+            await signInWithEmailAndPassword(auth, email, password);
             // Navigation will be handled by auth state listener or we go back
             navigation.goBack();
         } catch (error: any) {
             console.error(error);
             let msg = 'Giriş başarısız.';
-            if (error.message.includes('Invalid login credentials')) msg = 'E-posta veya şifre hatalı.';
+            if (error.code === 'auth/invalid-credential') msg = 'E-posta veya şifre hatalı.';
+            if (error.code === 'auth/user-not-found') msg = 'Kullanıcı bulunamadı.';
+            if (error.code === 'auth/wrong-password') msg = 'Hatalı şifre.';
             Alert.alert('Hata', msg);
         } finally {
             setIsLoading(false);

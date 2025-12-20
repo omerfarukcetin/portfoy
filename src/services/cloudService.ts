@@ -1,51 +1,45 @@
-import { supabase } from './supabaseClient';
+import { db } from './firebaseConfig';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 /**
- * Upload portfolio backup to Supabase
- * Table: backups
+ * Upload portfolio backup to Firestore
+ * Path: users/{userId}/backups/latest
  */
 export const uploadBackup = async (userId: string, data: any): Promise<void> => {
     try {
         // Add metadata
         const backupData = {
-            id: userId, // Use userId as the primary key for 'latest' concept
-            content: data,
+            ...data,
             cloudUpdatedAt: new Date().toISOString(),
             platform: 'mobile'
         };
 
-        const { error } = await supabase
-            .from('backups')
-            .upsert(backupData);
-
-        if (error) throw error;
-        console.log('Backup uploaded successfully to Supabase');
+        const docRef = doc(db, 'users', userId, 'backups', 'latest');
+        await setDoc(docRef, backupData);
+        console.log('Backup uploaded successfully');
     } catch (error) {
-        console.error("Cloud Backup Error (Supabase):", error);
+        console.error("Cloud Backup Error:", error);
         throw error;
     }
 };
 
 /**
- * Download portfolio backup from Supabase
+ * Download portfolio backup from Firestore
  * Returns null if no backup exists
  */
 export const downloadBackup = async (userId: string): Promise<any | null> => {
     try {
-        const { data, error } = await supabase
-            .from('backups')
-            .select('content')
-            .eq('id', userId)
-            .single();
+        const docRef = doc(db, 'users', userId, 'backups', 'latest');
+        const docSnap = await getDoc(docRef);
 
-        if (error) {
-            console.log('No backup found in Supabase');
+        if (docSnap.exists()) {
+            return docSnap.data();
+        } else {
+            console.log('No backup found');
             return null;
         }
-
-        return data?.content;
     } catch (error) {
-        console.error("Cloud Restore Error (Supabase):", error);
+        console.error("Cloud Restore Error:", error);
         throw error;
     }
 };

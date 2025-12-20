@@ -243,6 +243,15 @@ export const MarketDataService = {
                             lastUpdated: Date.now()
                         };
                     }
+                    // Forex / Döviz - Map common symbols to Yahoo codes
+                    else if (['USD', 'EUR', 'GBP', 'RUB', 'CHF', 'CAD', 'AUD', 'JPY'].includes(id)) {
+                        const yahooSymbol = id === 'USD' ? 'TRY=X' : `${id}TRY=X`;
+                        priceData = await MarketDataService.getYahooPrice(yahooSymbol);
+                        if (priceData) {
+                            priceData.name = id === 'USD' ? 'Amerikan Doları' : id;
+                            priceData.symbol = id;
+                        }
+                    }
                     // Stocks and others
                     else {
                         priceData = await MarketDataService.getYahooPrice(item.instrumentId);
@@ -854,7 +863,7 @@ export const MarketDataService = {
     /**
      * Search for instruments (Unified search)
      */
-    searchInstruments: async (query: string, category: 'BIST' | 'ABD' | 'ALTIN' | 'KRIPTO' | 'FON' | 'BES' = 'ABD'): Promise<Instrument[]> => {
+    searchInstruments: async (query: string, category: 'BIST' | 'ABD' | 'ALTIN' | 'KRIPTO' | 'FON' | 'BES' | 'DÖVİZ' = 'ABD'): Promise<Instrument[]> => {
         // BES Manual Entry
         if (category === 'BES') {
             return [{
@@ -889,6 +898,24 @@ export const MarketDataService = {
             return [
                 { id: query.toUpperCase(), symbol: query.toUpperCase(), name: `${query.toUpperCase()} Fonu`, type: 'fund', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() }
             ];
+        }
+
+        // Forex / Döviz Fixed List
+        if (category === 'DÖVİZ') {
+            const currencies: Instrument[] = [
+                { id: 'USD', symbol: 'USD', name: 'Amerikan Doları', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'EUR', symbol: 'EUR', name: 'Euro', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'GBP', symbol: 'GBP', name: 'İngiliz Sterlini', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'RUB', symbol: 'RUB', name: 'Rus Rublesi', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'CHF', symbol: 'CHF', name: 'İsviçre Frangı', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'CAD', symbol: 'CAD', name: 'Kanada Doları', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'AUD', symbol: 'AUD', name: 'Avustralya Doları', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+                { id: 'JPY', symbol: 'JPY', name: 'Japon Yeni', type: 'stock', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() },
+            ];
+            return currencies.filter(c =>
+                c.name.toLowerCase().includes(query.toLowerCase()) ||
+                c.symbol.toLowerCase().includes(query.toLowerCase())
+            );
         }
 
         // Crypto

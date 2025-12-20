@@ -18,7 +18,7 @@ export const AddInstrumentScreen = () => {
     const [cost, setCost] = useState('');
     const [currency, setCurrency] = useState<'USD' | 'TRY'>('TRY');
     const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
-    const [category, setCategory] = useState<'BIST' | 'ABD' | 'EMTIA' | 'KRIPTO' | 'FON' | 'BES' | 'DIGER' | 'NAKIT'>('BIST');
+    const [category, setCategory] = useState<'BIST' | 'ABD' | 'EMTIA' | 'KRIPTO' | 'FON' | 'BES' | 'DIGER' | 'NAKIT' | 'DÖVİZ'>('BIST');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [historicalRate, setHistoricalRate] = useState('');
 
@@ -138,6 +138,8 @@ export const AddInstrumentScreen = () => {
         // Default currency based on category
         if (category === 'ABD' || category === 'KRIPTO') {
             setCurrency('USD');
+        } else if (category === 'DÖVİZ') {
+            setCurrency('TRY'); // User is buying currency with TRY
         } else {
             setCurrency('TRY');
         }
@@ -255,7 +257,7 @@ export const AddInstrumentScreen = () => {
             {!selectedInstrument ? (
                 <>
                     <View style={styles.tabContainer}>
-                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'NAKİT', 'DİĞER'].map((cat) => {
+                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DÖVİZ', 'NAKİT', 'DİĞER'].map((cat) => {
                             const catKey = cat === 'DİĞER' ? 'DIGER' : cat === 'NAKİT' ? 'NAKIT' : cat;
                             return (
                                 <TouchableOpacity

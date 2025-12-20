@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebaseConfig';
+import { supabase } from '../services/supabaseClient';
 
 interface AuthContextType {
-    user: User | null;
+    user: any | null; // Using any for now to ease migration, will refine later
     isLoading: boolean;
     logout: () => Promise<void>;
 }
@@ -17,33 +16,42 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Fallback timeout in case Firebase auth is slow to respond
-        const timeout = setTimeout(() => {
-            if (isLoading) {
-                console.log('Auth: Timeout reached, setting loading to false');
-                setIsLoading(false);
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                setUser({
+                    ...session.user,
+                    uid: session.user.id // Keep Firebase compatibility
+                });
             }
-        }, 2000);
-
-        const unsubscribe = onAuthStateChanged(auth, (usr) => {
-            setUser(usr);
             setIsLoading(false);
-            clearTimeout(timeout);
+        });
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                setUser({
+                    ...session.user,
+                    uid: session.user.id
+                });
+            } else {
+                setUser(null);
+            }
+            setIsLoading(false);
         });
 
         return () => {
-            unsubscribe();
-            clearTimeout(timeout);
+            subscription.unsubscribe();
         };
     }, []);
 
     const logout = async () => {
         try {
-            await signOut(auth);
+            await supabase.auth.signOut();
         } catch (error) {
             console.error('Logout failed', error);
         }

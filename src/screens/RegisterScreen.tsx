@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../services/firebaseConfig';
+import { supabase } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 import { ArrowLeft } from 'lucide-react-native';
 
@@ -32,16 +31,20 @@ export const RegisterScreen = () => {
 
         setIsLoading(true);
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            Alert.alert('Başarılı', 'Hesabınız oluşturuldu!');
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+            });
+
+            if (error) throw error;
+
+            Alert.alert('Başarılı', 'Hesabınız oluşturuldu! E-posta adresinizi doğrulamanız gerekebilir.');
             // Navigation will be handled by auth state listener or go back
             navigation.goBack();
         } catch (error: any) {
             console.error(error);
             let msg = 'Kayıt başarısız.';
-            if (error.code === 'auth/email-already-in-use') msg = 'Bu e-posta adresi zaten kullanımda.';
-            if (error.code === 'auth/invalid-email') msg = 'Geçersiz e-posta adresi.';
-            if (error.code === 'auth/weak-password') msg = 'Şifre çok zayıf.';
+            if (error.message.includes('User already registered')) msg = 'Bu e-posta adresi zaten kullanımda.';
             Alert.alert('Hata', msg);
         } finally {
             setIsLoading(false);

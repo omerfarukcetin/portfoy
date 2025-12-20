@@ -49,40 +49,44 @@ const TEFAS_CACHE_TTL = 60 * 60 * 1000; // 1 hour for TEFAS
 // If direct calls fail in RN, we might need a proxy or a different library.
 // For now, we'll try direct calls.
 
-// Firebase Cloud Data
-import { db } from './firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+// Supabase Cloud Data
+import { supabase } from './supabaseClient';
 
 // Import local data (Back to imported for now)
 import tefasDataRaw from '../data/tefas_data.json';
 const tefasData = tefasDataRaw as { lastUpdated: string; count: number; data: Record<string, { code: string; price: number; date: string }> };
 
-// In-Memory cache for TEFAS data (populated from Firebase)
+// In-Memory cache for TEFAS data (populated from Supabase)
 let tefasDataCache: {
     lastUpdated: string;
     count: number;
     data: Record<string, { code: string; price: number; date: string }>
 } | null = null;
 
-// Fetch full snapshot from Firebase (Funds/daily_snapshot)
+// Fetch full snapshot from Supabase (funds table)
 const fetchTefasSnapshot = async () => {
     if (tefasDataCache) return tefasDataCache; // Return memory cache if available
 
     try {
-        const docRef = doc(db, "funds", "daily_snapshot");
-        const docSnap = await getDoc(docRef);
+        const { data, error } = await supabase
+            .from('market_data')
+            .select('content')
+            .eq('id', 'daily_snapshot')
+            .single();
 
-        if (docSnap.exists()) {
-            const data = docSnap.data() as any;
-            tefasDataCache = data;
-            console.log(`☁️ Firebase Data Loaded: ${data.count} funds (Updated: ${data.lastUpdated})`);
-            return tefasDataCache;
-        } else {
-            console.warn("⚠️ No daily_snapshot found in Firebase.");
+        if (error) {
+            console.warn("⚠️ No daily_snapshot found in Supabase:", error);
             return null;
         }
+
+        if (data && data.content) {
+            tefasDataCache = data.content as any;
+            console.log(`☁️ Supabase Data Loaded: ${tefasDataCache?.count} funds (Updated: ${tefasDataCache?.lastUpdated})`);
+            return tefasDataCache;
+        }
+        return null;
     } catch (error) {
-        console.error("❌ Firebase Fetch Error:", error);
+        console.error("❌ Supabase Fetch Error:", error);
         return null;
     }
 };
@@ -1111,7 +1115,7 @@ export const MarketDataService = {
                     date,
                     value: gramGoldTL
                 };
-            }).filter((item): item is { date: string, value: number } => item !== null && item.value > 0);
+            }).filter((item: any): item is { date: string, value: number } => item !== null && item.value > 0);
 
             return history;
         } catch (error) {

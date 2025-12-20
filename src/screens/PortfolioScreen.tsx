@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -378,33 +379,44 @@ export const PortfolioScreen = () => {
 
             {/* Portfolio Target Progress */}
             {targetValue > 0 && (
-                <View style={[styles.targetContainer, { borderBottomColor: colors.border }]}>
+                <View style={[styles.targetCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                     <View style={styles.targetHeader}>
-                        <Text style={[styles.targetLabel, { color: colors.subText }]}>HEDEF İLERLEMESİ</Text>
-                        <Text style={[styles.targetValue, { color: colors.text }]}>
-                            {formatCurrency(currentTotal, displayCurrency)} / {formatCurrency(targetValue, displayCurrency)}
-                        </Text>
-                    </View>
-                    <View style={[styles.progressBarBg, { backgroundColor: colors.inputBackground }]}>
-                        <View
-                            style={[
-                                styles.progressBarFill,
-                                {
-                                    backgroundColor: colors.primary,
-                                    width: `${Math.min(targetPercent, 100)}%`
-                                }
-                            ]}
-                        />
-                    </View>
-                    <View style={styles.targetFooter}>
+                        <View>
+                            <Text style={[styles.targetLabel, { color: colors.subText }]}>HEDEF İLERLEMESİ</Text>
+                            <Text style={[styles.targetValue, { color: colors.text }]}>
+                                {formatCurrency(currentTotal, displayCurrency)} / {formatCurrency(targetValue, displayCurrency)}
+                            </Text>
+                        </View>
                         <Text style={[styles.targetPercent, { color: colors.primary }]}>{targetPercent.toFixed(1)}%</Text>
-                        <TouchableOpacity onPress={() => {
+                    </View>
+
+                    <View style={[styles.progressBarBg, { backgroundColor: colors.inputBackground }]}>
+                        {targetPercent > 0 && (
+                            <LinearGradient
+                                colors={[colors.primary, '#00C6FF', '#0072FF']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[
+                                    styles.progressBarFill,
+                                    {
+                                        width: `${Math.min(targetPercent, 100)}%`,
+                                    }
+                                ]}
+                            />
+                        )}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.updateTargetBtn}
+                        onPress={() => {
                             setTargetAmount(targetValue.toString());
                             setTargetModalVisible(true);
-                        }}>
-                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Hedefi Güncelle</Text>
-                        </TouchableOpacity>
-                    </View>
+                        }}
+                    >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>
+                            {targetPercent >= 100 ? '🎉 Hedef Tamamlandı! Güncelle' : 'Hedefi Güncelle'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -413,7 +425,8 @@ export const PortfolioScreen = () => {
                     style={[styles.setTargetDraft, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
                     onPress={() => setTargetModalVisible(true)}
                 >
-                    <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>+ Portföy Hedefi Belirle</Text>
+                    <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>+ Finansal Hedefini Belirle</Text>
+                    <Text style={{ color: colors.subText, fontSize: 11, marginTop: 4 }}>Hayallerine giden yolu takip et</Text>
                 </TouchableOpacity>
             )}
 
@@ -816,48 +829,56 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         alignSelf: 'flex-start',
     },
-    targetContainer: {
-        padding: 16,
-        borderBottomWidth: 1,
+    targetCard: {
+        margin: 16,
+        padding: 20,
+        borderRadius: 24,
+        borderWidth: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
     },
     targetHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
+        alignItems: 'flex-start',
+        marginBottom: 20,
     },
     targetLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.5,
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
+        marginBottom: 4,
     },
     targetValue: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: '700',
     },
     progressBarBg: {
-        height: 8,
-        borderRadius: 4,
+        height: 12,
+        borderRadius: 6,
         overflow: 'hidden',
-        marginBottom: 8,
+        marginBottom: 16,
     },
     progressBarFill: {
         height: '100%',
-        borderRadius: 4,
-    },
-    targetFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderRadius: 6,
     },
     targetPercent: {
-        fontSize: 14,
-        fontWeight: '800',
+        fontSize: 24,
+        fontWeight: '900',
+        letterSpacing: -1,
+    },
+    updateTargetBtn: {
+        alignItems: 'center',
+        paddingVertical: 4,
     },
     setTargetDraft: {
         margin: 16,
-        padding: 12,
-        borderRadius: 12,
+        padding: 24,
+        borderRadius: 24,
         borderWidth: 1,
         borderStyle: 'dashed',
         alignItems: 'center',

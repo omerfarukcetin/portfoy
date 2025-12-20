@@ -6,6 +6,8 @@ import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
 import { Portfolio } from '../types';
 
+const ALL_PORTFOLIOS_ID = 'all-portfolios';
+
 interface PortfolioSwitcherProps {
     prices?: Record<string, number>;
     dailyChanges?: Record<string, number>;
@@ -165,14 +167,16 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
 
                 <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <TouchableOpacity
-                            onPress={() => startEditing(item)}
-                            style={{ padding: 6 }}
-                        >
-                            <Edit2 size={16} color={colors.subText} />
-                        </TouchableOpacity>
+                        {item.id !== ALL_PORTFOLIOS_ID && (
+                            <TouchableOpacity
+                                onPress={() => startEditing(item)}
+                                style={{ padding: 6 }}
+                            >
+                                <Edit2 size={16} color={colors.subText} />
+                            </TouchableOpacity>
+                        )}
 
-                        {item.id !== activePortfolio?.id && (
+                        {item.id !== activePortfolio?.id && item.id !== ALL_PORTFOLIOS_ID && (
                             <TouchableOpacity
                                 onPress={() => {
                                     Alert.alert(
@@ -282,7 +286,18 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                         ) : (
                             <>
                                 <FlatList
-                                    data={portfolios}
+                                    data={[
+                                        {
+                                            id: ALL_PORTFOLIOS_ID,
+                                            name: 'Tüm Portföyler',
+                                            color: '#6366f1',
+                                            icon: '🌍',
+                                            items: portfolios.flatMap(p => p.items),
+                                            cashItems: portfolios.flatMap(p => p.cashItems || []),
+                                            realizedTrades: portfolios.flatMap(p => p.realizedTrades || []),
+                                        },
+                                        ...portfolios
+                                    ]}
                                     renderItem={renderItem}
                                     keyExtractor={item => item.id}
                                     style={styles.list}

@@ -476,10 +476,10 @@ export const SummaryScreen = () => {
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                             <View>
                                 <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
-                                    Merhaba, Yatırımcı 👋
+                                    {activePortfolio?.id === 'all-portfolios' ? 'Toplam Varlığın 🌍' : 'Merhaba, Yatırımcı 👋'}
                                 </Text>
                                 <Text style={{ fontSize: 14, color: colors.subText, marginTop: 4 }}>
-                                    İşte bugünkü finansal özetin
+                                    {activePortfolio?.id === 'all-portfolios' ? 'Tüm portföylerinin birleşik özeti' : 'İşte bugünkü finansal özetin'}
                                 </Text>
                                 <Text style={{ fontSize: 11, color: colors.subText, marginTop: 4, opacity: 0.8 }}>
                                     {lastPricesUpdate > 0 ? `Veriler Gerçek Zamanlıdır • Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Veriler Güncelleniyor...'}
@@ -936,7 +936,7 @@ export const SummaryScreen = () => {
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                             <View>
                                 <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
-                                    Selam! 👋
+                                    {activePortfolio?.id === 'all-portfolios' ? 'Tüm Varlıklarım 🌍' : 'Selam! 👋'}
                                 </Text>
                                 <Text style={{ fontSize: 10, color: colors.subText, marginTop: 2 }}>
                                     {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
@@ -1084,7 +1084,7 @@ export const SummaryScreen = () => {
                         </View>
 
                         {/* Chart Preview */}
-                        {portfolioChartVisible && (
+                        {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (
                             <View style={{ marginTop: 4, marginBottom: 8 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
                                     <View />

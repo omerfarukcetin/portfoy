@@ -69,6 +69,8 @@ interface PortfolioContextType {
     updatePortfolioTarget: (targetValue: number, currency: 'TRY' | 'USD') => Promise<void>;
 }
 
+const ALL_PORTFOLIOS_ID = 'all-portfolios';
+
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -97,17 +99,42 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
 
     // Derived active portfolio
-    const activePortfolio = portfolios.find(p => p.id === activePortfolioId) || null;
+    const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
+        ? {
+            id: ALL_PORTFOLIOS_ID,
+            name: 'Tüm Portföyler',
+            color: '#6366f1',
+            icon: '🌍',
+            createdAt: Date.now(),
+            items: portfolios.flatMap(p => p.items),
+            cashBalance: portfolios.reduce((sum, p) => sum + (p.cashBalance || 0), 0),
+            cashItems: portfolios.flatMap(p => p.cashItems || []),
+            realizedTrades: portfolios.flatMap(p => p.realizedTrades || []),
+            history: [] // History aggregation is complex, skip for now
+        } as Portfolio
+        : portfolios.find(p => p.id === activePortfolioId) || null;
 
     // Sync legacy state ONLY when switching portfolios (not on data changes)
     useEffect(() => {
-        const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
-        if (currentPortfolio) {
-            console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items.length);
-            setPortfolio(currentPortfolio.items);
-            setRealizedTrades(currentPortfolio.realizedTrades);
-            setHistory(currentPortfolio.history || []);
-            setCashItems(currentPortfolio.cashItems);
+        if (activePortfolioId === ALL_PORTFOLIOS_ID) {
+            console.log('🌍 All portfolios sync - aggregating data');
+            const allItems = portfolios.flatMap(p => p.items);
+            const allCash = portfolios.flatMap(p => p.cashItems || []);
+            const allTrades = portfolios.flatMap(p => p.realizedTrades || []);
+
+            setPortfolio(allItems);
+            setCashItems(allCash);
+            setRealizedTrades(allTrades);
+            setHistory([]); // Multi-portfolio history aggregation not yet supported
+        } else {
+            const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
+            if (currentPortfolio) {
+                console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items.length);
+                setPortfolio(currentPortfolio.items);
+                setRealizedTrades(currentPortfolio.realizedTrades);
+                setHistory(currentPortfolio.history || []);
+                setCashItems(currentPortfolio.cashItems);
+            }
         }
     }, [activePortfolioId, portfolios]); // Sync when ID OR data changes
 
@@ -358,7 +385,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const switchPortfolio = async (id: string) => {
-        if (portfolios.find(p => p.id === id)) {
+        if (id === ALL_PORTFOLIOS_ID || portfolios.find(p => p.id === id)) {
             setActivePortfolioId(id);
             await AsyncStorage.setItem('activePortfolioId', id);
         }

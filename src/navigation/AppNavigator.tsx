@@ -19,7 +19,17 @@ import { useLanguage } from '../context/LanguageContext';
 import { Text, ActivityIndicator, View, StatusBar, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../context/SettingsContext';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import {
+    LayoutDashboard,
+    PieChart,
+    Repeat,
+    Star,
+    Plus,
+    Settings,
+    Briefcase,
+    List,
+    Home
+} from 'lucide-react-native';
 import { Sidebar } from '../components/web/Sidebar';
 
 // Turkish page titles for web
@@ -55,18 +65,19 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
 
                 let iconName = 'circle';
                 let activeColor = colors.primary;
+                let Icon: any = LayoutDashboard;
 
                 if (route.name === 'Summary') {
-                    iconName = isFocused ? 'file-tray-full' : 'file-tray-full-outline';
+                    Icon = LayoutDashboard;
                     activeColor = colors.primary;
                 } else if (route.name === 'Portfolio') {
-                    iconName = isFocused ? 'pie-chart' : 'pie-chart-outline';
+                    Icon = PieChart;
                     activeColor = '#8E44AD';
                 } else if (route.name === 'Transactions') {
-                    iconName = isFocused ? 'swap-horizontal' : 'swap-horizontal-outline';
+                    Icon = Repeat;
                     activeColor = '#FF9500';
                 } else if (route.name === 'Favorites') {
-                    iconName = isFocused ? 'star' : 'star-outline';
+                    Icon = Star;
                     activeColor = '#FFCC00';
                 }
 
@@ -92,7 +103,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                                 onPress={() => stackNavigation.navigate('AddInstrument')}
                                 activeOpacity={0.8}
                             >
-                                <Ionicons name="add" size={32} color="#FFFFFF" />
+                                <Plus size={32} color="#FFFFFF" strokeWidth={3} />
                             </TouchableOpacity>
 
                             {/* Regular tab */}
@@ -101,10 +112,10 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                                 style={styles.tabItem}
                                 onPress={onPress}
                             >
-                                <Ionicons
-                                    name={iconName as any}
-                                    size={24}
+                                <Icon
+                                    size={22}
                                     color={isFocused ? activeColor : colors.subText}
+                                    strokeWidth={isFocused ? 2.5 : 2}
                                 />
                                 <Text style={[
                                     styles.tabLabel,
@@ -123,10 +134,10 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                         style={styles.tabItem}
                         onPress={onPress}
                     >
-                        <Ionicons
-                            name={iconName as any}
-                            size={24}
+                        <Icon
+                            size={22}
                             color={isFocused ? activeColor : colors.subText}
+                            strokeWidth={isFocused ? 2.5 : 2}
                         />
                         <Text style={[
                             styles.tabLabel,
@@ -310,11 +321,11 @@ const WebNavigator = () => {
     const isMobile = windowWidth < 768;
 
     const mobileMenuItems = [
-        { name: 'Summary', label: 'Özet', icon: 'home' },
-        { name: 'Portfolio', label: 'Portföy', icon: 'briefcase' },
-        { name: 'AddInstrument', label: 'Ekle', icon: 'plus-circle' },
-        { name: 'Transactions', label: 'İşlemler', icon: 'list' },
-        { name: 'Settings', label: 'Ayarlar', icon: 'settings' },
+        { name: 'Summary', label: 'Özet', Icon: LayoutDashboard },
+        { name: 'Portfolio', label: 'Portföy', Icon: PieChart },
+        { name: 'AddInstrument', label: 'Ekle', Icon: Plus },
+        { name: 'Transactions', label: 'İşlemler', Icon: Repeat },
+        { name: 'Settings', label: 'Ayarlar', Icon: Settings },
     ];
 
     const handleTabPress = (tabName: string) => {
@@ -375,10 +386,10 @@ const WebNavigator = () => {
                                 style={[webStyles.tabItem, isAddButton && webStyles.addButtonTab]}
                                 onPress={() => handleTabPress(item.name)}
                             >
-                                <Feather
-                                    name={item.icon as any}
+                                <item.Icon
                                     size={isAddButton ? 28 : 22}
                                     color={isAddButton ? '#fff' : (isActive ? colors.primary : colors.subText)}
+                                    strokeWidth={isActive || isAddButton ? 2.5 : 2}
                                 />
                                 {!isAddButton && (
                                     <Text style={[webStyles.tabLabel, { color: isActive ? colors.primary : colors.subText }]}>
@@ -398,7 +409,7 @@ const WebNavigator = () => {
 const MainNavigator = () => {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="Main" component={HomeTabNavigator} />
             <Stack.Screen
                 name="AddInstrument"
                 component={AddInstrumentScreen}

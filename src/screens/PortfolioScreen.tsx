@@ -52,7 +52,8 @@ export const PortfolioScreen = () => {
         dailyChanges: contextDailyChanges,
         currentUsdRate: contextUsdRate,
         lastPricesUpdate,
-        refreshAllPrices
+        refreshAllPrices,
+        updatePortfolioTarget
     } = usePortfolio();
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
@@ -71,7 +72,12 @@ export const PortfolioScreen = () => {
     const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
     const [editAmount, setEditAmount] = useState('');
     const [editCost, setEditCost] = useState('');
+    const [refreshIntrevalRef] = useState(null);
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Target Modal State
+    const [targetModalVisible, setTargetModalVisible] = useState(false);
+    const [targetAmount, setTargetAmount] = useState('');
 
     const formatSymbol = (symbol: string) => {
         if (symbolCase === 'titlecase') return symbol.charAt(0).toUpperCase() + symbol.slice(1).toLowerCase();
@@ -276,6 +282,18 @@ export const PortfolioScreen = () => {
         categoryValues[cat] > 0 || portfolio.some(i => getCategory(i) === cat)
     );
 
+    // Portfolio Target Calculations
+    const currentTotal = Object.values(categoryValues).reduce((sum, val) => sum + val, 0);
+    const targetValue = activePortfolio?.targetValueTry || 0;
+    const targetPercent = targetValue > 0 ? (currentTotal / targetValue) * 100 : 0;
+
+    const handleSaveTarget = async () => {
+        const val = parseFloat(targetAmount.replace(',', '.'));
+        if (isNaN(val) || val <= 0) return Alert.alert("Hata", "Geçersiz hedef değeri.");
+        await updatePortfolioTarget(val, displayCurrency);
+        setTargetModalVisible(false);
+    };
+
     // --- Styling Helpers ---
     const getCategoryColors = (category: string): [string, string] => {
         switch (category) {
@@ -357,6 +375,47 @@ export const PortfolioScreen = () => {
                     })}
                 </ScrollView>
             </View>
+
+            {/* Portfolio Target Progress */}
+            {targetValue > 0 && (
+                <View style={[styles.targetContainer, { borderBottomColor: colors.border }]}>
+                    <View style={styles.targetHeader}>
+                        <Text style={[styles.targetLabel, { color: colors.subText }]}>HEDEF İLERLEMESİ</Text>
+                        <Text style={[styles.targetValue, { color: colors.text }]}>
+                            {formatCurrency(currentTotal, displayCurrency)} / {formatCurrency(targetValue, displayCurrency)}
+                        </Text>
+                    </View>
+                    <View style={[styles.progressBarBg, { backgroundColor: colors.inputBackground }]}>
+                        <View
+                            style={[
+                                styles.progressBarFill,
+                                {
+                                    backgroundColor: colors.primary,
+                                    width: `${Math.min(targetPercent, 100)}%`
+                                }
+                            ]}
+                        />
+                    </View>
+                    <View style={styles.targetFooter}>
+                        <Text style={[styles.targetPercent, { color: colors.primary }]}>{targetPercent.toFixed(1)}%</Text>
+                        <TouchableOpacity onPress={() => {
+                            setTargetAmount(targetValue.toString());
+                            setTargetModalVisible(true);
+                        }}>
+                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Hedefi Güncelle</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
+            {targetValue === 0 && (
+                <TouchableOpacity
+                    style={[styles.setTargetDraft, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
+                    onPress={() => setTargetModalVisible(true)}
+                >
+                    <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>+ Portföy Hedefi Belirle</Text>
+                </TouchableOpacity>
+            )}
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
                 {allCategories
@@ -558,6 +617,37 @@ export const PortfolioScreen = () => {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Target Modal */}
+            <Modal visible={targetModalVisible} animationType="slide" transparent onRequestClose={() => setTargetModalVisible(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalContainer}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+                        <Text style={[styles.symbol, { textAlign: 'center', fontSize: 20, marginBottom: 16, color: colors.text }]}>
+                            Portföy Hedefi Belirle
+                        </Text>
+                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>
+                            HEDEF TUTAR ({displayCurrency})
+                        </Text>
+                        <TextInput
+                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                            value={targetAmount}
+                            onChangeText={setTargetAmount}
+                            placeholder={`Örn: 1000000`}
+                            placeholderTextColor={colors.subText}
+                            keyboardType="numeric"
+                            autoFocus
+                        />
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={[styles.button, { backgroundColor: colors.background }]} onPress={() => setTargetModalVisible(false)}>
+                                <Text style={{ color: colors.text, fontWeight: '600' }}>İptal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={handleSaveTarget}>
+                                <Text style={{ color: '#fff', fontWeight: '600' }}>Kaydet</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </View>
     );
 };
@@ -725,5 +815,51 @@ const styles = StyleSheet.create({
         paddingVertical: 3,
         borderRadius: 6,
         alignSelf: 'flex-start',
+    },
+    targetContainer: {
+        padding: 16,
+        borderBottomWidth: 1,
+    },
+    targetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    targetLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    targetValue: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    progressBarBg: {
+        height: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+        marginBottom: 8,
+    },
+    progressBarFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
+    targetFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    targetPercent: {
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    setTargetDraft: {
+        margin: 16,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        alignItems: 'center',
     },
 });

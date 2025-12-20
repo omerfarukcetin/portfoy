@@ -485,7 +485,7 @@ export const AppNavigator = () => {
                 if (currentRoute) {
                     document.title = getPageTitle(currentRoute.name);
                 } else {
-                    document.title = language === 'tr' ? 'Portföy Cepte' : 'Portfolio Pocket';
+                    document.title = 'Portföy Cepte';
                 }
             };
 

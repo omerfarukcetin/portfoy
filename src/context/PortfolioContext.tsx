@@ -66,6 +66,7 @@ interface PortfolioContextType {
     getPortfolioTotalValue: () => number;
     getPortfolioDistribution: () => { name: string; value: number; color: string }[];
     refreshAllPrices: () => Promise<void>;
+    updatePortfolioTarget: (targetValue: number, currency: 'TRY' | 'USD') => Promise<void>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -801,6 +802,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     };
 
+    const updatePortfolioTarget = async (targetValue: number, currency: 'TRY' | 'USD') => {
+        await updateActivePortfolio({
+            targetValueTry: targetValue,
+            targetCurrency: currency
+        });
+    };
+
     const resetData = async () => {
         try {
             // Reset only active portfolio data
@@ -980,7 +988,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             prices,
             dailyChanges,
             lastPricesUpdate,
-            currentUsdRate
+            currentUsdRate,
+            updatePortfolioTarget
         }}>
             {children}
         </PortfolioContext.Provider>

@@ -75,6 +75,8 @@ export interface Portfolio {
   cashItems: CashItem[];
   realizedTrades: RealizedTrade[];
   history: { date: string; valueTry: number; valueUsd: number }[];
+  targetValueTry?: number;
+  targetCurrency?: 'TRY' | 'USD';
 }
 
 export interface PriceAlert {

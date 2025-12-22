@@ -568,6 +568,7 @@ export const PortfolioScreen = () => {
                                                         usdRate={usdRate}
                                                         onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                         onLongPress={() => handleLongPress(item)}
+                                                        onSell={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
                                                     />
                                                 </React.Fragment>
                                             );

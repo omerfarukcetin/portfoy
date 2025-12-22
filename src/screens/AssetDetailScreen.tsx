@@ -305,10 +305,27 @@ export const AssetDetailScreen = () => {
                             <Text style={[styles.price, { color: colors.text }]}>
                                 {formatCurrency(isPricedInUsd ? priceInUsd : priceInTry, isPricedInUsd ? 'USD' : 'TRY')}
                             </Text>
-                            <View style={[styles.changeTag, { backgroundColor: change24h >= 0 ? colors.success : colors.danger, marginTop: 4 }]}>
-                                <Text style={styles.change}>
-                                    {change24h >= 0 ? '▲' : '▼'} %{Math.abs(change24h).toFixed(2)}
-                                </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                <View style={[styles.changeTag, { backgroundColor: change24h >= 0 ? colors.success : colors.danger }]}>
+                                    <Text style={styles.change}>
+                                        {change24h >= 0 ? '▲' : '▼'} %{Math.abs(change24h).toFixed(2)}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity
+                                    style={{
+                                        backgroundColor: colors.danger,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 6,
+                                        borderRadius: 8,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 6
+                                    }}
+                                    onPress={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
+                                >
+                                    <LogOut size={14} color="#FFF" />
+                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Sat</Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
                     )}
@@ -395,14 +412,6 @@ export const AssetDetailScreen = () => {
                     </View>
                 </View>
 
-                {/* Actions */}
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => (navigation as any).navigate('SellAsset', { id: item.id })}
-                >
-                    <LogOut size={20} color="#FFF" />
-                    <Text style={styles.actionText}>Satış Yap</Text>
-                </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
             </ScrollView>

@@ -112,8 +112,8 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                 </View>
             </View>
 
-            {/* Web: Show Sell button inline - smaller on mobile */}
-            {Platform.OS === 'web' && onSell && (
+            {/* Show Sell button inline */}
+            {onSell && (
                 <TouchableOpacity
                     style={{
                         backgroundColor: colors.danger,
@@ -128,7 +128,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     }}
                     onPress={onSell}
                 >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>📉</Text>
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>📉</Text>
                 </TouchableOpacity>
             )}
         </TouchableOpacity>

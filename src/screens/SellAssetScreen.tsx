@@ -11,7 +11,8 @@ import { MarketDataService } from '../services/marketData';
 export const SellAssetScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
-    const { assetId } = route.params as { assetId: string };
+    const params = route.params as { assetId?: string; id?: string };
+    const assetId = params.assetId || params.id || '';
     const { portfolio, sellAsset, deleteAsset } = usePortfolio();
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();

@@ -600,9 +600,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 50 : 30,
+        paddingBottom: 15,
+        paddingHorizontal: 15,
         alignItems: 'center',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 100,
-        paddingTop: 16,
-        paddingHorizontal: 15,
+        paddingTop: 10,
+        paddingHorizontal: 12,
     },
     // Modern card container (iOS style)
     cardContainer: {
@@ -648,8 +648,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
     },
     leftContainer: {
         flexDirection: 'row',
@@ -659,6 +659,7 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         justifyContent: 'center',
+        flex: 1,
     },
     rightContainer: {
         alignItems: 'flex-end',
@@ -702,7 +703,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         paddingRight: 15,
         marginBottom: 12,
-        borderRadius: 16,
+        borderRadius: 12,
     },
     backRightBtn: {
         alignItems: 'center',

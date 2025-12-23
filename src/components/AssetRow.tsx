@@ -164,17 +164,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: Platform.OS === 'web' ? 16 : 12,
-        paddingHorizontal: Platform.OS === 'web' ? 20 : 14,
+        paddingVertical: Platform.OS === 'web' ? 16 : 10,
+        paddingHorizontal: Platform.OS === 'web' ? 20 : 12,
     },
     leftContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Platform.OS === 'web' ? 14 : 12,
+        gap: Platform.OS === 'web' ? 14 : 10,
         flex: 1,
     },
     textContainer: {
         justifyContent: 'center',
+        flex: 1,
     },
     symbol: {
         fontSize: Platform.OS === 'web' ? 15 : 13,
@@ -206,15 +207,20 @@ const styles = StyleSheet.create({
         marginBottom: 6,
         letterSpacing: 0.2,
     },
-    plContainer: {
-        paddingHorizontal: Platform.OS === 'web' ? 8 : 6,
-        paddingVertical: 4,
-        borderRadius: 8,
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 45 : 25,
+        paddingBottom: 12,
+        paddingHorizontal: 15,
     },
     plText: {
         fontSize: Platform.OS === 'web' ? 11 : 10,
         fontWeight: '600',
         letterSpacing: 0.2,
+    },
+    plContainer: {
+        paddingHorizontal: Platform.OS === 'web' ? 8 : 6,
+        paddingVertical: 4,
+        borderRadius: 8,
     },
     dailyChange: {
         fontSize: 10,

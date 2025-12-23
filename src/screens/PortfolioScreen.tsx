@@ -770,9 +770,9 @@ export const PortfolioScreen = () => {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     header: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 15,
-        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 45 : 25,
+        paddingBottom: 12,
+        paddingHorizontal: 15,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

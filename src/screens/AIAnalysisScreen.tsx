@@ -68,74 +68,52 @@ export const AIAnalysisScreen = () => {
     const processUserMessage = async (text: string) => {
         setIsTyping(true);
 
-        // Simulate "thinking" time but allow async calls
-        const lowerText = text.toLowerCase();
-        let responseText = '';
-        let analysisData = null;
-        let msgType: 'text' | 'analysis' = 'text';
+        const portfolioContext = {
+            totalValue: getPortfolioTotalValue(),
+            distribution: getPortfolioDistribution(),
+            activePortfolioName: portfolios.find(p => p.id === activePortfolioId)?.name || 'Portföyüm',
+            assets: portfolio.map(item => ({
+                id: item.instrumentId,
+                amount: item.amount,
+                avgCost: item.averageCost,
+                currency: item.currency,
+                type: item.type,
+                name: item.customName
+            }))
+        };
 
         try {
-            const analysis = generateDetailedAnalysis();
+            const baseUrl = Platform.OS === 'web' ? '' : 'https://ofcportfoy.netlify.app';
+            const response = await fetch(`${baseUrl}/.netlify/functions/gemini-chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: text,
+                    portfolioContext
+                })
+            });
 
-            if (lowerText.includes('haber') || lowerText.includes('gündem')) {
-                // Fetch News
-                const keywords = portfolio.length > 0
-                    ? portfolio.slice(0, 3).map(p => p.instrumentId.replace('.IS', ''))
-                    : ['Borsa İstanbul', 'Ekonomi'];
-                if (portfolio.length > 0) keywords.push('Borsa İstanbul');
-
-                const newsItems = await NewsService.fetchNews(keywords);
-                const relevantNews = newsItems.slice(0, 5);
-
-                if (relevantNews.length > 0) {
-                    responseText = `📰 **Piyasa Gündemi**\n\n` +
-                        relevantNews.map(n => `• ${n.title}`).join('\n\n') +
-                        `\n\n(Detaylar için ana sayfadaki piyasa raporuna bakabilirsin.)`;
-                } else {
-                    responseText = 'Şu an sizin için önemli bir haber bulamadım.';
-                }
-
-            } else if (lowerText.includes('analiz') || lowerText.includes('durum') || lowerText.includes('özet')) {
-                // Use Dynamic Response
-                responseText = generateDynamicResponse(analysis);
-                analysisData = analysis;
-                msgType = 'analysis';
-            } else if (lowerText.includes('risk')) {
-                responseText = `📊 **Risk Analizi**\n\nRisk Skorun: **${analysis.riskScore}/10**\n\n${analysis.riskAssessment}`;
-            } else if (lowerText.includes('tavsiye') || lowerText.includes('öneri') || lowerText.includes('ne yapayım')) {
-                const suggestions = analysis.insights.filter((i: any) => i.type === 'suggestion' || i.type === 'warning' || i.type === 'opportunity');
-                if (suggestions.length > 0) {
-                    responseText = '💡 **Sana Özel Önerilerim:**\n\n' + suggestions.map((s: any) => `• ${s.message}`).join('\n\n');
-                } else {
-                    responseText = '✅ **Harika!**\n\nPortföyün şu an gayet dengeli görünüyor. Mevcut stratejine devam edebilirsin.';
-                }
-            } else if (lowerText.includes('nakit')) {
-                const cashInfo = analysis.distribution.find((d: any) => d.name === 'Nakit (TL)');
-                const ratio = cashInfo ? (cashInfo.value / analysis.totalValue * 100).toFixed(1) : '0';
-                responseText = `💰 **Nakit Durumu**\n\nPortföyünün **%${ratio}**'si nakitte.\n\n${Number(ratio) < 10 ? '⚠️ Nakit oranın düşük. Acil durumlar ve fırsatlar için en az %10 nakit tutmanı öneririm.' : '✅ Nakit oranın sağlıklı seviyede.'}`;
-            } else if (lowerText.includes('altın')) {
-                const goldInfo = analysis.distribution.find((d: any) => d.name === 'Altın');
-                const ratio = goldInfo ? (goldInfo.value / analysis.totalValue * 100).toFixed(1) : '0';
-                responseText = `🥇 **Altın Durumu**\n\nPortföyünün **%${ratio}**'si altında.\n\n${Number(ratio) < 10 ? '⚠️ Enflasyona karşı koruma ("Hedge") için altın oranını %10-15 seviyesine çıkarabilirsin.' : '✅ Altın oranın gayet iyi.'}`;
-            } else {
-                responseText = 'Anladığımdan emin değilim. Aşağıdaki butonları kullanarak portföyünü analiz etmemi veya haberleri sormamı isteyebilirsin.';
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'AI servisi hatası');
             }
 
+            const data = await response.json();
+
             const aiMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                text: responseText,
+                id: Date.now().toString(),
+                text: data.text,
                 sender: 'ai',
-                type: msgType,
-                data: analysisData,
+                type: 'text',
                 timestamp: Date.now()
             };
 
             addMessage(aiMsg);
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error('AI Error:', error);
             addMessage({
                 id: Date.now().toString(),
-                text: 'Bir hata oluştu, lütfen tekrar dene.',
+                text: `❌ **Hata:** ${error.message || 'Yanıt alınamadı.'}\n\nLütfen API anahtarınızın Netlify üzerinde doğru yapılandırıldığından emin olun.`,
                 sender: 'ai',
                 type: 'text',
                 timestamp: Date.now()

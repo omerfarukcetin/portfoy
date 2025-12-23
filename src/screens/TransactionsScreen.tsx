@@ -154,8 +154,8 @@ export const TransactionsScreen = () => {
                             size={40}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text }]}>{item.customName || item.instrumentId}</Text>
-                            <Text style={[styles.details, { color: colors.subText }]}>
+                            <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{item.customName || item.instrumentId}</Text>
+                            <Text style={[styles.details, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail">
                                 Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                             </Text>
                         </View>
@@ -171,41 +171,6 @@ export const TransactionsScreen = () => {
                         </Text>
                     </View>
 
-                    {/* Web: Show edit/delete buttons inline */}
-                    {Platform.OS === 'web' && (
-                        <View style={{ flexDirection: 'row', gap: 8, marginLeft: 16 }}>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: colors.primary,
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 8,
-                                    borderRadius: 8,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 4
-                                }}
-                                onPress={() => openEditModal(item)}
-                            >
-                                <Pencil size={18} color="#fff" />
-                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Düzenle</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: colors.danger,
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 8,
-                                    borderRadius: 8,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 4
-                                }}
-                                onPress={() => handleDelete(item)}
-                            >
-                                <Trash2 size={18} color="#fff" />
-                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Sil</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </View>
             </View>
         );
@@ -227,8 +192,8 @@ export const TransactionsScreen = () => {
                             size={40}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
-                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]}>
+                            <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{trade.instrumentId} (SATIŞ)</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">
                                 {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
                             </Text>
                             <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>

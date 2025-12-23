@@ -88,8 +88,8 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     <TickerIcon symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)} color={color || colors.primary} />
                 )}
                 <View style={styles.textContainer}>
-                    <Text style={[styles.symbol, { color: colors.text }]}>{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
-                    <Text style={[styles.amount, { color: colors.subText }]}>
+                    <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
+                    <Text style={[styles.amount, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail">
                         {formatCurrency(displayPrice, displayCurrency)} × {item.amount}
                     </Text>
                     {/* Hide daily change on mobile */}
@@ -118,45 +118,6 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                 </View>
             </View>
 
-            {/* Show Edit & Sell buttons inline on Web */}
-            {(onEdit || onSell) && Platform.OS === 'web' && (
-                <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                    {onEdit && (
-                        <TouchableOpacity
-                            style={{
-                                backgroundColor: colors.primary,
-                                paddingHorizontal: 10,
-                                paddingVertical: 6,
-                                borderRadius: 6,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minWidth: 40,
-                            }}
-                            onPress={onEdit}
-                        >
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>✏️</Text>
-                        </TouchableOpacity>
-                    )}
-                    {onSell && (
-                        <TouchableOpacity
-                            style={{
-                                backgroundColor: colors.danger,
-                                paddingHorizontal: 10,
-                                paddingVertical: 6,
-                                borderRadius: 6,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minWidth: 40,
-                            }}
-                            onPress={onSell}
-                        >
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>📉</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-            )}
         </TouchableOpacity>
     );
 };

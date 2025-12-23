@@ -577,8 +577,8 @@ export const PortfolioScreen = () => {
                                                             </View>
                                                         )}
                                                         <View style={styles.textContainer}>
-                                                            <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]}>{itemName}</Text>
-                                                            <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]}>
+                                                            <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]} numberOfLines={1} ellipsizeMode="tail">{itemName}</Text>
+                                                            <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">
                                                                 {isPPF ? `${formatCurrency(cashItem.amount / (cashItem.units || 1), cashItem.currency)} × ${cashItem.units}` : formatCurrency(cashItem.amount, cashItem.currency)}
                                                             </Text>
                                                         </View>
@@ -607,8 +607,8 @@ export const PortfolioScreen = () => {
                                                         <Text style={{ fontSize: 16 }}>💰</Text>
                                                     </View>
                                                     <View style={styles.textContainer}>
-                                                        <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]}>Yedek Akçe Ekle</Text>
-                                                        <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]}>Nakit veya PPF ekleyin</Text>
+                                                        <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]} numberOfLines={1} ellipsizeMode="tail">Yedek Akçe Ekle</Text>
+                                                        <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">Nakit veya PPF ekleyin</Text>
                                                     </View>
                                                 </View>
                                             </TouchableOpacity>

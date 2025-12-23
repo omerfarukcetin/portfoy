@@ -11,6 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSettings } from '../context/SettingsContext';
 import { GradientCard } from '../components/GradientCard';
 import { AssetRow } from '../components/AssetRow';
+import { ExcelService } from '../services/excelService';
+import { PieChart, Download } from 'lucide-react-native';
 import { TickerIcon } from '../components/TickerIcon';
 import { SellAssetModal } from '../components/SellAssetModal';
 
@@ -130,6 +132,24 @@ export const PortfolioScreen = () => {
             }
         }
         setFundPrices(newFundPrices);
+    };
+
+    const handleExport = async () => {
+        const activePortfolioName = activePortfolio?.name || 'Varliklarim';
+        const success = await ExcelService.exportPortfolioToExcel(
+            portfolio,
+            contextPrices,
+            contextUsdRate,
+            activePortfolioName
+        );
+
+        if (success) {
+            if (Platform.OS === 'web') {
+                Alert.alert("Başarılı", "Excel dosyası indirildi.");
+            }
+        } else {
+            Alert.alert("Hata", "Excel dökümü oluşturulurken bir hata oluştu.");
+        }
     };
 
     const handleLongPress = (item: PortfolioItem) => {
@@ -453,6 +473,17 @@ export const PortfolioScreen = () => {
             )}
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+                {/* Global Actions */}
+                <View style={{ paddingHorizontal: 4, marginBottom: 16 }}>
+                    <TouchableOpacity
+                        style={[styles.downloadButton, { backgroundColor: colors.success + '15', borderColor: colors.success + '30' }]}
+                        onPress={handleExport}
+                    >
+                        <Download size={16} color={colors.success} strokeWidth={2.5} />
+                        <Text style={[styles.downloadButtonText, { color: colors.success, fontSize: 13, fontWeight: '700' }]}>PORTFÖYÜ EXCEL OLARAK İNDİR</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {allCategories
                     .filter(cat => selectedCategory === null || selectedCategory === cat)
                     .map(category => {
@@ -797,6 +828,20 @@ const styles = StyleSheet.create({
     input: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16 },
     modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
     button: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
+    downloadButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        gap: 8,
+    },
+    downloadButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
     currencyButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
 
     // Cash Row specific styles (mimicking AssetRow)

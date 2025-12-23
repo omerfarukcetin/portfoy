@@ -30,7 +30,7 @@ const AssetInitials = ({ name, color, size = 32 }: { name: string, color: string
 };
 
 export const TransactionsScreen = () => {
-    const { realizedTrades, portfolio, updateAsset, deleteAsset } = usePortfolio();
+    const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade } = usePortfolio();
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
@@ -108,6 +108,23 @@ export const TransactionsScreen = () => {
                 [
                     { text: 'İptal', style: 'cancel' },
                     { text: 'Sil', style: 'destructive', onPress: () => deleteAsset(item.id) }
+                ]
+            );
+        }
+    };
+
+    const handleDeleteRealized = async (id: string, name: string) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`${name} işlemi silinecek. Emin misiniz?`)) {
+                await deleteRealizedTrade(id);
+            }
+        } else {
+            Alert.alert(
+                'İşlemi Sil',
+                `${name} işlemi silinecek. Emin misiniz?`,
+                [
+                    { text: 'İptal', style: 'cancel' },
+                    { text: 'Sil', style: 'destructive', onPress: () => deleteRealizedTrade(id) }
                 ]
             );
         }
@@ -253,10 +270,10 @@ export const TransactionsScreen = () => {
                         <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                             {/* Table Header */}
                             <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
-                                <Text style={[styles.columnHeader, { flex: 2 }]}>ASSET NAME ↑</Text>
-                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>QUANTITY ↑↓</Text>
-                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>COST ↑↓</Text>
-                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>TOTAL VALUE ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 2 }]}>VARLIK ADI ↑</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>ADET ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>MALİYET ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>TOPLAM DEĞER ↑↓</Text>
                                 <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>DÜZENLE</Text>
                                 <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>SİL</Text>
                             </View>
@@ -400,11 +417,12 @@ export const TransactionsScreen = () => {
                                 <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                     {/* Table Header */}
                                     <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
-                                        <Text style={[styles.columnHeader, { flex: 2 }]}>ASSET NAME</Text>
-                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>QUANTITY</Text>
-                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>SELL PRICE</Text>
-                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>PROFIT / LOSS</Text>
-                                        <Text style={[styles.columnHeader, { flex: 1.2, textAlign: 'right' }]}>DATE</Text>
+                                        <Text style={[styles.columnHeader, { flex: 2 }]}>VARLIK ADI</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>ADET</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>SATIŞ FİYATI</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.5 }]}>KÂR / ZARAR</Text>
+                                        <Text style={[styles.columnHeader, { flex: 1.2, textAlign: 'right' }]}>TARİH</Text>
+                                        <Text style={[styles.columnHeader, { flex: 0.5, textAlign: 'center' }]}></Text>
                                     </View>
 
                                     {/* Table Rows */}
@@ -458,6 +476,14 @@ export const TransactionsScreen = () => {
                                                 <Text style={[styles.tableText, { flex: 1.2, color: colors.subText, textAlign: 'right', fontSize: 12 }]}>
                                                     {new Date(trade.date).toLocaleDateString()}
                                                 </Text>
+
+                                                {/* Delete Action */}
+                                                <TouchableOpacity
+                                                    style={{ flex: 0.5, alignItems: 'center', marginLeft: 8 }}
+                                                    onPress={() => handleDeleteRealized(trade.id, trade.instrumentId)}
+                                                >
+                                                    <Trash2 size={16} color={colors.danger} />
+                                                </TouchableOpacity>
                                             </View>
                                         );
                                     })}
@@ -471,13 +497,18 @@ export const TransactionsScreen = () => {
                                         <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                             <View style={styles.row}>
                                                 <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
-                                                        {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
-                                                    </Text>
-                                                    <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
-                                                        ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
-                                                    </Text>
+                                                <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 12 }}>
+                                                    <View style={{ alignItems: 'flex-end' }}>
+                                                        <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
+                                                            {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                                                        </Text>
+                                                        <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
+                                                            ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
+                                                        </Text>
+                                                    </View>
+                                                    <TouchableOpacity onPress={() => handleDeleteRealized(trade.id, trade.instrumentId)}>
+                                                        <Trash2 size={20} color={colors.danger} />
+                                                    </TouchableOpacity>
                                                 </View>
                                             </View>
                                             <View style={styles.row}>

@@ -11,6 +11,7 @@ import { TickerIcon } from '../components/TickerIcon';
 import { TransactionTimeline } from '../components/TransactionTimeline';
 import { SmartInsightCard } from '../components/SmartInsightCard';
 import { generateAssetInsight } from '../services/advisorService';
+import { SellAssetModal } from '../components/SellAssetModal';
 
 export const AssetDetailScreen = () => {
     const route = useRoute();
@@ -26,6 +27,7 @@ export const AssetDetailScreen = () => {
     const [currentPrice, setCurrentPrice] = useState(0);
     const [usdRate, setUsdRate] = useState(0);
     const [change24h, setChange24h] = useState(0);
+    const [sellModalVisible, setSellModalVisible] = useState(false);
 
     const formatSymbol = (symbol: string) => {
         if (symbolCase === 'titlecase') {
@@ -321,7 +323,7 @@ export const AssetDetailScreen = () => {
                                         alignItems: 'center',
                                         gap: 6
                                     }}
-                                    onPress={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
+                                    onPress={() => setSellModalVisible(true)}
                                 >
                                     <LogOut size={14} color="#FFF" />
                                     <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Sat</Text>
@@ -415,6 +417,12 @@ export const AssetDetailScreen = () => {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            <SellAssetModal
+                visible={sellModalVisible}
+                item={item}
+                onClose={() => setSellModalVisible(false)}
+            />
         </View>
     );
 };

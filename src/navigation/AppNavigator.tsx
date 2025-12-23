@@ -8,7 +8,6 @@ import { TransactionsScreen } from '../screens/TransactionsScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AddInstrumentScreen } from '../screens/AddInstrumentScreen';
-import { SellAssetScreen } from '../screens/SellAssetScreen';
 import { AssetDetailScreen } from '../screens/AssetDetailScreen';
 import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -41,7 +40,6 @@ const PAGE_TITLES: Record<string, string> = {
     'Favorites': 'Favoriler - Portföy Cepte',
     'Settings': 'Ayarlar - Portföy Cepte',
     'AddInstrument': 'Varlık Ekle - Portföy Cepte',
-    'SellAsset': 'Varlık Sat - Portföy Cepte',
     'CashManagement': 'Yedek Akçe - Portföy Cepte',
     'AssetDetail': 'Varlık Detayı - Portföy Cepte',
     'Login': 'Giriş Yap - Portföy Cepte',
@@ -366,11 +364,6 @@ const WebNavigator = () => {
                                 options={{ presentation: 'modal' }}
                             />
                             <Stack.Screen
-                                name="SellAsset"
-                                component={SellAssetScreen}
-                                options={{ title: 'Varlık Sat', presentation: 'modal' }}
-                            />
-                            <Stack.Screen
                                 name="CashManagement"
                                 component={CashManagementScreen}
                                 options={{ presentation: 'modal' }}
@@ -427,11 +420,6 @@ const MainNavigator = () => {
                 options={{ presentation: 'modal' }}
             />
             <Stack.Screen
-                name="SellAsset"
-                component={SellAssetScreen}
-                options={{ title: 'Varlık Sat', presentation: 'modal' }}
-            />
-            <Stack.Screen
                 name="CashManagement"
                 component={CashManagementScreen}
                 options={{ presentation: 'modal' }}
@@ -463,7 +451,6 @@ export const AppNavigator = () => {
             'Favorites': `Favoriler - ${APP_NAME}`,
             'Settings': `Ayarlar - ${APP_NAME}`,
             'AddInstrument': `Varlık Ekle - ${APP_NAME}`,
-            'SellAsset': `Varlık Sat - ${APP_NAME}`,
             'CashManagement': `Yedek Akçe - ${APP_NAME}`,
             'AssetDetail': `Varlık Detayı - ${APP_NAME}`,
             'Login': `Giriş Yap - ${APP_NAME}`,

@@ -12,6 +12,7 @@ import { useSettings } from '../context/SettingsContext';
 import { GradientCard } from '../components/GradientCard';
 import { AssetRow } from '../components/AssetRow';
 import { TickerIcon } from '../components/TickerIcon';
+import { SellAssetModal } from '../components/SellAssetModal';
 
 const getCategoryColor = (category: string) => {
     switch (category) {
@@ -72,12 +73,21 @@ export const PortfolioScreen = () => {
     const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
     const [editAmount, setEditAmount] = useState('');
     const [editCost, setEditCost] = useState('');
+
+    // BES specific edit states
+    const [besPrincipal, setBesPrincipal] = useState('');
+    const [besYield, setBesYield] = useState('');
+    const [besStateContrib, setBesStateContrib] = useState('');
+    const [besStateYield, setBesStateYield] = useState('');
     const [refreshIntrevalRef] = useState(null);
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Target Modal State
     const [targetModalVisible, setTargetModalVisible] = useState(false);
     const [targetAmount, setTargetAmount] = useState('');
+
+    // Sell Modal State
+    const [sellModalVisible, setSellModalVisible] = useState(false);
+    const [sellingItem, setSellingItem] = useState<PortfolioItem | null>(null);
 
     const formatSymbol = (symbol: string) => {
         if (symbolCase === 'titlecase') return symbol.charAt(0).toUpperCase() + symbol.slice(1).toLowerCase();
@@ -147,9 +157,15 @@ export const PortfolioScreen = () => {
     const openEditModal = (item: PortfolioItem) => {
         setEditingItem(item);
         if (item.type === 'bes') {
-            // For BES: show cost (besPrincipal) and current value (besPrincipal + besPrincipalYield)
-            setEditAmount((item.besPrincipal || 0).toString()); // This will be "Maliyet" for BES
-            setEditCost(((item.besPrincipal || 0) + (item.besPrincipalYield || 0)).toString()); // This will be "Güncel Değer" for BES
+            // BES uses 4 components
+            setBesPrincipal((item.besPrincipal || 0).toString());
+            setBesYield((item.besPrincipalYield || 0).toString());
+            setBesStateContrib((item.besStateContrib || 0).toString());
+            setBesStateYield((item.besStateContribYield || 0).toString());
+
+            // Also set legacy fields just in case
+            setEditAmount((item.besPrincipal || 0).toString());
+            setEditCost(((item.besPrincipal || 0) + (item.besPrincipalYield || 0)).toString());
         } else {
             setEditAmount(item.amount.toString());
             setEditCost(item.averageCost.toString());
@@ -158,23 +174,32 @@ export const PortfolioScreen = () => {
     };
 
     const saveEdit = async () => {
-        if (editingItem && editAmount && editCost) {
+        if (!editingItem) return;
+
+        if (editingItem.type === 'bes') {
+            const p = parseFloat(besPrincipal.replace(',', '.'));
+            const y = parseFloat(besYield.replace(',', '.'));
+            const sc = parseFloat(besStateContrib.replace(',', '.'));
+            const sy = parseFloat(besStateYield.replace(',', '.'));
+
+            if (isNaN(p) || isNaN(y) || isNaN(sc) || isNaN(sy)) {
+                return Alert.alert("Hata", "Geçersiz değerler.");
+            }
+
+            await updateAsset(editingItem.id, 1, p, undefined, undefined, {
+                besPrincipal: p,
+                besPrincipalYield: y,
+                besStateContrib: sc,
+                besStateContribYield: sy
+            });
+        } else {
             const val1 = parseFloat(editAmount.replace(',', '.'));
             const val2 = parseFloat(editCost.replace(',', '.'));
             if (isNaN(val1) || isNaN(val2)) return Alert.alert("Hata", "Geçersiz değerler.");
-
-            if (editingItem.type === 'bes') {
-                // For BES: val1 = maliyet (besPrincipal), val2 = güncel değer
-                // besPrincipalYield = güncel değer - maliyet
-                const besPrincipal = val1;
-                const besPrincipalYield = val2 - val1;
-                await updateAsset(editingItem.id, 1, besPrincipal, undefined, undefined, { besPrincipal, besPrincipalYield });
-            } else {
-                await updateAsset(editingItem.id, val1, val2);
-            }
-            setEditModalVisible(false);
-            setEditingItem(null);
+            await updateAsset(editingItem.id, val1, val2);
         }
+        setEditModalVisible(false);
+        setEditingItem(null);
     };
 
     // --- Calculations & Grouping ---
@@ -375,6 +400,15 @@ export const PortfolioScreen = () => {
                         );
                     })}
                 </ScrollView>
+
+                <SellAssetModal
+                    visible={sellModalVisible}
+                    item={sellingItem}
+                    onClose={() => {
+                        setSellModalVisible(false);
+                        setSellingItem(null);
+                    }}
+                />
             </View>
 
             {/* Portfolio Target Progress */}
@@ -568,7 +602,10 @@ export const PortfolioScreen = () => {
                                                         usdRate={usdRate}
                                                         onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                         onLongPress={() => handleLongPress(item)}
-                                                        onSell={() => (navigation as any).navigate('SellAsset', { assetId: item.id })}
+                                                        onSell={() => {
+                                                            setSellingItem(item);
+                                                            setSellModalVisible(true);
+                                                        }}
                                                     />
                                                 </React.Fragment>
                                             );
@@ -588,25 +625,69 @@ export const PortfolioScreen = () => {
                             {editingItem?.instrumentId} Düzenle
                         </Text>
 
-                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>
-                            {editingItem?.type === 'bes' ? 'MALİYET (₺)' : 'MİKTAR'}
-                        </Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                            value={editAmount}
-                            onChangeText={setEditAmount}
-                            keyboardType="numeric"
-                        />
+                        {editingItem?.type === 'bes' ? (
+                            <>
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>ANA PARA (₺)</Text>
+                                        <TextInput
+                                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                            value={besPrincipal}
+                                            onChangeText={setBesPrincipal}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>ANA PARA GETİRİSİ (₺)</Text>
+                                        <TextInput
+                                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                            value={besYield}
+                                            onChangeText={setBesYield}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                </View>
 
-                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>
-                            {editingItem?.type === 'bes' ? 'GÜNCEL DEĞER (₺)' : 'ORTALAMA MALİYET'}
-                        </Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                            value={editCost}
-                            onChangeText={setEditCost}
-                            keyboardType="numeric"
-                        />
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>DEVLET KATKISI (₺)</Text>
+                                        <TextInput
+                                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                            value={besStateContrib}
+                                            onChangeText={setBesStateContrib}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>KATKI GETİRİSİ (₺)</Text>
+                                        <TextInput
+                                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                            value={besStateYield}
+                                            onChangeText={setBesStateYield}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                </View>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>MİKTAR</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                    value={editAmount}
+                                    onChangeText={setEditAmount}
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={[styles.sectionTitle, { marginBottom: 8, color: colors.subText }]}>ORTALAMA MALİYET</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                    value={editCost}
+                                    onChangeText={setEditCost}
+                                    keyboardType="numeric"
+                                />
+                            </>
+                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity style={[styles.button, { backgroundColor: colors.background }]} onPress={() => setEditModalVisible(false)}>

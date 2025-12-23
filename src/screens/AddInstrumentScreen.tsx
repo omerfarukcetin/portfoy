@@ -231,16 +231,25 @@ export const AddInstrumentScreen = () => {
                 const customCat = undefined;
                 const totalCost = parseFloat(amount.replace(',', '.')) * parseFloat(cost.replace(',', '.'));
 
-                // If using cash reserve, deduct from cash balance
-                if (useFromCash && currency === 'TRY') {
-                    if (totalCost > cashBalance) {
-                        showAlert('Hata', 'Yedek akçe bakiyesi yetersiz!');
-                        return;
-                    }
-                    await updateCash(-totalCost);
+                // Pass useFromCash to addToPortfolio for atomic update
+                const deduct = useFromCash && currency === 'TRY';
+                if (deduct && totalCost > cashBalance) {
+                    showAlert('Hata', 'Yedek akçe bakiyesi yetersiz!');
+                    return;
                 }
 
-                await addToPortfolio(selectedInstrument, parseFloat(amount.replace(',', '.')), parseFloat(cost.replace(',', '.')), currency, dateTs, isNaN(rate) ? undefined : rate, undefined, customCat);
+                await addToPortfolio(
+                    selectedInstrument,
+                    parseFloat(amount.replace(',', '.')),
+                    parseFloat(cost.replace(',', '.')),
+                    currency,
+                    dateTs,
+                    isNaN(rate) ? undefined : rate,
+                    undefined,
+                    customCat,
+                    undefined,
+                    deduct
+                );
             }
 
             showAlert('Başarılı', 'Varlık portföye eklendi');

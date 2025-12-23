@@ -91,27 +91,10 @@ export const SummaryScreen = () => {
 
     const captureDistributionCard = async () => {
         try {
-            if (Platform.OS === 'web') {
-                const element = distCardWebRef.current?.getElement?.() || distCardWebRef.current;
-                if (!element) return;
-                const canvas = await html2canvas(element, {
-                    backgroundColor: colors.cardBackground,
-                    scale: 2,
-                    useCORS: true,
-                    logging: false
-                });
-
-                const dataUrl = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `portfoy-dagilimi-${Date.now()}.png`;
-                link.href = dataUrl;
-                link.click();
+            if (donutChartRef.current) {
+                await donutChartRef.current.captureImage();
             } else {
-                const ref = distCardMobileRef.current || distCardWebRef.current;
-                if (ref && ref.capture) {
-                    const uri = await ref.capture();
-                    Alert.alert('Başarılı', 'Görsel kaydedilmeye hazır.');
-                }
+                console.warn('⚠️ donutChartRef is not ready');
             }
         } catch (error) {
             console.error('Capture error:', error);
@@ -655,11 +638,10 @@ export const SummaryScreen = () => {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Portfolio Distribution - Donut Chart */}
-                                {portfolio.length > 0 && (
-                                    <ViewShot ref={distCardWebRef} options={{ format: 'png', quality: 1.0 }} style={{ width: '100%' }}>
+                                { /* Portfolio Distribution - Donut Chart */}
+                                {
+                                    portfolio.length > 0 && (
                                         <View
-                                            {...(Platform.OS === 'web' ? { 'data-chart-card': 'true' } : {})}
                                             style={{
                                                 backgroundColor: colors.cardBackground,
                                                 borderRadius: 16,
@@ -687,6 +669,7 @@ export const SummaryScreen = () => {
                                                         <Skeleton width={220} height={220} borderRadius={110} />
                                                     ) : (
                                                         <ShareableDonutChart
+                                                            ref={donutChartRef}
                                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
                                                             size={220}
                                                             strokeWidth={28}
@@ -721,8 +704,8 @@ export const SummaryScreen = () => {
                                                 </View>
                                             </View>
                                         </View>
-                                    </ViewShot>
-                                )}
+                                    )
+                                }
                             </View>
 
                             {/* RIGHT COLUMN - Insights */}
@@ -1106,51 +1089,49 @@ export const SummaryScreen = () => {
 
                         {/* Distribution Card */}
                         {portfolio.length > 0 && (
-                            <ViewShot ref={distCardMobileRef} options={{ format: 'png', quality: 1.0 }}>
-                                <Card style={{ padding: 16 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
-                                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                                            <TouchableOpacity onPress={() => captureDistributionCard()}>
-                                                <Download size={18} color={colors.subText} />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
-                                                <ArrowUpRight size={18} color={colors.primary} />
-                                            </TouchableOpacity>
-                                        </View>
+                            <Card style={{ padding: 16 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Varlık Dağılımı</Text>
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        <TouchableOpacity onPress={() => captureDistributionCard()}>
+                                            <Download size={18} color={colors.subText} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
+                                            <ArrowUpRight size={18} color={colors.primary} />
+                                        </TouchableOpacity>
                                     </View>
+                                </View>
 
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{ width: 120, height: 120 }}>
-                                            <ShareableDonutChart
-                                                ref={donutChartRef}
-                                                data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                                size={120}
-                                                strokeWidth={16}
-                                                centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
-                                                centerSubtext=""
-                                                centerTextFontSize={14}
-                                                colors={colors}
-                                                hideLegend={true}
-                                                isCompact={true}
-                                            />
-                                        </View>
-                                        <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
-                                            {pieData.slice(0, 4).map((item, index) => (
-                                                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                                                        <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.name}</Text>
-                                                    </View>
-                                                    <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '700' }}>
-                                                        {((item.population / totalPortfolioTry) * 100).toFixed(0)}%
-                                                    </Text>
-                                                </View>
-                                            ))}
-                                        </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={{ width: 120, height: 120 }}>
+                                        <ShareableDonutChart
+                                            ref={donutChartRef}
+                                            data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
+                                            size={120}
+                                            strokeWidth={16}
+                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                            centerSubtext=""
+                                            centerTextFontSize={14}
+                                            colors={colors}
+                                            hideLegend={true}
+                                            isCompact={true}
+                                        />
                                     </View>
-                                </Card>
-                            </ViewShot>
+                                    <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
+                                        {pieData.slice(0, 4).map((item, index) => (
+                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                                                    <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.name}</Text>
+                                                </View>
+                                                <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '700' }}>
+                                                    {((item.population / totalPortfolioTry) * 100).toFixed(0)}%
+                                                </Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            </Card>
                         )}
 
                         {/* Quick Insights Row */}

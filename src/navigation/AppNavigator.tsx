@@ -13,6 +13,7 @@ import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
+import { AIAnalysisScreen } from '../screens/AIAnalysisScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -28,7 +29,9 @@ import {
     Settings,
     Briefcase,
     List,
-    Home
+    Home,
+    Bot,
+    Sparkles
 } from 'lucide-react-native';
 import { Sidebar } from '../components/web/Sidebar';
 
@@ -44,6 +47,7 @@ const PAGE_TITLES: Record<string, string> = {
     'AssetDetail': 'Varlık Detayı - Portföy Cepte',
     'Login': 'Giriş Yap - Portföy Cepte',
     'Register': 'Kayıt Ol - Portföy Cepte',
+    'AIAnalysis': 'Asistan - Portföy Cepte',
 };
 
 const Stack = createNativeStackNavigator();
@@ -81,6 +85,9 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 } else if (route.name === 'Analytics') {
                     Icon = PieChart;
                     activeColor = colors.primary;
+                } else if (route.name === 'AIAnalysis') {
+                    Icon = Sparkles;
+                    activeColor = '#007AFF';
                 }
 
                 const onPress = () => {
@@ -297,6 +304,11 @@ const HomeTabNavigator = () => {
                 component={AnalyticsScreen}
                 options={{ title: t('nav.analytics') }}
             />
+            <Tab.Screen
+                name="AIAnalysis"
+                component={AIAnalysisScreen}
+                options={{ title: 'Asistan' }}
+            />
         </Tab.Navigator>
     );
 };
@@ -331,8 +343,8 @@ const WebNavigator = () => {
         { name: 'Summary', label: 'Özet', Icon: LayoutDashboard },
         { name: 'Portfolio', label: 'Portföy', Icon: PieChart },
         { name: 'AddInstrument', label: 'Ekle', Icon: Plus },
+        { name: 'AIAnalysis', label: 'Asistan', Icon: Sparkles },
         { name: 'Transactions', label: 'İşlemler', Icon: Repeat },
-        { name: 'Analytics', label: 'Analiz', Icon: PieChart },
         { name: 'Settings', label: 'Ayarlar', Icon: Settings },
     ];
 
@@ -357,6 +369,7 @@ const WebNavigator = () => {
                             <Stack.Screen name="Transactions" component={TransactionsScreen} />
                             <Stack.Screen name="Favorites" component={FavoritesScreen} />
                             <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+                            <Stack.Screen name="AIAnalysis" component={AIAnalysisScreen} />
                             <Stack.Screen name="Settings" component={SettingsScreen} />
                             <Stack.Screen
                                 name="AddInstrument"
@@ -431,6 +444,7 @@ const MainNavigator = () => {
             />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
             <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analiz' }} />
+            <Stack.Screen name="AIAnalysis" component={AIAnalysisScreen} options={{ title: 'Asistan' }} />
         </Stack.Navigator>
     );
 };
@@ -456,6 +470,7 @@ export const AppNavigator = () => {
             'Login': `Giriş Yap - ${APP_NAME}`,
             'Register': `Kayıt Ol - ${APP_NAME}`,
             'Analytics': `Analiz - ${APP_NAME}`,
+            'AIAnalysis': `Asistan - ${APP_NAME}`,
             'Main': APP_NAME,
         };
 

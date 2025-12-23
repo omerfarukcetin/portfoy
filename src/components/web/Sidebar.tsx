@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText, Briefcase } from 'lucide-react-native';
+import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText, Briefcase, Sparkles } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ const IconMap: { [key: string]: any } = {
     'log-out': LogOut,
     'file-text': FileText,
     'bar-chart': PieChart,
+    'sparkles': Sparkles,
 };
 
 export const Sidebar = () => {
@@ -66,7 +67,7 @@ export const Sidebar = () => {
         { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart' },
         { name: 'Transactions', label: 'İşlemler', icon: 'repeat' },
         { name: 'Favorites', label: 'Takip Listesi', icon: 'heart' },
-        { name: 'Analytics', label: 'Analiz', icon: 'bar-chart' },
+        { name: 'AIAnalysis', label: 'Asistan', icon: 'sparkles' },
     ];
 
     const preferenceItems = [

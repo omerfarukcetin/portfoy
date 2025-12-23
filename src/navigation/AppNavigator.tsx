@@ -12,7 +12,6 @@ import { AssetDetailScreen } from '../screens/AssetDetailScreen';
 import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
-import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -78,9 +77,6 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 } else if (route.name === 'Favorites') {
                     Icon = Star;
                     activeColor = '#FFCC00';
-                } else if (route.name === 'Analytics') {
-                    Icon = PieChart;
-                    activeColor = colors.primary;
                 }
 
                 const onPress = () => {
@@ -292,11 +288,6 @@ const HomeTabNavigator = () => {
                 component={FavoritesScreen}
                 options={{ title: t('nav.favorites') }}
             />
-            <Tab.Screen
-                name="Analytics"
-                component={AnalyticsScreen}
-                options={{ title: t('nav.analytics') }}
-            />
         </Tab.Navigator>
     );
 };
@@ -332,7 +323,6 @@ const WebNavigator = () => {
         { name: 'Portfolio', label: 'Portföy', Icon: PieChart },
         { name: 'AddInstrument', label: 'Ekle', Icon: Plus },
         { name: 'Transactions', label: 'İşlemler', Icon: Repeat },
-        { name: 'Analytics', label: 'Analiz', Icon: PieChart },
         { name: 'Settings', label: 'Ayarlar', Icon: Settings },
     ];
 
@@ -356,7 +346,6 @@ const WebNavigator = () => {
                             <Stack.Screen name="Portfolio" component={PortfolioScreen} />
                             <Stack.Screen name="Transactions" component={TransactionsScreen} />
                             <Stack.Screen name="Favorites" component={FavoritesScreen} />
-                            <Stack.Screen name="Analytics" component={AnalyticsScreen} />
                             <Stack.Screen name="Settings" component={SettingsScreen} />
                             <Stack.Screen
                                 name="AddInstrument"
@@ -430,7 +419,6 @@ const MainNavigator = () => {
                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
             />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
-            <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analiz' }} />
         </Stack.Navigator>
     );
 };
@@ -455,7 +443,6 @@ export const AppNavigator = () => {
             'AssetDetail': `Varlık Detayı - ${APP_NAME}`,
             'Login': `Giriş Yap - ${APP_NAME}`,
             'Register': `Kayıt Ol - ${APP_NAME}`,
-            'Analytics': `Analiz - ${APP_NAME}`,
             'Main': APP_NAME,
         };
 

@@ -12,9 +12,10 @@ import { useSettings } from '../context/SettingsContext';
 import { GradientCard } from '../components/GradientCard';
 import { AssetRow } from '../components/AssetRow';
 import { ExcelService } from '../services/excelService';
-import { PieChart, Download } from 'lucide-react-native';
+import { PieChart, Download, Pencil, Trash2 } from 'lucide-react-native';
 import { TickerIcon } from '../components/TickerIcon';
 import { SellAssetModal } from '../components/SellAssetModal';
+import { SwipeListView } from 'react-native-swipe-list-view';
 
 const getCategoryColor = (category: string) => {
     switch (category) {
@@ -153,17 +154,27 @@ export const PortfolioScreen = () => {
     };
 
     const handleLongPress = (item: PortfolioItem) => {
-        Alert.alert("Seçenekler", `${item.instrumentId} için işlem seçin:`, [
-            { text: "İptal", style: "cancel" },
-            { text: "Düzenle", onPress: () => openEditModal(item) },
-            { text: "Sil", style: "destructive", onPress: () => confirmDelete(item) }
-        ]);
+        setEditingItem(item);
+        if (item.type === 'bes') {
+            // BES uses 4 components
+            setBesPrincipal((item.besPrincipal || 0).toString());
+            setBesYield((item.besPrincipalYield || 0).toString());
+            setBesStateContrib((item.besStateContrib || 0).toString());
+            setBesStateYield((item.besStateContribYield || 0).toString());
+
+            // Also set legacy fields just in case
+            setEditAmount((item.besPrincipal || 0).toString());
+            setEditCost(((item.besPrincipal || 0) + (item.besPrincipalYield || 0)).toString());
+        } else {
+            setEditAmount(item.amount.toString());
+            setEditCost(item.averageCost.toString());
+        }
+        setEditModalVisible(true);
     };
 
     const confirmDelete = async (item: PortfolioItem) => {
         if (Platform.OS === 'web') {
             if (window.confirm(`${item.instrumentId} silinecek. Emin misiniz?`)) {
-                console.log('🔴 Portfolio: User confirmed delete for:', item.id);
                 await deleteAsset(item.id);
             }
         } else {
@@ -527,74 +538,62 @@ export const PortfolioScreen = () => {
                                             let itemCost = cashItem.amount;
                                             let itemValue = cashItem.amount;
                                             let itemProfit = 0;
-                                            let itemProfitPercent = 0;
-                                            let itemName = cashItem.name || 'Nakit';
 
-                                            // PPF with live prices
+                                            // For money market funds with units and instrumentId, use live prices
                                             if (cashItem.type === 'money_market_fund' && cashItem.units && cashItem.averageCost && cashItem.instrumentId) {
                                                 itemCost = cashItem.units * cashItem.averageCost;
                                                 const livePrice = fundPrices[cashItem.instrumentId];
                                                 if (livePrice) {
                                                     itemValue = cashItem.units * livePrice;
-                                                } else {
-                                                    itemValue = cashItem.amount;
                                                 }
-                                                itemProfit = itemValue - itemCost;
-                                                itemProfitPercent = itemCost > 0 ? (itemProfit / itemCost) * 100 : 0;
                                             }
 
                                             // Convert to display currency
                                             if (displayCurrency === 'USD' && cashItem.currency === 'TRY') {
                                                 itemValue = itemValue / usdRate;
                                                 itemCost = itemCost / usdRate;
-                                                itemProfit = itemProfit / usdRate;
+                                            } else if (displayCurrency === 'TRY' && cashItem.currency === 'USD') {
+                                                itemValue = itemValue * usdRate;
+                                                itemCost = itemCost * usdRate;
                                             }
 
+                                            itemProfit = itemValue - itemCost;
+                                            let itemProfitPercent = itemCost > 0 ? (itemProfit / itemCost) * 100 : 0;
+                                            let isItemProfit = itemProfit >= 0;
+                                            let itemName = cashItem.name || 'Nakit';
                                             const isPPF = cashItem.type === 'money_market_fund';
-                                            const isItemProfit = itemProfit >= 0;
-                                            const iconSymbol = isPPF ? '📈' : '💵';
-                                            const livePrice = isPPF && cashItem.instrumentId ? fundPrices[cashItem.instrumentId] : 0;
-                                            const unitPrice = livePrice || (cashItem.averageCost || 0);
+                                            const iconSymbol = cashItem.instrumentId ? cashItem.instrumentId.substring(0, 3) : 'TRY';
 
                                             return (
-                                                <React.Fragment key={cashItem.id}>
-                                                    {index > 0 && <View style={[styles.divider, { backgroundColor: colors.subText }]} />}
-                                                    <TouchableOpacity
-                                                        style={styles.itemRow}
-                                                        onPress={() => (navigation as any).navigate('CashManagement')}
-                                                        activeOpacity={0.7}
-                                                    >
-                                                        <View style={styles.rowLeft}>
-                                                            <View style={{ backgroundColor: isPPF ? '#34C75920' : '#FFD70020', padding: 8, borderRadius: 10, minWidth: 36, alignItems: 'center' }}>
-                                                                <Text style={{ fontSize: 16 }}>{iconSymbol}</Text>
+                                                <View key={index} style={[styles.itemRow, { borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border + '30' }]}>
+                                                    <View style={styles.leftContainer}>
+                                                        {isPPF ? (
+                                                            <View style={{ backgroundColor: '#8E8E9320', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.subText }}>{iconSymbol}</Text>
                                                             </View>
-                                                            <View>
-                                                                <Text style={[styles.symbol, { color: colors.text }]}>{itemName}</Text>
-                                                                <Text style={[styles.name, { color: colors.subText }]}>
-                                                                    {isPPF && cashItem.units
-                                                                        ? `${formatCurrency(unitPrice, displayCurrency)} × ${cashItem.units.toFixed(2)} Adet`
-                                                                        : cashItem.currency
-                                                                    }
+                                                        ) : (
+                                                            <View style={{ backgroundColor: '#8E8E9320', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 16 }}>💰</Text>
+                                                            </View>
+                                                        )}
+                                                        <View style={styles.textContainer}>
+                                                            <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]}>{itemName}</Text>
+                                                            <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]}>
+                                                                {isPPF ? `${formatCurrency(cashItem.amount / (cashItem.units || 1), cashItem.currency)} × ${cashItem.units}` : formatCurrency(cashItem.amount, cashItem.currency)}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                    <View style={styles.rightContainer}>
+                                                        <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(itemValue, displayCurrency)}</Text>
+                                                        {isPPF && (
+                                                            <View style={[styles.plContainer, { backgroundColor: isItemProfit ? colors.success + '15' : colors.danger + '15' }]}>
+                                                                <Text style={[styles.plText, { color: isItemProfit ? colors.success : colors.danger }]}>
+                                                                    {isItemProfit ? '+' : ''}{formatCurrency(itemProfit, displayCurrency)} ({isItemProfit ? '+' : ''}{itemProfitPercent.toFixed(1)}%)
                                                                 </Text>
                                                             </View>
-                                                        </View>
-                                                        <View style={{ alignItems: 'flex-end' }}>
-                                                            {isPPF && itemCost > 0 && Platform.OS === 'web' && (
-                                                                <Text style={{ color: colors.subText, fontSize: 10, marginBottom: 2 }}>
-                                                                    Maliyet: {formatCurrency(cashItem.averageCost || 0, displayCurrency)}
-                                                                </Text>
-                                                            )}
-                                                            <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(itemValue, displayCurrency)}</Text>
-                                                            {isPPF && (
-                                                                <View style={{ backgroundColor: isItemProfit ? colors.success + '15' : colors.danger + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 4 }}>
-                                                                    <Text style={{ color: isItemProfit ? colors.success : colors.danger, fontSize: 11, fontWeight: '600' }}>
-                                                                        {isItemProfit ? '+' : ''}{formatCurrency(itemProfit, displayCurrency)} ({isItemProfit ? '+' : ''}{itemProfitPercent.toFixed(1)}%)
-                                                                    </Text>
-                                                                </View>
-                                                            )}
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                </React.Fragment>
+                                                        )}
+                                                    </View>
+                                                </View>
                                             );
                                         })}
                                         {cashItems.length === 0 && (
@@ -603,54 +602,94 @@ export const PortfolioScreen = () => {
                                                 onPress={() => (navigation as any).navigate('CashManagement')}
                                                 activeOpacity={0.7}
                                             >
-                                                <View style={styles.rowLeft}>
-                                                    <View style={{ backgroundColor: '#FFD70020', padding: 8, borderRadius: 10, minWidth: 36, alignItems: 'center' }}>
+                                                <View style={styles.leftContainer}>
+                                                    <View style={{ backgroundColor: '#FFD70020', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
                                                         <Text style={{ fontSize: 16 }}>💰</Text>
                                                     </View>
-                                                    <View>
-                                                        <Text style={[styles.symbol, { color: colors.text }]}>Yedek Akçe Ekle</Text>
-                                                        <Text style={[styles.name, { color: colors.subText }]}>Nakit veya PPF ekleyin</Text>
+                                                    <View style={styles.textContainer}>
+                                                        <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]}>Yedek Akçe Ekle</Text>
+                                                        <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]}>Nakit veya PPF ekleyin</Text>
                                                     </View>
                                                 </View>
                                             </TouchableOpacity>
                                         )}
                                     </View>
-                                ) : (
-                                    /* Regular assets grid - Compact for mobile */
+                                ) : Platform.OS === 'web' ? (
                                     <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
-                                        {items.map((item, index) => {
-                                            const currentPrice = item.customCurrentPrice || prices[item.instrumentId] || 0;
-                                            const changePercent = dailyChanges[item.instrumentId] || 0;
-
-                                            return (
-                                                <React.Fragment key={item.id}>
-                                                    {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                                                    <AssetRow
-                                                        item={item}
-                                                        currentPrice={currentPrice}
-                                                        changePercent={changePercent}
-                                                        displayCurrency={displayCurrency}
-                                                        usdRate={usdRate}
-                                                        onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
-                                                        onLongPress={() => handleLongPress(item)}
-                                                        onEdit={() => openEditModal(item)}
-                                                        onSell={() => {
-                                                            setSellingItem(item);
-                                                            setSellModalVisible(true);
-                                                        }}
-                                                    />
-                                                </React.Fragment>
-                                            );
-                                        })}
+                                        {items.map((item) => (
+                                            <AssetRow
+                                                key={item.id}
+                                                item={item}
+                                                currentPrice={contextPrices[item.instrumentId] || 0}
+                                                changePercent={contextDailyChanges[item.instrumentId] || 0}
+                                                displayCurrency={displayCurrency}
+                                                usdRate={contextUsdRate}
+                                                onPress={() => navigation.navigate('AssetDetail', { asset: item })}
+                                                onLongPress={() => handleLongPress(item)}
+                                                onSell={() => {
+                                                    setSellingItem(item);
+                                                    setSellModalVisible(true);
+                                                }}
+                                                onEdit={() => openEditModal(item)}
+                                                color={getCategoryColor(category)}
+                                            />
+                                        ))}
                                     </View>
+                                ) : (
+                                    <SwipeListView
+                                        data={items}
+                                        renderItem={(data) => (
+                                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, marginBottom: 8 }]}>
+                                                <AssetRow
+                                                    item={data.item}
+                                                    currentPrice={contextPrices[data.item.instrumentId] || 0}
+                                                    changePercent={contextDailyChanges[data.item.instrumentId] || 0}
+                                                    displayCurrency={displayCurrency}
+                                                    usdRate={contextUsdRate}
+                                                    onPress={() => navigation.navigate('AssetDetail', { asset: data.item })}
+                                                    onLongPress={() => handleLongPress(data.item)}
+                                                    color={getCategoryColor(category)}
+                                                />
+                                            </View>
+                                        )}
+                                        renderHiddenItem={(data, rowMap) => (
+                                            <View style={styles.rowBack}>
+                                                <TouchableOpacity
+                                                    style={[styles.backRightBtn, styles.backRightBtnLeft, { backgroundColor: colors.primary }]}
+                                                    onPress={() => {
+                                                        rowMap[data.item.id].closeRow();
+                                                        openEditModal(data.item);
+                                                    }}
+                                                >
+                                                    <Pencil size={20} color="#fff" />
+                                                    <Text style={styles.backTextWhite}>Düzenle</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[styles.backRightBtn, styles.backRightBtnRight, { backgroundColor: colors.danger }]}
+                                                    onPress={() => {
+                                                        rowMap[data.item.id].closeRow();
+                                                        confirmDelete(data.item);
+                                                    }}
+                                                >
+                                                    <Trash2 size={20} color="#fff" />
+                                                    <Text style={styles.backTextWhite}>Sil</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                        rightOpenValue={-140}
+                                        disableRightSwipe
+                                        useFlatList={false}
+                                        keyExtractor={(item) => item.id}
+                                        scrollEnabled={false}
+                                    />
                                 )}
                             </View>
                         );
                     })}
-            </ScrollView>
+            </ScrollView >
 
             {/* Edit Modal */}
-            <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+            < Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalContainer}>
                     <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
                         <Text style={[styles.symbol, { textAlign: 'center', fontSize: 20, marginBottom: 16, color: colors.text }]}>
@@ -731,10 +770,10 @@ export const PortfolioScreen = () => {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
-            </Modal>
+            </Modal >
 
             {/* Target Modal */}
-            <Modal visible={targetModalVisible} animationType="slide" transparent onRequestClose={() => setTargetModalVisible(false)}>
+            < Modal visible={targetModalVisible} animationType="slide" transparent onRequestClose={() => setTargetModalVisible(false)}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalContainer}>
                     <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
                         <Text style={[styles.symbol, { textAlign: 'center', fontSize: 20, marginBottom: 16, color: colors.text }]}>
@@ -762,8 +801,8 @@ export const PortfolioScreen = () => {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
-            </Modal>
-        </View>
+            </Modal >
+        </View >
     );
 };
 
@@ -828,6 +867,36 @@ const styles = StyleSheet.create({
     input: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16 },
     modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
     button: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
+    rowBack: {
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingRight: 0,
+        marginBottom: 8,
+        borderRadius: 12,
+        height: '100%',
+    },
+    backRightBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 70,
+        height: '100%',
+    },
+    backRightBtnLeft: {
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+    },
+    backRightBtnRight: {
+        borderTopRightRadius: 12,
+        borderBottomRightRadius: 12,
+    },
+    backTextWhite: {
+        color: '#FFF',
+        fontSize: 10,
+        fontWeight: '600',
+        marginTop: 4,
+    },
     downloadButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -856,6 +925,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+    },
+    leftContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    rightContainer: {
+        alignItems: 'flex-end',
+        minWidth: 80,
+    },
+    textContainer: {
+        flex: 1,
+    },
+    amount: {
+        fontSize: Platform.OS === 'web' ? 13 : 11,
+    },
+    plContainer: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginTop: 4,
+    },
+    plText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
     divider: {
         height: 1,

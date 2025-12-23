@@ -61,9 +61,9 @@ export const ExcelService = {
                 URL.revokeObjectURL(url);
             } else {
                 // Mobile save & share
-                const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+                const fileUri = `${(FileSystem as any).cacheDirectory}${fileName}`;
                 await FileSystem.writeAsStringAsync(fileUri, wbout, {
-                    encoding: FileSystem.EncodingType.Base64,
+                    encoding: (FileSystem as any).EncodingType.Base64,
                 });
 
                 if (await Sharing.isAvailableAsync()) {

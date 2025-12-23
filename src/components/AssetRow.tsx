@@ -84,11 +84,13 @@ export const AssetRow: React.FC<AssetRowProps> = ({
             activeOpacity={0.7}
         >
             <View style={styles.leftContainer}>
-                <TickerIcon symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)} color={color || colors.primary} />
+                {Platform.OS === 'web' && (
+                    <TickerIcon symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)} color={color || colors.primary} />
+                )}
                 <View style={styles.textContainer}>
                     <Text style={[styles.symbol, { color: colors.text }]}>{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
                     <Text style={[styles.amount, { color: colors.subText }]}>
-                        {formatCurrency(displayPrice, displayCurrency)} × {item.amount} Adet
+                        {formatCurrency(displayPrice, displayCurrency)} × {item.amount}
                     </Text>
                     {/* Hide daily change on mobile */}
                     {Platform.OS === 'web' && changePercent !== 0 ? (
@@ -178,9 +180,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     symbol: {
-        fontSize: Platform.OS === 'web' ? 15 : 13,
+        fontSize: Platform.OS === 'web' ? 15 : 12,
         fontWeight: '700',
-        marginBottom: 3,
+        marginBottom: 2,
         letterSpacing: 0.3,
     },
     cryptoName: {
@@ -189,22 +191,23 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     amount: {
-        fontSize: Platform.OS === 'web' ? 12 : 10,
+        fontSize: Platform.OS === 'web' ? 12 : 9,
         opacity: 0.7,
     },
     rightContainer: {
         alignItems: 'flex-end',
+        minWidth: 80,
     },
     costLabel: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '500',
         marginBottom: 3,
         opacity: 0.6,
     },
     value: {
-        fontSize: Platform.OS === 'web' ? 15 : 13,
+        fontSize: Platform.OS === 'web' ? 15 : 12,
         fontWeight: '700',
-        marginBottom: 6,
+        marginBottom: 4,
         letterSpacing: 0.2,
     },
     header: {
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
     },
     plText: {
-        fontSize: Platform.OS === 'web' ? 11 : 10,
+        fontSize: Platform.OS === 'web' ? 11 : 9,
         fontWeight: '600',
         letterSpacing: 0.2,
     },

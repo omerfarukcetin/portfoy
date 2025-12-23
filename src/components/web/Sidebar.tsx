@@ -66,7 +66,6 @@ export const Sidebar = () => {
         { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart' },
         { name: 'Transactions', label: 'İşlemler', icon: 'repeat' },
         { name: 'Favorites', label: 'Takip Listesi', icon: 'heart' },
-        { name: 'Analytics', label: 'Analiz', icon: 'bar-chart' },
     ];
 
     const preferenceItems = [

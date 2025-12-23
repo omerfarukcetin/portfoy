@@ -164,7 +164,7 @@ export const TransactionsScreen = () => {
                     {/* Center: Amount + Total */}
                     <View style={styles.rightContainer}>
                         <Text style={[styles.value, { color: colors.text }]}>
-                            {item.amount} Adet
+                            {item.amount}
                         </Text>
                         <Text style={[styles.total, { color: colors.subText }]}>
                             {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
@@ -210,6 +210,61 @@ export const TransactionsScreen = () => {
             </View>
         );
     };
+
+    const renderRealizedItem = (data: { item: any }) => {
+        const trade = data.item;
+        const cost = trade.buyPrice * trade.amount;
+        const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
+        const isProfit = trade.profitTry >= 0;
+
+        return (
+            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                <View style={styles.itemRow}>
+                    <View style={styles.leftContainer}>
+                        <TickerIcon
+                            symbol={trade.instrumentId.substring(0, 3)}
+                            color="#8E8E93"
+                            size={40}
+                        />
+                        <View style={styles.textContainer}>
+                            <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]}>
+                                {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
+                            </Text>
+                            <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>
+                                {new Date(trade.date).toLocaleDateString()}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={styles.rightContainer}>
+                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 15 }]}>
+                            {isProfit ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                        </Text>
+                        <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
+                            <Text style={{ color: isProfit ? colors.success : colors.danger, fontSize: 10, fontWeight: '700' }}>
+                                {isProfit ? '+' : ''}{profitPercent.toFixed(1)}%
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+        );
+    };
+
+    const renderRealizedHiddenItem = (data: { item: any }, rowMap: any) => (
+        <View style={styles.rowBack}>
+            <TouchableOpacity
+                style={[styles.backRightBtn, styles.backRightBtnRight, { backgroundColor: colors.danger }]}
+                onPress={() => {
+                    rowMap[data.item.id].closeRow();
+                    handleDeleteRealized(data.item.id, data.item.instrumentId);
+                }}
+            >
+                <Trash2 size={24} color="#fff" />
+                <Text style={styles.backTextWhite}>Sil</Text>
+            </TouchableOpacity>
+        </View>
+    );
 
     const renderHiddenItem = (data: { item: PortfolioItem }, rowMap: any) => (
         <View style={styles.rowBack}>
@@ -300,7 +355,7 @@ export const TransactionsScreen = () => {
 
                                         {/* Quantity */}
                                         <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
-                                            {item.amount} Adet
+                                            {item.amount}
                                         </Text>
 
                                         {/* Cost */}
@@ -454,7 +509,7 @@ export const TransactionsScreen = () => {
 
                                                 {/* Quantity */}
                                                 <Text style={[styles.tableText, { flex: 1.5, color: colors.subText }]}>
-                                                    {trade.amount} Adet
+                                                    {trade.amount}
                                                 </Text>
 
                                                 {/* Sell Price */}
@@ -489,39 +544,15 @@ export const TransactionsScreen = () => {
                                     })}
                                 </View>
                             ) : (
-                                realizedTrades.slice().reverse().map(trade => {
-                                    const cost = trade.buyPrice * trade.amount;
-                                    const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
-
-                                    return (
-                                        <View key={trade.id} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                            <View style={styles.row}>
-                                                <Text style={[styles.symbol, { color: colors.text }]}>{trade.instrumentId} (SATIŞ)</Text>
-                                                <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 12 }}>
-                                                    <View style={{ alignItems: 'flex-end' }}>
-                                                        <Text style={[styles.value, { color: trade.profitTry >= 0 ? colors.success : colors.danger }]}>
-                                                            {trade.profitTry >= 0 ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
-                                                        </Text>
-                                                        <Text style={{ color: trade.profitTry >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600' }}>
-                                                            ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(1)}%)
-                                                        </Text>
-                                                    </View>
-                                                    <TouchableOpacity onPress={() => handleDeleteRealized(trade.id, trade.instrumentId)}>
-                                                        <Trash2 size={20} color={colors.danger} />
-                                                    </TouchableOpacity>
-                                                </View>
-                                            </View>
-                                            <View style={styles.row}>
-                                                <Text style={[styles.details, { color: colors.subText }]}>
-                                                    {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
-                                                </Text>
-                                                <Text style={[styles.details, { color: colors.subText }]}>
-                                                    {new Date(trade.date).toLocaleDateString()}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    );
-                                })
+                                <SwipeListView
+                                    data={realizedTrades.slice().reverse()}
+                                    renderItem={renderRealizedItem}
+                                    renderHiddenItem={renderRealizedHiddenItem}
+                                    keyExtractor={(item) => item.id}
+                                    rightOpenValue={-75}
+                                    disableRightSwipe
+                                    contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 100 }}
+                                />
                             )}
                         </>
                     )}
@@ -678,22 +709,28 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     symbol: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         marginBottom: 2,
     },
     value: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         marginBottom: 2,
     },
     total: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '500',
     },
     details: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '500',
+    },
+    plBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginTop: 4,
     },
     rowBack: {
         alignItems: 'center',

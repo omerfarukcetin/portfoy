@@ -624,7 +624,7 @@ export const PortfolioScreen = () => {
                                                 changePercent={contextDailyChanges[item.instrumentId] || 0}
                                                 displayCurrency={displayCurrency}
                                                 usdRate={contextUsdRate}
-                                                onPress={() => navigation.navigate('AssetDetail', { asset: item })}
+                                                onPress={() => navigation.navigate('AssetDetail', { id: item.id })}
                                                 onLongPress={() => handleLongPress(item)}
                                                 onSell={() => {
                                                     setSellingItem(item);
@@ -646,7 +646,7 @@ export const PortfolioScreen = () => {
                                                     changePercent={contextDailyChanges[data.item.instrumentId] || 0}
                                                     displayCurrency={displayCurrency}
                                                     usdRate={contextUsdRate}
-                                                    onPress={() => navigation.navigate('AssetDetail', { asset: data.item })}
+                                                    onPress={() => navigation.navigate('AssetDetail', { id: data.item.id })}
                                                     onLongPress={() => handleLongPress(data.item)}
                                                     color={getCategoryColor(category)}
                                                 />

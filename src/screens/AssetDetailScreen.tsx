@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -98,17 +98,16 @@ export const AssetDetailScreen = () => {
         },
         // Matching TransactionsScreen header exactly
         header: {
-            paddingTop: 60,
-            paddingBottom: 20,
+            paddingTop: Platform.OS === 'ios' ? 50 : 30,
+            paddingBottom: 15,
             paddingHorizontal: 20,
             alignItems: 'center',
-            justifyContent: 'center', // Ensure vertical centering if height grows
+            justifyContent: 'center',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.05,
             shadowRadius: 4,
             elevation: 3,
             zIndex: 10,
-            // No flex direction row
         },
         screenTitle: {
             fontSize: 24,
@@ -118,7 +117,7 @@ export const AssetDetailScreen = () => {
         closeButton: {
             position: 'absolute',
             left: 20,
-            bottom: 16, // Aligned visually with text
+            bottom: 16,
             padding: 4,
             zIndex: 11,
         },
@@ -129,12 +128,13 @@ export const AssetDetailScreen = () => {
             marginBottom: 24,
             borderWidth: 1,
             borderColor: colors.border,
-            alignItems: 'center', // Center content
+            alignItems: 'center',
+
         },
         symbol: {
-            fontSize: 32 * fontScale,
+            fontSize: Platform.OS === 'web' ? 32 * fontScale : 22 * fontScale,
             fontWeight: '800',
-            marginBottom: 12, // Increased spacing
+            marginBottom: Platform.OS === 'web' ? 12 : 4,
             textAlign: 'center',
         },
         assetDetailsRow: {
@@ -181,10 +181,10 @@ export const AssetDetailScreen = () => {
         },
         card: {
             borderRadius: 12,
-            padding: 16,
+            padding: Platform.OS === 'web' ? 16 : 12,
             borderWidth: 1,
-            flex: 1, // Equal width
-            minWidth: '45%',
+            flex: Platform.OS === 'web' ? 1 : 0,
+            minWidth: Platform.OS === 'web' ? '45%' : '100%',
         },
         cardLabel: {
             fontSize: 13 * fontScale,
@@ -333,8 +333,8 @@ export const AssetDetailScreen = () => {
                     )}
                 </View>
 
-                {/* 3-COLUMN GRID LAYOUT FOR WEB */}
-                <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
+                {/* RESPONSIVE LAYOUT: 3-column on web, stacked on mobile */}
+                <View style={{ flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 16, alignItems: 'flex-start' }}>
                     {/* COLUMN 1: Transaction Timeline */}
                     <View style={{ flex: 1, gap: 16 }}>
                         {!loading && (
@@ -348,7 +348,7 @@ export const AssetDetailScreen = () => {
 
                     {/* COLUMN 2: TRY Statistics */}
                     <View style={{ flex: 1, gap: 16 }}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>🇹🇷 Türk Lirası Bazında</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🇹🇷 Türk Lirası Bazında</Text>
                         <View style={{ gap: 12 }}>
                             <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                 <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
@@ -375,7 +375,7 @@ export const AssetDetailScreen = () => {
 
                     {/* COLUMN 3: USD Statistics + AI Insights */}
                     <View style={{ flex: 1, gap: 16 }}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>🇺🇸 Dolar Bazında</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🇺🇸 Dolar Bazında</Text>
                         <View style={{ gap: 12 }}>
                             <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                 <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
@@ -400,7 +400,7 @@ export const AssetDetailScreen = () => {
                         </View>
 
                         {/* AI Smart Insight */}
-                        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8 }]}>🤖 Akıllı Analiz</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🤖 Akıllı Analiz</Text>
                         {!loading && (
                             <SmartInsightCard
                                 insight={generateAssetInsight(

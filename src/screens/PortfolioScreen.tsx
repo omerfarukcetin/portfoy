@@ -602,6 +602,7 @@ export const PortfolioScreen = () => {
                                                         usdRate={usdRate}
                                                         onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                         onLongPress={() => handleLongPress(item)}
+                                                        onEdit={() => openEditModal(item)}
                                                         onSell={() => {
                                                             setSellingItem(item);
                                                             setSellModalVisible(true);

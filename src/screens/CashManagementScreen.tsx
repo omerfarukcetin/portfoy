@@ -43,6 +43,7 @@ export const CashManagementScreen = () => {
     // Sell modal state
     const [sellModalVisible, setSellModalVisible] = useState(false);
     const [sellingItem, setSellingItem] = useState<CashItem | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Fetch historical rate when date changes
     useEffect(() => {
@@ -165,66 +166,76 @@ export const CashManagementScreen = () => {
     }, [cashItems]);
 
     const handleSave = async () => {
-        // For money market funds with selected fund
-        if (formData.type === 'money_market_fund' && selectedFund) {
-            const units = parseFloat(formData.units);
-            const avgCost = parseFloat(formData.averageCost);
+        if (isSaving) return;
+        setIsSaving(true);
 
-            if (isNaN(units) || units <= 0) {
-                showAlert('Hata', 'Geçerli bir adet girin');
+        try {
+            // For money market funds with selected fund
+            if (formData.type === 'money_market_fund' && selectedFund) {
+                const units = parseFloat(formData.units);
+                const avgCost = parseFloat(formData.averageCost);
+
+                if (isNaN(units) || units <= 0) {
+                    showAlert('Hata', 'Geçerli bir adet girin');
+                    return;
+                }
+                if (isNaN(avgCost) || avgCost <= 0) {
+                    showAlert('Hata', 'Geçerli bir maliyet girin');
+                    return;
+                }
+
+                const totalCost = units * avgCost;
+                const rate = parseFloat(historicalRate) || undefined;
+                const newItem: Omit<CashItem, 'id'> = {
+                    type: 'money_market_fund',
+                    name: selectedFund.name || selectedFund.id,
+                    amount: totalCost, // Initial value = cost
+                    currency: 'TRY',
+                    instrumentId: selectedFund.id,
+                    units: units,
+                    averageCost: avgCost,
+                    dateAdded: new Date(dateStr).getTime(),
+                    historicalUsdRate: rate
+                };
+                await addCashItem(newItem);
+                setModalVisible(false);
                 return;
             }
-            if (isNaN(avgCost) || avgCost <= 0) {
-                showAlert('Hata', 'Geçerli bir maliyet girin');
+
+            const amount = parseFloat(formData.amount);
+            if (isNaN(amount) || amount <= 0) {
+                showAlert('Hata', 'Geçerli bir miktar girin');
                 return;
             }
 
-            const totalCost = units * avgCost;
-            const rate = parseFloat(historicalRate) || undefined;
-            const newItem: Omit<CashItem, 'id'> = {
-                type: 'money_market_fund',
-                name: selectedFund.name || selectedFund.id,
-                amount: totalCost, // Initial value = cost
-                currency: 'TRY',
-                instrumentId: selectedFund.id,
-                units: units,
-                averageCost: avgCost,
-                dateAdded: new Date(dateStr).getTime(),
-                historicalUsdRate: rate
-            };
-            await addCashItem(newItem);
+            if (!formData.name.trim()) {
+                showAlert('Hata', 'İsim boş olamaz');
+                return;
+            }
+
+            if (editingItem) {
+                // Update existing
+                await updateCashItem(editingItem.id, amount);
+            } else {
+                // Add new
+                const newItem: Omit<CashItem, 'id'> = {
+                    type: formData.type,
+                    name: formData.name,
+                    amount: amount,
+                    currency: formData.currency,
+                    interestRate: formData.interestRate ? parseFloat(formData.interestRate) : undefined,
+                    dateAdded: new Date(dateStr).getTime()
+                };
+                await addCashItem(newItem);
+            }
+
             setModalVisible(false);
-            return;
+        } catch (error) {
+            console.error('Error saving cash item:', error);
+            showAlert('Hata', 'Kaydedilirken bir hata oluştu');
+        } finally {
+            setIsSaving(false);
         }
-
-        const amount = parseFloat(formData.amount);
-        if (isNaN(amount) || amount <= 0) {
-            showAlert('Hata', 'Geçerli bir miktar girin');
-            return;
-        }
-
-        if (!formData.name.trim()) {
-            showAlert('Hata', 'İsim boş olamaz');
-            return;
-        }
-
-        if (editingItem) {
-            // Update existing
-            await updateCashItem(editingItem.id, amount);
-        } else {
-            // Add new
-            const newItem: Omit<CashItem, 'id'> = {
-                type: formData.type,
-                name: formData.name,
-                amount: amount,
-                currency: formData.currency,
-                interestRate: formData.interestRate ? parseFloat(formData.interestRate) : undefined,
-                dateAdded: new Date(dateStr).getTime()
-            };
-            await addCashItem(newItem);
-        }
-
-        setModalVisible(false);
     };
 
     const handleDelete = async (item: CashItem) => {
@@ -420,8 +431,8 @@ export const CashManagementScreen = () => {
                                     </View>
                                 </View>
                                 <View style={styles.itemFooter}>
-                                    <View>
-                                        <Text style={[styles.itemAmount, { color: colors.text }]}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.itemAmount, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
                                             {formatCurrency(currentValue, item.currency)}
                                         </Text>
                                         {item.type === 'money_market_fund' && item.instrumentId && fundPrices[item.instrumentId] && (
@@ -438,12 +449,12 @@ export const CashManagementScreen = () => {
                                         )}
                                     </View>
                                     {item.type === 'money_market_fund' && item.averageCost && (
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]}>
+                                        <View style={{ alignItems: 'flex-end', flex: 0.8 }}>
+                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]} numberOfLines={1}>
                                                 Maliyet: {formatCurrency(cost, 'TRY')}
                                             </Text>
                                             {item.historicalUsdRate && (
-                                                <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]}>
+                                                <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]} numberOfLines={1}>
                                                     (${costUsd.toFixed(2)})
                                                 </Text>
                                             )}
@@ -766,10 +777,19 @@ export const CashManagementScreen = () => {
                                 <Text style={[styles.modalButtonText, { color: colors.text }]}>İptal</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                                style={[
+                                    styles.modalButton,
+                                    { backgroundColor: colors.primary },
+                                    isSaving && { opacity: 0.7 }
+                                ]}
                                 onPress={handleSave}
+                                disabled={isSaving}
                             >
-                                <Text style={[styles.modalButtonText, { color: '#fff' }]}>Kaydet</Text>
+                                {isSaving ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Text style={[styles.modalButtonText, { color: '#fff' }]}>Kaydet</Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -809,7 +829,7 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     headerTitle: {
-        fontSize: 24,
+        fontSize: Platform.OS === 'web' ? 24 : 20,
         fontWeight: '700',
     },
     addButton: {
@@ -825,8 +845,8 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     totalCard: {
-        margin: 20,
-        padding: 24,
+        margin: 16,
+        padding: Platform.OS === 'web' ? 24 : 20,
         borderRadius: 20,
         alignItems: 'center',
         shadowColor: '#000',
@@ -845,7 +865,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     totalAmount: {
-        fontSize: 34,
+        fontSize: Platform.OS === 'web' ? 34 : 28,
         fontWeight: '700',
     },
     scrollContent: {
@@ -886,8 +906,8 @@ const styles = StyleSheet.create({
     itemHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        alignItems: 'center',
+        marginBottom: 10,
     },
     itemTitleRow: {
         flexDirection: 'row',
@@ -908,10 +928,11 @@ const styles = StyleSheet.create({
     itemFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'baseline',
+        alignItems: 'flex-end',
+        gap: 8,
     },
     itemAmount: {
-        fontSize: 24,
+        fontSize: Platform.OS === 'web' ? 24 : 20,
         fontWeight: '700',
     },
     itemCurrency: {

@@ -36,8 +36,8 @@ export const AddInstrumentScreen = () => {
     const [customCategoryName, setCustomCategoryName] = useState('');
     const [customCurrentUnitPrice, setCustomCurrentUnitPrice] = useState(''); // Current unit price for DIGER
 
-    // Cash source toggle
     const [useFromCash, setUseFromCash] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
     const { addToPortfolio, updateCash, cashBalance } = usePortfolio();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -160,14 +160,15 @@ export const AddInstrumentScreen = () => {
             return;
         }
 
-        // Validation for BES
+        if (isAdding) return;
+
+        // Validation based on category
         if (category === 'BES') {
             if (!besPrincipal || !besProfit) {
                 showAlert('Hata', 'Lütfen Ana Para ve Kâr alanlarını doldurun');
                 return;
             }
         } else if (category === 'DIGER') {
-            // DIGER: Need amount, cost, and current unit price
             if (!amount || !cost || !customCurrentUnitPrice) {
                 showAlert('Hata', 'Lütfen adet, maliyet ve güncel birim fiyatı girin');
                 return;
@@ -185,67 +186,55 @@ export const AddInstrumentScreen = () => {
             return;
         }
 
-        const dateTs = new Date(dateStr).getTime();
+        setIsAdding(true);
+        const dateTs = date.getTime();
         const rate = parseFloat(historicalRate.replace(',', '.'));
 
         try {
             if (category === 'BES') {
                 const principal = parseFloat(besPrincipal.replace(',', '.'));
                 const profit = parseFloat(besProfit.replace(',', '.'));
-                const totalValue = principal + profit; // Current total value
 
                 await addToPortfolio(
                     selectedInstrument,
-                    1, // Amount is 1 for BES
-                    principal, // Cost is principal (ana para)
+                    1,
+                    principal,
                     'TRY',
                     dateTs,
                     undefined,
                     {
                         principal,
-                        stateContrib: 0, // Not tracked separately
+                        stateContrib: 0,
                         stateContribYield: 0,
-                        principalYield: profit // Total profit
+                        principalYield: profit
                     }
                 );
             } else if (category === 'DIGER') {
-                // DIGER: Use amount, cost (averageCost), and customCurrentUnitPrice
                 const customCat = customCategoryName || 'Diğer';
                 const amountVal = parseFloat(amount.replace(',', '.'));
-                const costVal = parseFloat(cost.replace(',', '.')); // This is averageCost per unit
+                const costVal = parseFloat(cost.replace(',', '.'));
                 const currentPriceVal = parseFloat(customCurrentUnitPrice.replace(',', '.'));
 
                 await addToPortfolio(
                     selectedInstrument,
                     amountVal,
-                    costVal, // averageCost per unit
+                    costVal,
                     'TRY',
                     dateTs,
                     isNaN(rate) ? undefined : rate,
-                    undefined, // no besData
+                    undefined,
                     customCat,
-                    { name: customAssetName, currentPrice: currentPriceVal } // customData
+                    { name: customAssetName, currentPrice: currentPriceVal }
                 );
             } else {
-                // Pass the historical rate and custom category if available
-                const customCat = undefined;
                 const totalCost = parseFloat(amount.replace(',', '.')) * parseFloat(cost.replace(',', '.'));
-
-                // Pass useFromCash to addToPortfolio for atomic update
                 const deduct = useFromCash && currency === 'TRY';
+
                 if (deduct && totalCost > cashBalance) {
                     showAlert('Hata', 'Yedek akçe bakiyesi yetersiz!');
+                    setIsAdding(false);
                     return;
                 }
-
-                console.log('🟢 AddInstrumentScreen: Calling addToPortfolio with:', {
-                    instrument: selectedInstrument.symbol,
-                    amount: parseFloat(amount.replace(',', '.')),
-                    cost: parseFloat(cost.replace(',', '.')),
-                    currency,
-                    dateTs,
-                    rate: isNaN(rate) ? undefined : rate
-                });
 
                 await addToPortfolio(
                     selectedInstrument,
@@ -255,11 +244,10 @@ export const AddInstrumentScreen = () => {
                     dateTs,
                     isNaN(rate) ? undefined : rate,
                     undefined,
-                    customCat,
+                    undefined,
                     undefined,
                     deduct
                 );
-                console.log('🟢 AddInstrumentScreen: addToPortfolio completed successfully');
             }
 
             showAlert('Başarılı', 'Varlık portföye eklendi');
@@ -267,6 +255,8 @@ export const AddInstrumentScreen = () => {
         } catch (error) {
             console.error('🔴 AddInstrumentScreen: Error adding instrument:', error);
             showAlert('Hata', 'Ekleme başarısız oldu');
+        } finally {
+            setIsAdding(false);
         }
     };
 
@@ -276,25 +266,35 @@ export const AddInstrumentScreen = () => {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {!selectedInstrument ? (
                 <>
-                    <View style={styles.tabContainer}>
-                        {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DÖVİZ', 'NAKİT', 'DİĞER'].map((cat) => {
-                            const catKey = cat === 'DİĞER' ? 'DIGER' : cat === 'NAKİT' ? 'NAKIT' : cat;
-                            return (
-                                <TouchableOpacity
-                                    key={cat}
-                                    style={[styles.tab, category === catKey && { backgroundColor: colors.primary }]}
-                                    onPress={() => {
-                                        if (cat === 'NAKİT') {
-                                            navigation.navigate('CashManagement' as never);
-                                        } else {
-                                            setCategory(catKey as any);
-                                        }
-                                    }}
-                                >
-                                    <Text style={[styles.tabText, { color: category === catKey ? '#fff' : colors.subText }]}>{cat}</Text>
-                                </TouchableOpacity>
-                            );
-                        })}
+                    <View style={{ height: 50, marginBottom: 15 }}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: 'center' }}
+                        >
+                            {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DÖVİZ', 'NAKİT', 'DİĞER'].map((cat) => {
+                                const catKey = cat === 'DİĞER' ? 'DIGER' : cat === 'NAKİT' ? 'NAKIT' : cat;
+                                return (
+                                    <TouchableOpacity
+                                        key={cat}
+                                        style={[
+                                            styles.tab,
+                                            category === catKey && { backgroundColor: colors.primary },
+                                            { marginBottom: 0 } // Override margin for horizontal scroll
+                                        ]}
+                                        onPress={() => {
+                                            if (cat === 'NAKİT') {
+                                                navigation.navigate('CashManagement' as never);
+                                            } else {
+                                                setCategory(catKey as any);
+                                            }
+                                        }}
+                                    >
+                                        <Text style={[styles.tabText, { color: category === catKey ? '#fff' : colors.subText }]}>{cat}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
                     </View>
 
                     {category === 'KRIPTO' ? (
@@ -735,8 +735,20 @@ export const AddInstrumentScreen = () => {
                         <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.background }]} onPress={() => setSelectedInstrument(null)}>
                             <Text style={[styles.cancelButtonText, { color: colors.subText }]}>İptal</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={handleAdd}>
-                            <Text style={styles.buttonText}>Portföye Ekle</Text>
+                        <TouchableOpacity
+                            style={[
+                                styles.addButton,
+                                { backgroundColor: colors.primary },
+                                isAdding && { opacity: 0.7 }
+                            ]}
+                            onPress={handleAdd}
+                            disabled={isAdding}
+                        >
+                            {isAdding ? (
+                                <ActivityIndicator color="#fff" size="small" />
+                            ) : (
+                                <Text style={styles.buttonText}>Portföye Ekle</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { showAlert } from '../utils/alerts';
@@ -26,6 +27,7 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [currentUsdRate, setCurrentUsdRate] = useState(0);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         if (visible && item && item.units) {
@@ -203,13 +205,27 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
                                     }}
                                 />
                             ) : (
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                                    value={sellDate}
-                                    onChangeText={setSellDate}
-                                    placeholder="YYYY-MM-DD"
-                                    placeholderTextColor={colors.subText}
-                                />
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, justifyContent: 'center' }]}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{sellDate}</Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={new Date(sellDate)}
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event, selectedDate) => {
+                                                setShowDatePicker(false);
+                                                if (selectedDate) {
+                                                    setSellDate(selectedDate.toISOString().split('T')[0]);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </>
                             )}
 
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>

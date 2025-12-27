@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -26,6 +27,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const [historicalRate, setHistoricalRate] = useState('');
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         if (visible && item) {
@@ -158,13 +160,46 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                             </View>
 
                             <Text style={[styles.label, { color: colors.subText }]}>{t('sellAsset.sellDate') || 'Satış Tarihi'}</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                                value={sellDate}
-                                onChangeText={setSellDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={colors.subText}
-                            />
+                            {Platform.OS === 'web' ? (
+                                <input
+                                    type="date"
+                                    value={sellDate}
+                                    onChange={(e: any) => setSellDate(e.target.value)}
+                                    style={{
+                                        padding: 12,
+                                        fontSize: 16,
+                                        borderRadius: 12,
+                                        border: `1px solid ${colors.border}`,
+                                        backgroundColor: colors.background,
+                                        color: colors.text,
+                                        width: '100%',
+                                        height: 48,
+                                        marginBottom: 16,
+                                    }}
+                                />
+                            ) : (
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, justifyContent: 'center' }]}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{sellDate}</Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={new Date(sellDate)}
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event, selectedDate) => {
+                                                setShowDatePicker(false);
+                                                if (selectedDate) {
+                                                    setSellDate(selectedDate.toISOString().split('T')[0]);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            )}
 
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                 <Text style={[styles.label, { color: colors.subText, marginBottom: 0, flex: 1 }]}>

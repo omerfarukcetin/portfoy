@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: Platform.OS === 'web' ? 16 : 10,
-        paddingHorizontal: Platform.OS === 'web' ? 20 : 12,
+        paddingVertical: Platform.OS === 'web' ? 16 : 12,
+        paddingHorizontal: Platform.OS === 'web' ? 20 : 16,
     },
     leftContainer: {
         flexDirection: 'row',
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     symbol: {
-        fontSize: Platform.OS === 'web' ? 15 : 12,
+        fontSize: Platform.OS === 'web' ? 15 : 14,
         fontWeight: '700',
         marginBottom: 2,
         letterSpacing: 0.3,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     amount: {
-        fontSize: Platform.OS === 'web' ? 12 : 9,
+        fontSize: Platform.OS === 'web' ? 12 : 11,
         opacity: 0.7,
     },
     rightContainer: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     value: {
-        fontSize: Platform.OS === 'web' ? 15 : 12,
+        fontSize: Platform.OS === 'web' ? 15 : 14,
         fontWeight: '700',
         marginBottom: 4,
         letterSpacing: 0.2,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
     },
     plText: {
-        fontSize: Platform.OS === 'web' ? 11 : 9,
+        fontSize: Platform.OS === 'web' ? 11 : 11,
         fontWeight: '600',
         letterSpacing: 0.2,
     },

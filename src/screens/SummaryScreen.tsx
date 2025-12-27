@@ -916,16 +916,16 @@ export const SummaryScreen = () => {
                     // MODERN MOBILE LAYOUT
                     <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 16 }}>
                         {/* Mobile Header: Greeting + Switcher */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <View>
-                                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                                     {activePortfolio?.id === 'all-portfolios' ? 'Tüm Varlıklarım 🌍' : 'Selam! 👋'}
                                 </Text>
-                                <Text style={{ fontSize: 10, color: colors.subText, marginTop: 2 }}>
+                                <Text style={{ fontSize: 9, color: colors.subText, marginTop: 1 }}>
                                     {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
                                 </Text>
                             </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
                                 <TouchableOpacity
                                     onPress={() => (navigation as any).navigate('Settings')}
@@ -1103,29 +1103,29 @@ export const SummaryScreen = () => {
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={{ width: 120, height: 120 }}>
+                                    <View style={{ width: 140, height: 140 }}>
                                         <ShareableDonutChart
                                             ref={donutChartRef}
                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
-                                            size={120}
-                                            strokeWidth={16}
+                                            size={140}
+                                            strokeWidth={18}
                                             centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
                                             centerSubtext=""
-                                            centerTextFontSize={14}
+                                            centerTextFontSize={13}
                                             colors={colors}
                                             hideLegend={true}
                                             isCompact={true}
                                         />
                                     </View>
-                                    <View style={{ flex: 1, gap: 8, paddingLeft: 24 }}>
-                                        {pieData.slice(0, 4).map((item, index) => (
+                                    <View style={{ flex: 1, gap: 6, paddingLeft: 16 }}>
+                                        {pieData.map((item, index) => (
                                             <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                                                    <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.name}</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: item.color }} />
+                                                    <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600' }} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                                                 </View>
-                                                <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '700' }}>
-                                                    {((item.population / totalPortfolioTry) * 100).toFixed(0)}%
+                                                <Text style={{ fontSize: 11, color: colors.subText, fontWeight: '700', marginLeft: 4 }}>
+                                                    {((item.population / (totalPortfolioTry || 1)) * 100).toFixed(0)}%
                                                 </Text>
                                             </View>
                                         ))}

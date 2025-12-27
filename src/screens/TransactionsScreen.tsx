@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -33,6 +34,7 @@ export const TransactionsScreen = () => {
     const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade } = usePortfolio();
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();
+    const navigation = useNavigation();
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
 
     // Edit Modal State
@@ -154,8 +156,8 @@ export const TransactionsScreen = () => {
                             size={40}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{item.customName || item.instrumentId}</Text>
-                            <Text style={[styles.details, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={[styles.symbol, { color: colors.text, fontSize: 16 }]} numberOfLines={1} ellipsizeMode="tail">{item.customName || item.instrumentId}</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 12 }]} numberOfLines={1} ellipsizeMode="tail">
                                 Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                             </Text>
                         </View>
@@ -163,7 +165,7 @@ export const TransactionsScreen = () => {
 
                     {/* Center: Amount + Total */}
                     <View style={styles.rightContainer}>
-                        <Text style={[styles.value, { color: colors.text }]}>
+                        <Text style={[styles.value, { color: colors.text, fontSize: 16 }]}>
                             {item.amount}
                         </Text>
                         <Text style={[styles.total, { color: colors.subText }]}>
@@ -192,17 +194,17 @@ export const TransactionsScreen = () => {
                             size={40}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{trade.instrumentId} (SATIŞ)</Text>
-                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={[styles.symbol, { color: colors.text, fontSize: 16 }]} numberOfLines={1} ellipsizeMode="tail">{trade.instrumentId} (SATIŞ)</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 12 }]} numberOfLines={1} ellipsizeMode="tail">
                                 {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
                             </Text>
-                            <Text style={{ color: colors.subText, fontSize: 10, marginTop: 2 }}>
+                            <Text style={{ color: colors.subText, fontSize: 11, marginTop: 2 }}>
                                 {new Date(trade.date).toLocaleDateString()}
                             </Text>
                         </View>
                     </View>
                     <View style={styles.rightContainer}>
-                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 15 }]}>
+                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 17 }]}>
                             {isProfit ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
                         </Text>
                         <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
@@ -699,13 +701,13 @@ const styles = StyleSheet.create({
     },
     rowBack: {
         alignItems: 'center',
-        backgroundColor: 'transparent',
-        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.02)', // Subtle background
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        paddingRight: 15,
         marginBottom: 12,
-        borderRadius: 12,
+        borderRadius: 16,
+        overflow: 'hidden',
+        height: Platform.OS === 'web' ? 80 : 70, // Match visible row height
     },
     backRightBtn: {
         alignItems: 'center',

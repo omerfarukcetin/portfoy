@@ -624,7 +624,7 @@ export const PortfolioScreen = () => {
                                                 changePercent={contextDailyChanges[item.instrumentId] || 0}
                                                 displayCurrency={displayCurrency}
                                                 usdRate={contextUsdRate}
-                                                onPress={() => navigation.navigate('AssetDetail', { id: item.id })}
+                                                onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                 onLongPress={() => handleLongPress(item)}
                                                 onSell={() => {
                                                     setSellingItem(item);
@@ -646,7 +646,7 @@ export const PortfolioScreen = () => {
                                                     changePercent={contextDailyChanges[data.item.instrumentId] || 0}
                                                     displayCurrency={displayCurrency}
                                                     usdRate={contextUsdRate}
-                                                    onPress={() => navigation.navigate('AssetDetail', { id: data.item.id })}
+                                                    onPress={() => (navigation as any).navigate('AssetDetail', { id: data.item.id })}
                                                     onLongPress={() => handleLongPress(data.item)}
                                                     color={getCategoryColor(category)}
                                                 />
@@ -676,7 +676,7 @@ export const PortfolioScreen = () => {
                                                 </TouchableOpacity>
                                             </View>
                                         )}
-                                        rightOpenValue={-140}
+                                        rightOpenValue={-160}
                                         disableRightSwipe
                                         useFlatList={false}
                                         keyExtractor={(item) => item.id}

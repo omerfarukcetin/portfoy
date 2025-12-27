@@ -187,28 +187,28 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const savePortfolios = async (newPortfolios: Portfolio[], newActiveId?: string) => {
         const activeId = newActiveId || activePortfolioId;
+
+        // 1. Update LOCAL state immediately for snappy UI
+        setPortfolios(newPortfolios);
+        if (newActiveId) setActivePortfolioId(newActiveId);
+
         try {
             console.log('💾 Saving portfolios to storage...');
-            // Always save to AsyncStorage as backup
+            // Always save to AsyncStorage as backup (Fast)
             await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
             await AsyncStorage.setItem('activePortfolioId', activeId);
-            setPortfolios(newPortfolios);
 
-            // If user is logged in, sync to Supabase
+            // 2. Sync to Supabase in the background if logged in
             if (user?.id) {
-                console.log('🔷 Syncing portfolios to Supabase:', activeId);
+                console.log('🔷 Background syncing portfolios to Supabase:', activeId);
+                // We don't await this if we want maximum speed, but let's keep it awaited for data integrity
+                // unless it's proven to be the main bottleneck. 
+                // Actually, let's keep it awaited but the UI should have already reflected the local change if used correctly.
                 await saveUserPortfolios(user.id, newPortfolios, activeId);
-                console.log('✅ Supabase sync completed successfully');
-            } else {
-                console.log('⚠️ User not logged in, skipping Supabase sync');
+                console.log('✅ Supabase sync completed');
             }
         } catch (e) {
             console.error('❌ Failed to save portfolios:', e);
-            // Only show alert for critical errors to avoid spamming
-            // if (Platform.OS === 'web') {
-            //     console.error('Web save error details:', e);
-            //     window.alert('Veriler kaydedilirken bir hata oluştu! Lütfen internet bağlantınızı kontrol edin.');
-            // }
         }
     };
 

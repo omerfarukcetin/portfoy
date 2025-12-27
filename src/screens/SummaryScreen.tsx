@@ -927,13 +927,28 @@ export const SummaryScreen = () => {
                                     <Text style={{ color: '#fff', fontSize: heroFontSize * 0.9, fontWeight: '800', marginTop: 4 }}>
                                         {isHidden ? '******' : formatCurrency(totalPortfolioTry, 'TRY')}
                                     </Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
                                             {isHidden ? '****' : `$${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
                                         </Text>
                                         <View style={{ width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.2)' }} />
-                                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
+                                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
                                             {isHidden ? '**' : `${portfolioInGramGold.toFixed(1)} gr altın`}
+                                        </Text>
+                                        <View style={{ width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                                        <Text style={{
+                                            color: totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30',
+                                            fontSize: 13,
+                                            fontWeight: '800'
+                                        }}>
+                                            {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${totalUnrealizedProfitPercent.toFixed(1)}%`}
+                                        </Text>
+                                        <Text style={{
+                                            color: 'rgba(255,255,255,0.8)',
+                                            fontSize: 11,
+                                            fontWeight: '600'
+                                        }}>
+                                            ({isHidden ? '•••' : formatCurrency(totalUnrealizedProfitTry, 'TRY')})
                                         </Text>
                                     </View>
                                 </View>
@@ -943,27 +958,6 @@ export const SummaryScreen = () => {
                                 >
                                     {isHidden ? <EyeOff size={18} color="#fff" /> : <Eye size={18} color="#fff" />}
                                 </TouchableOpacity>
-                            </View>
-
-                            <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 16 }} />
-
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <View>
-                                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '600' }}>TOPLAM K/Z</Text>
-                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 2 }}>
-                                        {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')}`}
-                                    </Text>
-                                </View>
-                                <View style={{
-                                    backgroundColor: totalUnrealizedProfitPercent >= 0 ? '#34C759' : '#FF3B30',
-                                    paddingHorizontal: 10,
-                                    paddingVertical: 5,
-                                    borderRadius: 6
-                                }}>
-                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                                        {isHidden ? '•••' : `%${totalUnrealizedProfitPercent.toFixed(1)}`}
-                                    </Text>
-                                </View>
                             </View>
                         </GradientCard>
 

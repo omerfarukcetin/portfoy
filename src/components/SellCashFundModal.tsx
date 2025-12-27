@@ -246,30 +246,12 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
                             {/* Profit Preview */}
                             {priceNum > 0 && amountNum > 0 && (
                                 <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
-                                    <Text style={[styles.previewTitle, { color: colors.text }]}>Kâr/Zarar Önizleme</Text>
-
                                     <View style={styles.previewRow}>
-                                        <Text style={{ color: colors.subText }}>Satış Tutarı</Text>
-                                        <Text style={{ color: colors.text, fontWeight: '600' }}>
-                                            {formatCurrency(sellValueTry, 'TRY')}
-                                        </Text>
-                                    </View>
-
-                                    <View style={[styles.previewRow, { marginTop: 8 }]}>
-                                        <Text style={{ color: colors.subText }}>TL Kâr/Zarar</Text>
-                                        <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
+                                        <Text style={{ color: colors.subText, fontSize: 13 }}>TL Kâr/Zarar</Text>
+                                        <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 13 }}>
                                             {profitTry >= 0 ? '+' : ''}{formatCurrency(profitTry, 'TRY')} ({profitTry >= 0 ? '+' : ''}{profitPercentTry.toFixed(2)}%)
                                         </Text>
                                     </View>
-
-                                    {rateNum > 0 && (
-                                        <View style={[styles.previewRow, { marginTop: 4 }]}>
-                                            <Text style={{ color: colors.subText }}>USD Kâr/Zarar</Text>
-                                            <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontWeight: '600', fontSize: 13 }}>
-                                                {profitUsd >= 0 ? '+' : ''}${profitUsd.toFixed(2)} ({profitUsd >= 0 ? '+' : ''}{profitPercentUsd.toFixed(2)}%)
-                                            </Text>
-                                        </View>
-                                    )}
                                 </View>
                             )}
 
@@ -297,44 +279,44 @@ const styles = StyleSheet.create({
     container: {
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        padding: 20,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     title: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: 'bold',
     },
     closeButton: {
         padding: 4,
     },
     infoCard: {
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 20,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
     },
     infoText: {
-        fontSize: 14,
-        marginBottom: 4,
+        fontSize: 13,
+        marginBottom: 2,
         fontWeight: '500',
     },
     label: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
-        marginBottom: 8,
+        marginBottom: 4,
         marginLeft: 4,
     },
     input: {
-        height: 48,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        marginBottom: 16,
-        fontSize: 15,
+        height: 44,
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        marginBottom: 12,
+        fontSize: 14,
         borderWidth: 1,
     },
     row: {
@@ -342,16 +324,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     previewCard: {
-        padding: 16,
-        borderRadius: 16,
+        padding: 12,
+        borderRadius: 12,
         borderWidth: 1,
-        marginBottom: 20,
-        marginTop: 4,
+        marginBottom: 16,
+        marginTop: 0,
     },
     previewTitle: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
-        marginBottom: 12,
+        marginBottom: 8,
     },
     previewRow: {
         flexDirection: 'row',
@@ -359,20 +341,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sellButton: {
-        height: 54,
-        borderRadius: 16,
+        height: 48,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 8,
+        marginTop: 0,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     buttonText: {
         color: '#FFF',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
     },
 });

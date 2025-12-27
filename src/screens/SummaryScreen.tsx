@@ -965,10 +965,11 @@ export const SummaryScreen = () => {
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 8 }}
+                            contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingBottom: 4 }}
+                            style={{ marginHorizontal: -16 }} // Bleed scroll to edges
                         >
                             {/* Günlük Değişim */}
-                            <Card style={{ padding: 10, minWidth: 100 }}>
+                            <Card style={{ padding: 12, minWidth: 110, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                     <View style={{ backgroundColor: dailyProfit >= 0 ? colors.success + '10' : colors.danger + '10', padding: 4, borderRadius: 6 }}>
                                         <Calendar size={12} color={dailyProfit >= 0 ? colors.success : colors.danger} />
@@ -981,7 +982,10 @@ export const SummaryScreen = () => {
                             </Card>
 
                             {/* Yedek Akçe */}
-                            <Card style={{ padding: 10, minWidth: 100 }} onPress={() => (navigation as any).navigate('CashManagement')}>
+                            <Card
+                                style={{ padding: 12, minWidth: 110, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}
+                                onPress={() => (navigation as any).navigate('CashManagement')}
+                            >
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                     <View style={{ backgroundColor: colors.warning + '10', padding: 4, borderRadius: 6 }}>
                                         <Archive size={12} color={colors.warning} />
@@ -991,10 +995,15 @@ export const SummaryScreen = () => {
                                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
                                     {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
                                 </Text>
+                                {ppfCost > 0 && ppfProfit !== 0 && (
+                                    <Text style={{ color: ppfProfit >= 0 ? colors.success : colors.danger, fontSize: 8, fontWeight: '600', marginTop: 1 }}>
+                                        {isHidden ? '••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`} kâr
+                                    </Text>
+                                )}
                             </Card>
 
                             {/* Gerçekleşen Kâr */}
-                            <Card style={{ padding: 10, minWidth: 100 }}>
+                            <Card style={{ padding: 12, minWidth: 110, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                     <View style={{ backgroundColor: colors.success + '10', padding: 4, borderRadius: 6 }}>
                                         <CheckSquare size={12} color={colors.success} />
@@ -1008,7 +1017,7 @@ export const SummaryScreen = () => {
 
                             {/* Risk Analizi - Only on large screens or if specifically desired */}
                             {isLargeScreen && (
-                                <Card style={{ padding: 10, minWidth: 100 }}>
+                                <Card style={{ padding: 12, minWidth: 110, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                         <View style={{ backgroundColor: colors.primary + '10', padding: 4, borderRadius: 6 }}>
                                             <Shield size={12} color={colors.primary} />

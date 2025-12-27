@@ -1006,18 +1006,20 @@ export const SummaryScreen = () => {
                                 </Text>
                             </Card>
 
-                            {/* Risk Analizi */}
-                            <Card style={{ padding: 10, minWidth: 100 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <View style={{ backgroundColor: colors.primary + '10', padding: 4, borderRadius: 6 }}>
-                                        <Shield size={12} color={colors.primary} />
+                            {/* Risk Analizi - Only on large screens or if specifically desired */}
+                            {isLargeScreen && (
+                                <Card style={{ padding: 10, minWidth: 100 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                        <View style={{ backgroundColor: colors.primary + '10', padding: 4, borderRadius: 6 }}>
+                                            <Shield size={12} color={colors.primary} />
+                                        </View>
+                                        <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
                                     </View>
-                                    <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
-                                </View>
-                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                                    {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
-                                </Text>
-                            </Card>
+                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                                        {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
+                                    </Text>
+                                </Card>
+                            )}
                         </ScrollView>
 
                         {/* Chart Preview */}

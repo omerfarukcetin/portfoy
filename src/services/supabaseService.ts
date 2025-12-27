@@ -71,11 +71,12 @@ export const saveUserPortfolios = async (
                 throw portfolioError;
             }
 
-            // Delete existing items for this portfolio and re-insert
+            // Delete existing items for this portfolio and re-insert 
+            // NOTE: We no longer delete from portfolio_history here to prevent accidental data loss 
+            // of previous days. We use upsert for history instead.
             await supabase.from('portfolio_items').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
             await supabase.from('cash_items').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
             await supabase.from('realized_trades').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
-            await supabase.from('portfolio_history').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
 
             // Insert portfolio items
             if (portfolio.items && portfolio.items.length > 0) {
@@ -358,6 +359,41 @@ export const subscribeToPortfolios = (
     return () => {
         supabase.removeChannel(channel);
     };
+};
+
+/**
+ * Record a single daily snapshot for a portfolio 
+ */
+export const recordDailySnapshot = async (
+    userId: string,
+    portfolioId: string,
+    valueTry: number,
+    valueUsd: number
+): Promise<void> => {
+    try {
+        const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        console.log(`🔷 Supabase: Recording daily snapshot for ${date}`, { portfolioId, valueTry });
+
+        const { error } = await supabase
+            .from('portfolio_history')
+            .upsert({
+                portfolio_id: portfolioId,
+                user_id: userId,
+                date: date,
+                value_try: valueTry,
+                value_usd: valueUsd
+            }, {
+                onConflict: 'portfolio_id,user_id,date'
+            });
+
+        if (error) {
+            console.error('❌ Error recording daily snapshot:', error);
+            throw error;
+        }
+    } catch (error) {
+        console.error('❌ recordDailySnapshot error:', error);
+    }
 };
 
 /**

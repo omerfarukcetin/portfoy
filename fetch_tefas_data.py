@@ -109,22 +109,30 @@ def fetch_all_funds():
         return
 
     # TEFAS data might be empty on weekends or for "today".
-    # For a true "daily" return, we want the difference between the most recent workday and the one before it.
-    end_date = datetime.now()
+    # For a true "daily" return, we want the difference between the most recent workday (T) and the one before it (T-1).
+    now = datetime.now()
     
-    # If today is Monday (0) or Sunday (6) or Saturday (5), handle accordingly
-    if end_date.weekday() == 0: # Monday
-        start_date = end_date - timedelta(days=3) # From Friday
-    elif end_date.weekday() == 6: # Sunday
-        start_date = end_date - timedelta(days=2) # From Friday
-    elif end_date.weekday() == 5: # Saturday
-        start_date = end_date - timedelta(days=1) # From Friday
-    else:
+    # Logic to find the last TWO active trading days for comparison
+    if now.weekday() == 0: # Monday: We want Thu to Fri (since Mon price isn't out yet)
+        end_date = now - timedelta(days=3) # Friday
+        start_date = end_date - timedelta(days=1) # Thursday
+    elif now.weekday() == 6: # Sunday: We want Thu to Fri
+        end_date = now - timedelta(days=2) # Friday
+        start_date = end_date - timedelta(days=1) # Thursday
+    elif now.weekday() == 5: # Saturday: We want Thu to Fri
+        end_date = now - timedelta(days=1) # Friday
+        start_date = end_date - timedelta(days=1) # Thursday
+    elif now.weekday() == 1: # Tuesday: We want Fri to Mon (Mon price is out)
+        end_date = now - timedelta(days=1) # Monday
+        start_date = end_date - timedelta(days=3) # Friday
+    else: # Wed, Thu, Fri: yesterday vs day before yesterday
+        end_date = now - timedelta(days=1) 
         start_date = end_date - timedelta(days=1)
     
     # TEFAS BindComparisonFundReturns
     start_str = start_date.strftime('%Y-%m-%d')
     end_str = end_date.strftime('%Y-%m-%d')
+    print(f"📅 Getiri Aralığı: {start_str} -> {end_str}")
 
     payload = {
         "calismatipi": 1,
@@ -174,6 +182,12 @@ def fetch_all_funds():
                     'name': f.get('FONUNVAN', '')
                 }
             print(f"✅ {len(fund_list)} adet fon bulundu.")
+            
+            # Debug: Show first 5 returns
+            sample_codes = fund_list[:5]
+            print("🔍 Örnek Getiriler:")
+            for sc in sample_codes:
+                print(f"   - {sc}: {fund_daily_returns[sc]['daily_change']}%")
         else:
             print("❌ Fon listesi alınamadı.")
             return

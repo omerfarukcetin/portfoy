@@ -156,14 +156,21 @@ def fetch_all_funds():
         fund_daily_returns = {}  # Store daily returns from this API
         
         if 'data' in data and data['data']:
+            # Debug: print first item to see available fields
+            if data['data']:
+                print(f"📋 API yanıt alanları: {list(data['data'][0].keys())}")
+            
             for f in data['data']:
                 code = f['FONKODU']
                 fund_list.append(code)
-                # PIYDEGISIM = Değişim (%), FIYAT might also be here
+                # Try multiple possible field names for daily change
+                daily_change = f.get('PIYDEGISIM') or f.get('GETIRI') or f.get('GUNLUKGETIRI') or f.get('GUNLUK') or 0
+                fund_name = f.get('FONADI') or f.get('FONUNVAN') or f.get('AD') or ''
+                
                 fund_daily_returns[code] = {
-                    'daily_change': f.get('PIYDEGISIM', 0),  # Daily change percentage
-                    'price': f.get('FIYAT', None),  # Price if available
-                    'name': f.get('FONADI', '')  # Fund name
+                    'daily_change': daily_change,
+                    'price': f.get('FIYAT', None),
+                    'name': fund_name
                 }
             print(f"✅ {len(fund_list)} adet fon bulundu.")
         else:

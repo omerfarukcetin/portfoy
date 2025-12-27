@@ -50,13 +50,15 @@ def push_to_supabase(data):
         
         print("☁️ Supabase'e bağlanılıyor...")
         
-        # Prepare records for upsert - only use columns that exist in the table
+        # Prepare records for upsert
         records = []
         for code, fund_data in data['data'].items():
             records.append({
                 'code': code,
                 'price': fund_data['price'],
-                'date': fund_data.get('date', '')
+                'date': fund_data.get('date', ''),
+                'daily_change': fund_data.get('dailyChange', 0),
+                'name': fund_data.get('name', '')
             })
         
         # Use Supabase REST API directly
@@ -145,23 +147,30 @@ def fetch_all_funds():
 
         response = session.post(
             'https://www.tefas.gov.tr/api/DB/BindComparisonFundReturns',
-            data=list_payload, # Form data worked for this endpoint too in my last successful run (Step 240? Wait, Step 240 used Form Data)? 
-            # Step 240: "Form Data (calismatipi=1) gönderiliyor..." -> Success (2116 items).
-            # So data=list_payload is correct.
+            data=list_payload,
             headers=post_headers
         )
         
         data = response.json()
         fund_list = []
+        fund_daily_returns = {}  # Store daily returns from this API
+        
         if 'data' in data and data['data']:
-            fund_list = [f['FONKODU'] for f in data['data']]
+            for f in data['data']:
+                code = f['FONKODU']
+                fund_list.append(code)
+                # PIYDEGISIM = Değişim (%), FIYAT might also be here
+                fund_daily_returns[code] = {
+                    'daily_change': f.get('PIYDEGISIM', 0),  # Daily change percentage
+                    'price': f.get('FIYAT', None),  # Price if available
+                    'name': f.get('FONADI', '')  # Fund name
+                }
             print(f"✅ {len(fund_list)} adet fon bulundu.")
         else:
             print("❌ Fon listesi alınamadı.")
             return
 
-        # Step 2: Fetch Prices for each fund
-        # We'll use BindHistoryInfo which we verified works with Form Data + YYYY-MM-DD
+        # Step 2: Fetch detailed prices for each fund (to get exact latest price)
         print("💰 Fiyatlar çekiliyor (Bu işlem birkaç dakika sürebilir)...")
         
         price_data_map = {}
@@ -242,10 +251,14 @@ def fetch_all_funds():
             for future in concurrent.futures.as_completed(futures):
                 code, price, date = future.result()
                 if price:
+                    # Get daily change from earlier API call
+                    daily_info = fund_daily_returns.get(code, {})
                     price_data_map[code] = {
                         "code": code,
                         "price": price,
-                        "date": date, # Timestamp or similar
+                        "date": date,
+                        "dailyChange": daily_info.get('daily_change', 0),
+                        "name": daily_info.get('name', ''),
                         "fetchedAt": datetime.now().isoformat()
                     }
                 count += 1

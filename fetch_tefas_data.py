@@ -108,12 +108,19 @@ def fetch_all_funds():
         print(f"❌ Oturum açma hatası: {e}")
         return
 
-    # 3. Prepare Request Data
     # TEFAS data might be empty on weekends or for "today".
-    # Use a safe range (last 7 days ensure we catch a workday)
-    # Note: TEFAS usually returns the "latest" data within that range or the comparison for that range.
+    # For a true "daily" return, we want the difference between the most recent workday and the one before it.
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=7)
+    
+    # If today is Monday (0) or Sunday (6) or Saturday (5), handle accordingly
+    if end_date.weekday() == 0: # Monday
+        start_date = end_date - timedelta(days=3) # From Friday
+    elif end_date.weekday() == 6: # Sunday
+        start_date = end_date - timedelta(days=2) # From Friday
+    elif end_date.weekday() == 5: # Saturday
+        start_date = end_date - timedelta(days=1) # From Friday
+    else:
+        start_date = end_date - timedelta(days=1)
     
     # TEFAS BindComparisonFundReturns
     start_str = start_date.strftime('%Y-%m-%d')

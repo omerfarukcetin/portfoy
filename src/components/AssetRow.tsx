@@ -92,8 +92,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     <Text style={[styles.amount, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail">
                         {formatCurrency(displayPrice, displayCurrency)} × {item.amount}
                     </Text>
-                    {/* Hide daily change on mobile */}
-                    {Platform.OS === 'web' && changePercent !== 0 ? (
+                    {changePercent !== 0 ? (
                         <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
                             {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
                         </Text>

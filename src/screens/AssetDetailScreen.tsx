@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -28,6 +28,10 @@ export const AssetDetailScreen = () => {
     const [usdRate, setUsdRate] = useState(0);
     const [change24h, setChange24h] = useState(0);
     const [sellModalVisible, setSellModalVisible] = useState(false);
+    const [statTab, setStatTab] = useState<'TRY' | 'USD'>('TRY');
+
+    const { width } = useWindowDimensions();
+    const isMobileLayout = Platform.OS !== 'web' || width < 768;
 
     const formatSymbol = (symbol: string) => {
         if (symbolCase === 'titlecase') {
@@ -141,16 +145,16 @@ export const AssetDetailScreen = () => {
 
         },
         symbol: {
-            fontSize: Platform.OS === 'web' ? 32 * fontScale : 22 * fontScale,
+            fontSize: isMobileLayout ? 26 : 32,
             fontWeight: '800',
-            marginBottom: Platform.OS === 'web' ? 12 : 4,
-            textAlign: 'center',
+            marginBottom: isMobileLayout ? 4 : 12,
+            textAlign: 'left',
         },
         assetDetailsRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
+            justifyContent: 'flex-start',
+            gap: 8,
         },
         price: {
             fontSize: 18 * fontScale,
@@ -190,10 +194,10 @@ export const AssetDetailScreen = () => {
         },
         card: {
             borderRadius: 12,
-            padding: Platform.OS === 'web' ? 16 : 12,
+            padding: 12,
             borderWidth: 1,
-            flex: Platform.OS === 'web' ? 1 : 0,
-            minWidth: Platform.OS === 'web' ? '45%' : '100%',
+            flex: 1,
+            minWidth: isMobileLayout ? '45%' : '22%',
         },
         cardLabel: {
             fontSize: 13 * fontScale,
@@ -301,51 +305,147 @@ export const AssetDetailScreen = () => {
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 {/* Compact Asset Info Card */}
-                <View style={[styles.assetInfoCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-                    <View>
-                        <Text style={[styles.symbol, { color: colors.text }]}>{formatSymbol(item.instrumentId)}</Text>
-                        <Text style={[{ color: colors.subText, fontSize: 13, marginTop: 2 }]}>
-                            {item.amount} adet
-                        </Text>
-                    </View>
-
-                    {loading ? (
-                        <ActivityIndicator color={colors.primary} />
-                    ) : (
-                        <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[styles.price, { color: colors.text }]}>
-                                {formatCurrency(isPricedInUsd ? priceInUsd : priceInTry, isPricedInUsd ? 'USD' : 'TRY')}
-                            </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                                <View style={[styles.changeTag, { backgroundColor: change24h >= 0 ? colors.success : colors.danger }]}>
-                                    <Text style={styles.change}>
+                <View style={[styles.assetInfoCard, { marginBottom: 16 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.symbol, { color: colors.text }]}>{formatSymbol(item.instrumentId)}</Text>
+                            <View style={[styles.assetDetailsRow]}>
+                                <Text style={[styles.amountTag, { backgroundColor: colors.background + '80' }]}>
+                                    {item.amount.toLocaleString('tr-TR')} adet
+                                </Text>
+                                <View style={[styles.changeTag, { backgroundColor: change24h >= 0 ? colors.success + '20' : colors.danger + '20' }]}>
+                                    <Text style={[styles.change, { color: change24h >= 0 ? colors.success : colors.danger, fontSize: 13 }]}>
                                         {change24h >= 0 ? '▲' : '▼'} %{Math.abs(change24h).toFixed(2)}
                                     </Text>
                                 </View>
-                                <TouchableOpacity
-                                    style={{
-                                        backgroundColor: colors.danger,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 6,
-                                        borderRadius: 8,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        gap: 6
-                                    }}
-                                    onPress={() => setSellModalVisible(true)}
-                                >
-                                    <LogOut size={14} color="#FFF" />
-                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Sat</Text>
-                                </TouchableOpacity>
                             </View>
                         </View>
-                    )}
+
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.price, { color: colors.text, fontSize: 20, fontWeight: '800' }]}>
+                                {formatCurrency(isPricedInUsd ? priceInUsd : priceInTry, isPricedInUsd ? 'USD' : 'TRY')}
+                            </Text>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: colors.danger,
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 8,
+                                    borderRadius: 10,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    marginTop: 8
+                                }}
+                                onPress={() => setSellModalVisible(true)}
+                            >
+                                <LogOut size={16} color="#FFF" />
+                                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>Sat</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
 
-                {/* RESPONSIVE LAYOUT: 3-column on web, stacked on mobile */}
-                <View style={{ flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 16, alignItems: 'flex-start' }}>
-                    {/* COLUMN 1: Transaction Timeline */}
-                    <View style={{ flex: 1, gap: 16 }}>
+                {/* Mobile Tab Switcher for Stats */}
+                {isMobileLayout && (
+                    <View style={{ flexDirection: 'row', backgroundColor: colors.cardBackground, borderRadius: 12, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
+                        <TouchableOpacity
+                            onPress={() => setStatTab('TRY')}
+                            style={{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8, backgroundColor: statTab === 'TRY' ? colors.primary : 'transparent' }}
+                        >
+                            <Text style={{ color: statTab === 'TRY' ? '#FFF' : colors.subText, fontWeight: '700' }}>🇹🇷 TRY</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setStatTab('USD')}
+                            style={{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8, backgroundColor: statTab === 'USD' ? colors.primary : 'transparent' }}
+                        >
+                            <Text style={{ color: statTab === 'USD' ? '#FFF' : colors.subText, fontWeight: '700' }}>🇺🇸 USD</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                <View style={{ flexDirection: isMobileLayout ? 'column' : 'row', gap: 16 }}>
+                    {/* Left Column: Stats */}
+                    <View style={{ flex: isMobileLayout ? undefined : 2, gap: 16 }}>
+
+                        {/* TRY Stats */}
+                        {(!isMobileLayout || statTab === 'TRY') && (
+                            <View>
+                                {!isMobileLayout && <Text style={[styles.sectionTitle, { color: colors.text }]}>🇹🇷 Türk Lirası Bazında</Text>}
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
+                                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueTry, 'TRY')}</Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
+                                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostTry, 'TRY')}</Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
+                                        <Text style={[styles.cardValue, { color: profitTry >= 0 ? colors.success : colors.danger }]}>
+                                            {formatCurrency(profitTry, 'TRY')}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
+                                        <Text style={[styles.cardValue, { color: profitPercentTry >= 0 ? colors.success : colors.danger }]}>
+                                            %{profitPercentTry.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* USD Stats */}
+                        {(!isMobileLayout || statTab === 'USD') && (
+                            <View style={{ marginTop: (!isMobileLayout) ? 8 : 0 }}>
+                                {!isMobileLayout && <Text style={[styles.sectionTitle, { color: colors.text }]}>🇺🇸 Dolar Bazında</Text>}
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
+                                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueUsd, 'USD')}</Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
+                                        <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostUsd, 'USD')}</Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
+                                        <Text style={[styles.cardValue, { color: profitUsd >= 0 ? colors.success : colors.danger }]}>
+                                            {formatCurrency(profitUsd, 'USD')}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                        <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
+                                        <Text style={[styles.cardValue, { color: profitPercentUsd >= 0 ? colors.success : colors.danger }]}>
+                                            %{profitPercentUsd.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* AI Analysis - Mobile position */}
+                        {isMobileLayout && (
+                            <View style={{ marginTop: 8 }}>
+                                <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 }]}>🤖 Akıllı Analiz</Text>
+                                {!loading && (
+                                    <SmartInsightCard
+                                        insight={generateAssetInsight(
+                                            isPricedInUsd ? priceInUsd : priceInTry,
+                                            item.averageCost,
+                                            change24h,
+                                            item.amount
+                                        )}
+                                    />
+                                )}
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Right Column: Timeline & Analysis */}
+                    <View style={{ flex: isMobileLayout ? undefined : 1.2, gap: 16 }}>
+                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 }]}>🕒 İşlem Geçmişi</Text>
                         {!loading && (
                             <TransactionTimeline
                                 currentAmount={item.amount}
@@ -353,72 +453,21 @@ export const AssetDetailScreen = () => {
                                 currency={item.currency === 'USD' ? 'USD' : 'TRY'}
                             />
                         )}
-                    </View>
 
-                    {/* COLUMN 2: TRY Statistics */}
-                    <View style={{ flex: 1, gap: 16 }}>
-                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🇹🇷 Türk Lirası Bazında</Text>
-                        <View style={{ gap: 12 }}>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
-                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueTry, 'TRY')}</Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
-                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostTry, 'TRY')}</Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
-                                <Text style={[styles.cardValue, { color: profitTry >= 0 ? colors.success : colors.danger }]}>
-                                    {formatCurrency(profitTry, 'TRY')}
-                                </Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
-                                <Text style={[styles.cardValue, { color: profitPercentTry >= 0 ? colors.success : colors.danger }]}>
-                                    %{profitPercentTry.toFixed(2)}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* COLUMN 3: USD Statistics + AI Insights */}
-                    <View style={{ flex: 1, gap: 16 }}>
-                        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🇺🇸 Dolar Bazında</Text>
-                        <View style={{ gap: 12 }}>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Toplam Değer</Text>
-                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(currentValueUsd, 'USD')}</Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Maliyet</Text>
-                                <Text style={[styles.cardValue, { color: colors.text }]}>{formatCurrency(totalCostUsd, 'USD')}</Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>Kar / Zarar</Text>
-                                <Text style={[styles.cardValue, { color: profitUsd >= 0 ? colors.success : colors.danger }]}>
-                                    {formatCurrency(profitUsd, 'USD')}
-                                </Text>
-                            </View>
-                            <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                <Text style={[styles.cardLabel, { color: colors.subText }]}>K/Z Oranı</Text>
-                                <Text style={[styles.cardValue, { color: profitPercentUsd >= 0 ? colors.success : colors.danger }]}>
-                                    %{profitPercentUsd.toFixed(2)}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* AI Smart Insight */}
-                        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8, fontSize: Platform.OS === 'web' ? 18 * fontScale : 16 * fontScale }]}>🤖 Akıllı Analiz</Text>
-                        {!loading && (
-                            <SmartInsightCard
-                                insight={generateAssetInsight(
-                                    isPricedInUsd ? priceInUsd : priceInTry,
-                                    item.averageCost,
-                                    change24h,
-                                    item.amount
+                        {!isMobileLayout && (
+                            <>
+                                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 8 }]}>🤖 Akıllı Analiz</Text>
+                                {!loading && (
+                                    <SmartInsightCard
+                                        insight={generateAssetInsight(
+                                            isPricedInUsd ? priceInUsd : priceInTry,
+                                            item.averageCost,
+                                            change24h,
+                                            item.amount
+                                        )}
+                                    />
                                 )}
-                            />
+                            </>
                         )}
                     </View>
                 </View>

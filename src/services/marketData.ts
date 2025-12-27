@@ -629,12 +629,12 @@ export const MarketDataService = {
         const cloudData = await fetchTefasSnapshot();
 
         if (cloudData && cloudData.data && cloudData.data[upperCode]) {
-            const fund = cloudData.data[upperCode];
+            const fund = cloudData.data[upperCode] as any;
             return {
                 symbol: upperCode,
-                name: upperCode,
+                name: fund.name || upperCode,
                 currentPrice: Number(fund.price),
-                change24h: 0,
+                change24h: fund.dailyChange || fund.daily_change || 0,
                 lastUpdated: new Date(fund.date).getTime()
             };
         }
@@ -642,12 +642,11 @@ export const MarketDataService = {
         // 2. Fallback to Local JSON (Backup if Cloud fails)
         if (tefasData && tefasData.data && tefasData.data[upperCode]) {
             const fund = tefasData.data[upperCode];
-            // console.log(`✅ Using local TEFAS data for ${upperCode}`);
             return {
                 symbol: upperCode,
-                name: upperCode,
+                name: (fund as any).name || upperCode,
                 currentPrice: Number(fund.price),
-                change24h: 0,
+                change24h: (fund as any).dailyChange || 0,
                 lastUpdated: new Date(fund.date).getTime()
             };
         }

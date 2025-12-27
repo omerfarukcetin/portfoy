@@ -54,7 +54,18 @@ import { supabase } from './supabaseClient';
 
 // Import local data (Back to imported for now)
 import tefasDataRaw from '../data/tefas_data.json';
-const tefasData = tefasDataRaw as { lastUpdated: string; count: number; data: Record<string, { code: string; price: number; date: string }> };
+const tefasData = tefasDataRaw as {
+    lastUpdated: string;
+    count: number;
+    data: Record<string, {
+        code: string;
+        price: number;
+        date: string;
+        dailyChange?: number;
+        daily_change?: number;
+        name?: string;
+    }>
+};
 
 // GitHub raw URL for TEFAS data (updated via GitHub Actions)
 const GITHUB_TEFAS_URL = 'https://raw.githubusercontent.com/omerfarukcetin/portfoy/main/src/data/tefas_data.json';
@@ -63,7 +74,14 @@ const GITHUB_TEFAS_URL = 'https://raw.githubusercontent.com/omerfarukcetin/portf
 let tefasDataCache: {
     lastUpdated: string;
     count: number;
-    data: Record<string, { code: string; price: number; date: string }>
+    data: Record<string, {
+        code: string;
+        price: number;
+        date: string;
+        dailyChange?: number;
+        daily_change?: number;
+        name?: string;
+    }>
 } | null = null;
 
 // Fetch full snapshot - Priority: GitHub > Supabase > Local file
@@ -102,12 +120,20 @@ const fetchTefasSnapshot = async () => {
 
         if (!error && data && data.length > 0) {
             // Convert array to Record format
-            const fundRecord: Record<string, { code: string; price: number; date: string }> = {};
+            const fundRecord: Record<string, {
+                code: string;
+                price: number;
+                date: string;
+                dailyChange?: number;
+                name?: string;
+            }> = {};
             data.forEach((fund: any) => {
                 fundRecord[fund.code] = {
                     code: fund.code,
                     price: Number(fund.price),
-                    date: fund.date
+                    date: fund.date,
+                    dailyChange: fund.daily_change || 0,
+                    name: fund.name || ''
                 };
             });
 

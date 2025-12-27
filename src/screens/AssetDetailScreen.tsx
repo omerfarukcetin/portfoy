@@ -42,6 +42,15 @@ export const AssetDetailScreen = () => {
         }
     }, [item]);
 
+    useEffect(() => {
+        const { openSell } = route.params as { openSell?: boolean };
+        if (openSell) {
+            setSellModalVisible(true);
+            // Clear the param after opening so it doesn't re-open on every re-render
+            navigation.setParams({ openSell: undefined } as any);
+        }
+    }, [route.params]);
+
     const fetchData = async () => {
         if (!item) return;
         setLoading(true);

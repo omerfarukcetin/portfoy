@@ -148,7 +148,11 @@ export const TransactionsScreen = () => {
         };
 
         return (
-            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
+                style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}
+            >
                 <View style={styles.itemRow}>
                     {/* Left: Icon + Symbol */}
                     <View style={styles.leftContainer}>
@@ -176,7 +180,7 @@ export const TransactionsScreen = () => {
                     </View>
 
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
@@ -238,13 +242,23 @@ export const TransactionsScreen = () => {
     const renderHiddenItem = (data: { item: PortfolioItem }, rowMap: any) => (
         <View style={styles.rowBack}>
             <TouchableOpacity
+                style={[styles.backRightBtn, { backgroundColor: colors.success + '15' }]}
+                onPress={() => {
+                    rowMap[data.item.id].closeRow();
+                    // Navigate to AssetDetail which has Sell modal or handle sell here
+                    (navigation as any).navigate('AssetDetail', { id: data.item.id, openSell: true });
+                }}
+            >
+                <Text style={{ color: colors.success, fontSize: 10, fontWeight: '800' }}>SAT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
                 style={[styles.backRightBtn, { backgroundColor: colors.primary + '15' }]}
                 onPress={() => {
                     rowMap[data.item.id].closeRow();
                     openEditModal(data.item);
                 }}
             >
-                <Pencil size={24} color={colors.primary} />
+                <Pencil size={20} color={colors.primary} />
                 <Text style={[styles.backTextWhite, { color: colors.primary }]}>Düzenle</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -254,7 +268,7 @@ export const TransactionsScreen = () => {
                     handleDelete(data.item);
                 }}
             >
-                <Trash2 size={24} color={colors.danger} />
+                <Trash2 size={20} color={colors.danger} />
                 <Text style={[styles.backTextWhite, { color: colors.danger }]}>Sil</Text>
             </TouchableOpacity>
         </View>
@@ -368,7 +382,7 @@ export const TransactionsScreen = () => {
                         renderItem={renderItem}
                         renderHiddenItem={renderHiddenItem}
                         keyExtractor={(item) => item.id}
-                        rightOpenValue={-150}
+                        rightOpenValue={-210}
                         disableRightSwipe
                         contentContainerStyle={styles.scrollContent}
                     />

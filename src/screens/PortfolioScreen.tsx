@@ -45,6 +45,8 @@ const getCategoryIcon = (category: string) => {
 };
 
 export const PortfolioScreen = () => {
+    const { width } = useWindowDimensions();
+    const isMobileLayout = Platform.OS !== 'web' || width < 768;
     const {
         portfolio,
         deleteAsset,
@@ -62,7 +64,6 @@ export const PortfolioScreen = () => {
     const { colors, fontScale } = useTheme();
     const { symbolCase } = useSettings();
     const navigation = useNavigation();
-    const { width } = useWindowDimensions();
     const isLargeScreen = Platform.OS === 'web' && width >= 768;
 
     const [refreshing, setRefreshing] = useState(false);
@@ -614,7 +615,7 @@ export const PortfolioScreen = () => {
                                             </TouchableOpacity>
                                         )}
                                     </View>
-                                ) : Platform.OS === 'web' ? (
+                                ) : !isMobileLayout ? (
                                     <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
                                         {items.map((item) => (
                                             <AssetRow
@@ -624,7 +625,7 @@ export const PortfolioScreen = () => {
                                                 changePercent={dailyChanges[item.instrumentId] || 0}
                                                 displayCurrency={displayCurrency}
                                                 usdRate={usdRate}
-                                                onPress={() => (navigation as any).navigate('AssetDetail', { assetId: item.id })}
+                                                onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id })}
                                                 onLongPress={() => handleLongPress(item)}
                                                 color={getCategoryColor(category)}
                                             />
@@ -681,17 +682,17 @@ export const PortfolioScreen = () => {
                                                 </TouchableOpacity>
                                             </View>
                                         )}
+                                        keyExtractor={(item) => item.id}
                                         rightOpenValue={-210}
                                         disableRightSwipe
                                         useFlatList={false}
-                                        keyExtractor={(item) => item.id}
                                         scrollEnabled={false}
                                     />
                                 )}
                             </View>
                         );
                     })}
-            </ScrollView >
+            </ScrollView>
 
             {/* Edit Modal */}
             < Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>

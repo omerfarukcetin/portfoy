@@ -50,15 +50,13 @@ def push_to_supabase(data):
         
         print("☁️ Supabase'e bağlanılıyor...")
         
-        # Prepare records for upsert
+        # Prepare records for upsert - only use columns that exist in the table
         records = []
         for code, fund_data in data['data'].items():
             records.append({
                 'code': code,
                 'price': fund_data['price'],
-                'date': fund_data.get('date', ''),
-                'fetched_at': fund_data.get('fetchedAt', datetime.now().isoformat()),
-                'updated_at': datetime.now().isoformat()
+                'date': fund_data.get('date', '')
             })
         
         # Use Supabase REST API directly

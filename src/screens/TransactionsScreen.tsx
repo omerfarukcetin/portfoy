@@ -10,6 +10,8 @@ import { Pencil, Trash2 } from 'lucide-react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { TickerIcon } from '../components/TickerIcon';
 import { MarketDataService } from '../services/marketData';
+import { ShareableTradeCard, ShareableTradeCardHandle } from '../components/ShareableTradeCard';
+import { Share2 } from 'lucide-react-native';
 
 // Helper component for Asset Initials Icon
 const AssetInitials = ({ name, color, size = 32 }: { name: string, color: string, size?: number }) => {
@@ -47,6 +49,9 @@ export const TransactionsScreen = () => {
     const [editDate, setEditDate] = useState('');
     const [editHistoricalRate, setEditHistoricalRate] = useState('');
     const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+    // Shareable Trade Ref Management
+    const shareRefs = React.useRef<{ [key: string]: ShareableTradeCardHandle | null }>({});
 
     // Fetch historical rate when date changes
     useEffect(() => {
@@ -210,13 +215,32 @@ export const TransactionsScreen = () => {
                         </View>
                     </View>
                     <View style={styles.rightContainer}>
-                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 16 }]} numberOfLines={1} adjustsFontSizeToFit>
-                            {isProfit ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 16 }]} numberOfLines={1} adjustsFontSizeToFit>
+                                {isProfit ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
+                            </Text>
+                            {Platform.OS === 'web' && (
+                                <TouchableOpacity
+                                    style={{ marginLeft: 8 }}
+                                    onPress={() => shareRefs.current[trade.id]?.captureImage()}
+                                >
+                                    <Share2 size={16} color={colors.primary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                         <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
                             <Text style={{ color: isProfit ? colors.success : colors.danger, fontSize: 10, fontWeight: '700' }}>
                                 {isProfit ? '+' : ''}{profitPercent.toFixed(1)}%
                             </Text>
+                        </View>
+                        {/* Hidden Shareable Component for capture */}
+                        <View style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', left: -10000 }}>
+                            <ShareableTradeCard
+                                ref={el => { shareRefs.current[trade.id] = el; }}
+                                symbol={trade.instrumentId}
+                                profitPercent={profitPercent}
+                                date={trade.date.toString()}
+                            />
                         </View>
                     </View>
                 </View>
@@ -226,6 +250,16 @@ export const TransactionsScreen = () => {
 
     const renderRealizedHiddenItem = (data: { item: any }, rowMap: any) => (
         <View style={styles.rowBack}>
+            <TouchableOpacity
+                style={[styles.backRightBtn, { backgroundColor: colors.primary + '15' }]}
+                onPress={() => {
+                    rowMap[data.item.id].closeRow();
+                    shareRefs.current[data.item.id]?.captureImage();
+                }}
+            >
+                <Share2 size={24} color={colors.primary} />
+                <Text style={[styles.backTextWhite, { color: colors.primary }]}>Paylaş</Text>
+            </TouchableOpacity>
             <TouchableOpacity
                 style={[styles.backRightBtn, { backgroundColor: colors.danger + '15' }]}
                 onPress={() => {
@@ -515,6 +549,14 @@ export const TransactionsScreen = () => {
                                                     {new Date(trade.date).toLocaleDateString()}
                                                 </Text>
 
+                                                {/* Share Action */}
+                                                <TouchableOpacity
+                                                    style={{ flex: 0.5, alignItems: 'center', marginLeft: 8 }}
+                                                    onPress={() => shareRefs.current[trade.id]?.captureImage()}
+                                                >
+                                                    <Share2 size={16} color={colors.primary} />
+                                                </TouchableOpacity>
+
                                                 {/* Delete Action */}
                                                 <TouchableOpacity
                                                     style={{ flex: 0.5, alignItems: 'center', marginLeft: 8 }}
@@ -522,6 +564,16 @@ export const TransactionsScreen = () => {
                                                 >
                                                     <Trash2 size={16} color={colors.danger} />
                                                 </TouchableOpacity>
+
+                                                {/* Hidden Shareable Component for capture */}
+                                                <View style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', left: -10000 }}>
+                                                    <ShareableTradeCard
+                                                        ref={el => { shareRefs.current[trade.id] = el; }}
+                                                        symbol={trade.instrumentId}
+                                                        profitPercent={profitPercent}
+                                                        date={trade.date.toString()}
+                                                    />
+                                                </View>
                                             </View>
                                         );
                                     })}

@@ -160,6 +160,7 @@ export const PortfolioChart = forwardRef<PortfolioChartHandle, PortfolioChartPro
         <View style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
             <View style={styles.header}>
                 <Text style={[styles.title, { color: colors.text, fontSize: 18 * fontScale }]}>Portföy Değeri</Text>
+                <Text style={{ fontSize: 10, color: colors.subText, opacity: 0.5 }}>PORTFÖY CEPTE</Text>
             </View>
 
             <LineChart

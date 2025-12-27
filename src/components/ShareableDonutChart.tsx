@@ -91,6 +91,9 @@ export const ShareableDonutChart = forwardRef<ShareableDonutChartHandle, Shareab
                     centerSubtext={displayCenterSubtext}
                 />
             </View>
+            <View style={{ alignItems: 'flex-end', marginTop: -10, marginBottom: 10, opacity: 0.3 }}>
+                <Text style={{ fontSize: 9, color: props.colors.text, fontWeight: '700' }}>PORTFÖY CEPTE</Text>
+            </View>
 
             {/* Legend - Always included for download unless specifically hidden */}
             {!props.hideLegend && (

@@ -961,76 +961,64 @@ export const SummaryScreen = () => {
                             </View>
                         </GradientCard>
 
-                        {/* 2x2 Grid for Stats */}
-                        <View style={{ gap: 8 }}>
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                {/* Günlük Değişim */}
-                                <Card style={{ flex: 1, padding: 10 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                        <View style={{ backgroundColor: dailyProfit >= 0 ? colors.success + '10' : colors.danger + '10', padding: 4, borderRadius: 6 }}>
-                                            <Calendar size={12} color={dailyProfit >= 0 ? colors.success : colors.danger} />
-                                        </View>
-                                        <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>GÜNLÜK</Text>
+                        {/* Stats Row */}
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8 }}
+                        >
+                            {/* Günlük Değişim */}
+                            <Card style={{ padding: 10, minWidth: 100 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <View style={{ backgroundColor: dailyProfit >= 0 ? colors.success + '10' : colors.danger + '10', padding: 4, borderRadius: 6 }}>
+                                        <Calendar size={12} color={dailyProfit >= 0 ? colors.success : colors.danger} />
                                     </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                                        <Text style={{ color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '800' }}>
-                                            {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${dailyProfitPercent.toFixed(1)}%`}
-                                        </Text>
-                                        <Text style={{ color: colors.text, fontSize: 10, opacity: 0.6 }}>
-                                            {isHidden ? '•••' : formatCurrency(dailyProfit, 'TRY')}
-                                        </Text>
-                                    </View>
-                                </Card>
+                                    <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>GÜNLÜK</Text>
+                                </View>
+                                <Text style={{ color: dailyProfit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '800' }}>
+                                    {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${dailyProfitPercent.toFixed(1)}%`}
+                                </Text>
+                            </Card>
 
-                                {/* Yedek Akçe */}
-                                <Card style={{ flex: 1, padding: 10 }} onPress={() => (navigation as any).navigate('CashManagement')}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                        <View style={{ backgroundColor: colors.warning + '10', padding: 4, borderRadius: 6 }}>
-                                            <Archive size={12} color={colors.warning} />
-                                        </View>
-                                        <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>NAKİT</Text>
+                            {/* Yedek Akçe */}
+                            <Card style={{ padding: 10, minWidth: 100 }} onPress={() => (navigation as any).navigate('CashManagement')}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <View style={{ backgroundColor: colors.warning + '10', padding: 4, borderRadius: 6 }}>
+                                        <Archive size={12} color={colors.warning} />
                                     </View>
-                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                                        {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
-                                    </Text>
-                                    {ppfCost > 0 && ppfProfit !== 0 && (
-                                        <Text style={{ color: ppfProfit >= 0 ? colors.success : colors.danger, fontSize: 9, fontWeight: '600' }}>
-                                            {isHidden ? '••' : `${ppfProfit >= 0 ? '+' : ''}${formatCurrency(ppfProfit, 'TRY')}`} kâr
-                                        </Text>
-                                    )}
-                                </Card>
-                            </View>
+                                    <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>NAKİT</Text>
+                                </View>
+                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                                    {isHidden ? '•••' : formatCurrency(totalCashValue, 'TRY')}
+                                </Text>
+                            </Card>
 
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                {/* Gerçekleşen Kâr */}
-                                <Card style={{ flex: 1, padding: 10 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                        <View style={{ backgroundColor: colors.success + '10', padding: 4, borderRadius: 6 }}>
-                                            <CheckSquare size={12} color={colors.success} />
-                                        </View>
-                                        <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>KAZANÇ</Text>
+                            {/* Gerçekleşen Kâr */}
+                            <Card style={{ padding: 10, minWidth: 100 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <View style={{ backgroundColor: colors.success + '10', padding: 4, borderRadius: 6 }}>
+                                        <CheckSquare size={12} color={colors.success} />
                                     </View>
-                                    <Text style={{ color: colors.success, fontSize: 13, fontWeight: '800' }}>
-                                        {isHidden ? '•••' : formatCurrency(totalRealizedProfitTry, 'TRY')}
-                                    </Text>
-                                    <Text style={{ color: colors.subText, fontSize: 9 }}>Gerçekleşen kâr</Text>
-                                </Card>
+                                    <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>KAZANÇ</Text>
+                                </View>
+                                <Text style={{ color: colors.success, fontSize: 13, fontWeight: '800' }}>
+                                    {isHidden ? '•••' : formatCurrency(totalRealizedProfitTry, 'TRY')}
+                                </Text>
+                            </Card>
 
-                                {/* Risk Analizi */}
-                                <Card style={{ flex: 1, padding: 10 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                        <View style={{ backgroundColor: colors.primary + '10', padding: 4, borderRadius: 6 }}>
-                                            <Shield size={12} color={colors.primary} />
-                                        </View>
-                                        <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
+                            {/* Risk Analizi */}
+                            <Card style={{ padding: 10, minWidth: 100 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <View style={{ backgroundColor: colors.primary + '10', padding: 4, borderRadius: 6 }}>
+                                        <Shield size={12} color={colors.primary} />
                                     </View>
-                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                                        {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
-                                    </Text>
-                                    <Text style={{ color: colors.subText, fontSize: 9 }}>Riskte olan para</Text>
-                                </Card>
-                            </View>
-                        </View>
+                                    <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
+                                </View>
+                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                                    {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
+                                </Text>
+                            </Card>
+                        </ScrollView>
 
                         {/* Chart Preview */}
                         {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (

@@ -8,6 +8,7 @@ import { Plus, Inbox, TrendingDown, Trash2, X, DollarSign, TrendingUp, Percent }
 import { CashItem } from '../types';
 import { MarketDataService } from '../services/marketData';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { SellCashFundModal } from '../components/SellCashFundModal';
 
 export const CashManagementScreen = () => {
     const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund } = usePortfolio();
@@ -38,6 +39,10 @@ export const CashManagementScreen = () => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [historicalRate, setHistoricalRate] = useState('');
     const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+    // Sell modal state
+    const [sellModalVisible, setSellModalVisible] = useState(false);
+    const [sellingItem, setSellingItem] = useState<CashItem | null>(null);
 
     // Fetch historical rate when date changes
     useEffect(() => {
@@ -240,36 +245,11 @@ export const CashManagementScreen = () => {
         );
     };
 
-    // Sell PPF and add proceeds to cash balance with profit tracking
-    const handleSellPPF = async (item: CashItem) => {
+    // Open sell modal for a fund
+    const handleSellPPF = (item: CashItem) => {
         if (item.type !== 'money_market_fund' || !item.instrumentId || !item.units || !item.averageCost) return;
-
-        const currentPrice = fundPrices[item.instrumentId] || item.averageCost || 0;
-        const currentValue = item.units * currentPrice;
-        const costBasis = item.units * item.averageCost;
-        const profit = currentValue - costBasis;
-        const profitPercent = costBasis > 0 ? (profit / costBasis) * 100 : 0;
-
-        showAlert(
-            'Fon Sat',
-            `${item.name}\n\n` +
-            `Güncel Değer: ${formatCurrency(currentValue, 'TRY')}\n` +
-            `Maliyet: ${formatCurrency(costBasis, 'TRY')}\n` +
-            `Kâr/Zarar: ${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')} (${profitPercent >= 0 ? '+' : ''}${profitPercent.toFixed(2)}%)\n\n` +
-            `Satış işlemi "Gerçekleşen Kâr" olarak kaydedilecek.`,
-            [
-                { text: 'İptal', style: 'cancel' },
-                {
-                    text: 'Sat',
-                    style: 'destructive',
-                    onPress: async () => {
-                        console.log('💰 Selling PPF:', item.name, 'Value:', currentValue, 'Profit:', profit);
-                        await sellCashFund(item.id, currentPrice, currentUsdRate);
-                        showAlert('Başarılı', `${item.name} satıldı.\n\nKâr: ${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')}\nNakit bakiyenize ${formatCurrency(currentValue, 'TRY')} eklendi.`);
-                    }
-                }
-            ]
-        );
+        setSellingItem(item);
+        setSellModalVisible(true);
     };
 
     const getTypeLabel = (type: string) => {
@@ -795,6 +775,17 @@ export const CashManagementScreen = () => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Sell Fund Modal */}
+            <SellCashFundModal
+                visible={sellModalVisible}
+                onClose={() => {
+                    setSellModalVisible(false);
+                    setSellingItem(null);
+                }}
+                item={sellingItem}
+                currentPrice={sellingItem?.instrumentId ? fundPrices[sellingItem.instrumentId] : undefined}
+            />
         </View>
     );
 };

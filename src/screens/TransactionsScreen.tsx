@@ -153,22 +153,22 @@ export const TransactionsScreen = () => {
                         <TickerIcon
                             symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : item.instrumentId}
                             color={getIconColor(item)}
-                            size={40}
+                            size={36}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text, fontSize: 16 }]} numberOfLines={1} ellipsizeMode="tail">{item.customName || item.instrumentId}</Text>
-                            <Text style={[styles.details, { color: colors.subText, fontSize: 12 }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={[styles.symbol, { color: colors.text, fontSize: 15 }]} numberOfLines={1} ellipsizeMode="tail">{item.customName || item.instrumentId}</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">
                                 Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                             </Text>
                         </View>
                     </View>
 
-                    {/* Center: Amount + Total */}
+                    {/* Right: Amount + Total */}
                     <View style={styles.rightContainer}>
-                        <Text style={[styles.value, { color: colors.text, fontSize: 16 }]}>
-                            {item.amount}
+                        <Text style={[styles.value, { color: colors.text, fontSize: 15 }]} numberOfLines={1} adjustsFontSizeToFit>
+                            {item.amount.toLocaleString('tr-TR')}
                         </Text>
-                        <Text style={[styles.total, { color: colors.subText }]}>
+                        <Text style={[styles.total, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} adjustsFontSizeToFit>
                             {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                         </Text>
                     </View>
@@ -191,20 +191,20 @@ export const TransactionsScreen = () => {
                         <TickerIcon
                             symbol={trade.instrumentId.substring(0, 3)}
                             color="#8E8E93"
-                            size={40}
+                            size={36}
                         />
                         <View style={styles.textContainer}>
-                            <Text style={[styles.symbol, { color: colors.text, fontSize: 16 }]} numberOfLines={1} ellipsizeMode="tail">{trade.instrumentId} (SATIŞ)</Text>
-                            <Text style={[styles.details, { color: colors.subText, fontSize: 12 }]} numberOfLines={1} ellipsizeMode="tail">
-                                {trade.amount} @ {formatCurrency(trade.sellPrice, trade.currency)}
+                            <Text style={[styles.symbol, { color: colors.text, fontSize: 15 }]} numberOfLines={1} ellipsizeMode="tail">{trade.instrumentId}</Text>
+                            <Text style={[styles.details, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail">
+                                {trade.amount.toLocaleString('tr-TR')} @ {formatCurrency(trade.sellPrice, trade.currency)}
                             </Text>
-                            <Text style={{ color: colors.subText, fontSize: 11, marginTop: 2 }}>
+                            <Text style={{ color: colors.subText, fontSize: 10, marginTop: 1 }}>
                                 {new Date(trade.date).toLocaleDateString()}
                             </Text>
                         </View>
                     </View>
                     <View style={styles.rightContainer}>
-                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 17 }]}>
+                        <Text style={[styles.value, { color: isProfit ? colors.success : colors.danger, fontSize: 16 }]} numberOfLines={1} adjustsFontSizeToFit>
                             {isProfit ? '+' : ''}{formatCurrency(trade.profitTry, 'TRY')}
                         </Text>
                         <View style={[styles.plBadge, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
@@ -419,12 +419,12 @@ export const TransactionsScreen = () => {
                                         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, marginTop: 16, marginBottom: 10 }}>Kategori Bazlı</Text>
                                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                                             {Object.entries(categoryTotals).map(([cat, data]) => (
-                                                <View key={cat} style={{ backgroundColor: colors.cardBackground, borderRadius: 12, padding: 12, minWidth: '47%', flex: 1, borderWidth: 1, borderColor: colors.border }}>
-                                                    <Text style={{ color: colors.subText, fontSize: 12 }}>{getCategoryName(cat)}</Text>
-                                                    <Text style={{ color: data.profitTry >= 0 ? colors.success : colors.danger, fontSize: 16, fontWeight: '700', marginTop: 2 }}>
+                                                <View key={cat} style={{ backgroundColor: colors.cardBackground, borderRadius: 12, padding: 10, minWidth: '47%', flex: 1, borderWidth: 1, borderColor: colors.border }}>
+                                                    <Text style={{ color: colors.subText, fontSize: 11 }}>{getCategoryName(cat)}</Text>
+                                                    <Text style={{ color: data.profitTry >= 0 ? colors.success : colors.danger, fontSize: 15, fontWeight: '700', marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit>
                                                         {data.profitTry >= 0 ? '+' : ''}{formatCurrency(data.profitTry, 'TRY')}
                                                     </Text>
-                                                    <Text style={{ color: colors.subText, fontSize: 11, marginTop: 2 }}>{data.count} işlem</Text>
+                                                    <Text style={{ color: colors.subText, fontSize: 10, marginTop: 1 }}>{data.count} işlem</Text>
                                                 </View>
                                             ))}
                                         </View>
@@ -652,8 +652,8 @@ const styles = StyleSheet.create({
     leftContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        flex: 1,
+        gap: 10,
+        flex: 1.5,
     },
     textContainer: {
         justifyContent: 'center',
@@ -661,6 +661,8 @@ const styles = StyleSheet.create({
     },
     rightContainer: {
         alignItems: 'flex-end',
+        flex: 1,
+        marginLeft: 8,
     },
     // Legacy card (can be removed later)
     card: {

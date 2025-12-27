@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
@@ -350,8 +351,139 @@ export const CashManagementScreen = () => {
             </View>
 
             {/* Cash Items List */}
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {cashItems.length === 0 ? (
+            <SwipeListView
+                data={cashItems}
+                contentContainerStyle={styles.scrollContent}
+                renderItem={(data) => {
+                    const item = data.item;
+                    // Calculate P/L for funds
+                    let currentValue = item.amount;
+                    let profit = 0;
+                    let profitPercent = 0;
+                    let cost = item.amount;
+
+                    // USD calculations
+                    let profitUsd = 0;
+                    let profitUsdPercent = 0;
+                    let costUsd = 0;
+                    let currentValueUsd = 0;
+
+                    if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
+                        const livePrice = fundPrices[item.instrumentId];
+                        if (livePrice) {
+                            currentValue = item.units * livePrice;
+                            cost = item.units * item.averageCost;
+                            profit = currentValue - cost;
+                            profitPercent = cost > 0 ? (profit / cost) * 100 : 0;
+
+                            // USD P/L calculation
+                            if (item.historicalUsdRate && currentUsdRate > 0) {
+                                costUsd = cost / item.historicalUsdRate;
+                                currentValueUsd = currentValue / currentUsdRate;
+                                profitUsd = currentValueUsd - costUsd;
+                                profitUsdPercent = costUsd > 0 ? (profitUsd / costUsd) * 100 : 0;
+                            }
+                        } else {
+                            cost = item.units * item.averageCost;
+                        }
+                    }
+
+                    return (
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            style={[styles.itemCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                            onPress={() => openEditModal(item)}
+                        >
+                            <View style={styles.itemHeader}>
+                                <View style={styles.itemTitleRow}>
+                                    {(() => {
+                                        const Icon = getTypeIcon(item.type);
+                                        return <Icon size={20} color={colors.primary} />;
+                                    })()}
+                                    <View style={{ marginLeft: 12, flex: 1 }}>
+                                        <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
+                                        <Text style={[styles.itemType, { color: colors.subText }]}>
+                                            {getTypeLabel(item.type)}
+                                            {item.interestRate && ` • %${item.interestRate} faiz`}
+                                            {item.units && ` • ${item.units.toLocaleString('tr-TR')} adet`}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                            <View style={styles.itemFooter}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.itemAmount, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                                        {formatCurrency(currentValue, item.currency)}
+                                    </Text>
+                                    {item.type === 'money_market_fund' && item.instrumentId && fundPrices[item.instrumentId] && (
+                                        <>
+                                            <Text style={{ color: profit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '600', marginTop: 2 }}>
+                                                TRY: {profit >= 0 ? '+' : ''}{formatCurrency(profit, 'TRY')} ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%)
+                                            </Text>
+                                            {item.historicalUsdRate && currentUsdRate > 0 && (
+                                                <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600', marginTop: 1 }}>
+                                                    USD: {profitUsd >= 0 ? '+' : ''}${profitUsd.toFixed(2)} ({profitUsdPercent >= 0 ? '+' : ''}{profitUsdPercent.toFixed(2)}%)
+                                                </Text>
+                                            )}
+                                        </>
+                                    )}
+                                </View>
+                                {item.type === 'money_market_fund' && item.averageCost && (
+                                    <View style={{ alignItems: 'flex-end', flex: 0.8 }}>
+                                        <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]} numberOfLines={1}>
+                                            Maliyet: {formatCurrency(cost, 'TRY')}
+                                        </Text>
+                                        {item.historicalUsdRate && (
+                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]} numberOfLines={1}>
+                                                (${costUsd.toFixed(2)})
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    );
+                }}
+                renderHiddenItem={(data, rowMap) => (
+                    <View style={styles.rowBack}>
+                        {data.item.type === 'money_market_fund' && data.item.units && (
+                            <TouchableOpacity
+                                style={[styles.backRightBtn, { backgroundColor: colors.success + '15' }]}
+                                onPress={() => {
+                                    rowMap[data.item.id].closeRow();
+                                    handleSellPPF(data.item);
+                                }}
+                            >
+                                <TrendingDown size={20} color={colors.success} />
+                                <Text style={[styles.backText, { color: colors.success }]}>Satış</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={[styles.backRightBtn, { backgroundColor: colors.primary + '15' }]}
+                            onPress={() => {
+                                rowMap[data.item.id].closeRow();
+                                openEditModal(data.item);
+                            }}
+                        >
+                            <Plus size={20} color={colors.primary} />
+                            <Text style={[styles.backText, { color: colors.primary }]}>Düzenle</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.backRightBtn, { backgroundColor: colors.danger + '15' }]}
+                            onPress={() => {
+                                rowMap[data.item.id].closeRow();
+                                handleDelete(data.item);
+                            }}
+                        >
+                            <Trash2 size={20} color={colors.danger} />
+                            <Text style={[styles.backText, { color: colors.danger }]}>Sil</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+                rightOpenValue={-210}
+                disableRightSwipe
+                keyExtractor={(item) => item.id}
+                ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Inbox size={64} color={colors.subText} />
                         <Text style={[styles.emptyText, { color: colors.subText }]}>
@@ -364,108 +496,8 @@ export const CashManagementScreen = () => {
                             <Text style={styles.emptyButtonText}>İlk Kaydı Ekle</Text>
                         </TouchableOpacity>
                     </View>
-                ) : (
-                    cashItems.map(item => {
-                        // Calculate P/L for funds
-                        let currentValue = item.amount;
-                        let profit = 0;
-                        let profitPercent = 0;
-                        let cost = item.amount;
-
-                        // USD calculations
-                        let profitUsd = 0;
-                        let profitUsdPercent = 0;
-                        let costUsd = 0;
-                        let currentValueUsd = 0;
-
-                        if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
-                            const livePrice = fundPrices[item.instrumentId];
-                            if (livePrice) {
-                                currentValue = item.units * livePrice;
-                                cost = item.units * item.averageCost;
-                                profit = currentValue - cost;
-                                profitPercent = cost > 0 ? (profit / cost) * 100 : 0;
-
-                                // USD P/L calculation
-                                if (item.historicalUsdRate && currentUsdRate > 0) {
-                                    costUsd = cost / item.historicalUsdRate;
-                                    currentValueUsd = currentValue / currentUsdRate;
-                                    profitUsd = currentValueUsd - costUsd;
-                                    profitUsdPercent = costUsd > 0 ? (profitUsd / costUsd) * 100 : 0;
-                                }
-                            } else {
-                                cost = item.units * item.averageCost;
-                            }
-                        }
-
-                        return (
-                            <TouchableOpacity
-                                key={item.id}
-                                style={[styles.itemCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                onPress={() => openEditModal(item)}
-                            >
-                                <View style={styles.itemHeader}>
-                                    <View style={styles.itemTitleRow}>
-                                        {(() => {
-                                            const Icon = getTypeIcon(item.type);
-                                            return <Icon size={20} color={colors.primary} />;
-                                        })()}
-                                        <View style={{ marginLeft: 12, flex: 1 }}>
-                                            <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
-                                            <Text style={[styles.itemType, { color: colors.subText }]}>
-                                                {getTypeLabel(item.type)}
-                                                {item.interestRate && ` • %${item.interestRate} faiz`}
-                                                {item.units && ` • ${item.units.toLocaleString('tr-TR')} adet`}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        {item.type === 'money_market_fund' && item.units && (
-                                            <TouchableOpacity onPress={() => handleSellPPF(item)} style={[styles.deleteButton, { backgroundColor: colors.success + '15' }]}>
-                                                <TrendingDown size={16} color={colors.success} />
-                                            </TouchableOpacity>
-                                        )}
-                                        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
-                                            <Trash2 size={18} color={colors.danger} />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                                <View style={styles.itemFooter}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.itemAmount, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
-                                            {formatCurrency(currentValue, item.currency)}
-                                        </Text>
-                                        {item.type === 'money_market_fund' && item.instrumentId && fundPrices[item.instrumentId] && (
-                                            <>
-                                                <Text style={{ color: profit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '600', marginTop: 2 }}>
-                                                    TRY: {profit >= 0 ? '+' : ''}{formatCurrency(profit, 'TRY')} ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%)
-                                                </Text>
-                                                {item.historicalUsdRate && currentUsdRate > 0 && (
-                                                    <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600', marginTop: 1 }}>
-                                                        USD: {profitUsd >= 0 ? '+' : ''}${profitUsd.toFixed(2)} ({profitUsdPercent >= 0 ? '+' : ''}{profitUsdPercent.toFixed(2)}%)
-                                                    </Text>
-                                                )}
-                                            </>
-                                        )}
-                                    </View>
-                                    {item.type === 'money_market_fund' && item.averageCost && (
-                                        <View style={{ alignItems: 'flex-end', flex: 0.8 }}>
-                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]} numberOfLines={1}>
-                                                Maliyet: {formatCurrency(cost, 'TRY')}
-                                            </Text>
-                                            {item.historicalUsdRate && (
-                                                <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]} numberOfLines={1}>
-                                                    (${costUsd.toFixed(2)})
-                                                </Text>
-                                            )}
-                                        </View>
-                                    )}
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    })
-                )}
-            </ScrollView>
+                }
+            />
 
             {/* Add/Edit Modal */}
             <Modal
@@ -908,6 +940,28 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 10,
+    },
+    rowBack: {
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        borderRadius: 20,
+        overflow: 'hidden',
+        marginHorizontal: 16,
+        marginBottom: 16,
+        height: Platform.OS === 'web' ? 110 : 100,
+    },
+    backRightBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 70,
+        height: '100%',
+    },
+    backText: {
+        fontSize: 10,
+        fontWeight: '700',
+        marginTop: 4,
     },
     itemTitleRow: {
         flexDirection: 'row',

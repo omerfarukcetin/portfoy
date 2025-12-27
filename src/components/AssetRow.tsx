@@ -88,16 +88,16 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                     <TickerIcon symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)} color={color || colors.primary} />
                 )}
                 <View style={styles.textContainer}>
-                    <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
-                    <Text style={[styles.amount, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail">
-                        {formatCurrency(displayPrice, displayCurrency)} × {item.amount}
+                    <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
+                    <Text style={[styles.amount, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>
+                        {formatCurrency(displayPrice, displayCurrency)} × {item.amount.toLocaleString('tr-TR')}
                     </Text>
                     {changePercent !== 0 ? (
-                        <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
+                        <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]} numberOfLines={1}>
                             {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
                         </Text>
                     ) : Platform.OS === 'web' ? (
-                        <Text style={[styles.dailyChange, { color: colors.subText }]}>-</Text>
+                        <Text style={[styles.dailyChange, { color: colors.subText }]} numberOfLines={1}>-</Text>
                     ) : null}
                 </View>
             </View>
@@ -109,9 +109,9 @@ export const AssetRow: React.FC<AssetRowProps> = ({
                         Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                     </Text>
                 )}
-                <Text style={[styles.value, { color: colors.text }]}>{formatCurrency(displayValue, displayCurrency)}</Text>
+                <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(displayValue, displayCurrency)}</Text>
                 <View style={[styles.plContainer, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
-                    <Text style={[styles.plText, { color: isProfit ? colors.success : colors.danger }]}>
+                    <Text style={[styles.plText, { color: isProfit ? colors.success : colors.danger }]} numberOfLines={1} adjustsFontSizeToFit>
                         {plSign}{formatCurrency(profitLoss, displayCurrency)} ({plSign}{Math.abs(profitLossPercent).toFixed(1)}%)
                     </Text>
                 </View>
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Platform.OS === 'web' ? 14 : 10,
-        flex: 1,
+        flex: 1.5,
     },
     textContainer: {
         justifyContent: 'center',
@@ -156,7 +156,8 @@ const styles = StyleSheet.create({
     },
     rightContainer: {
         alignItems: 'flex-end',
-        minWidth: 80,
+        flex: 1,
+        marginLeft: 8,
     },
     costLabel: {
         fontSize: 9,

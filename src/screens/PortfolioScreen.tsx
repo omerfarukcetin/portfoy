@@ -635,7 +635,7 @@ export const PortfolioScreen = () => {
                                     <SwipeListView
                                         data={items}
                                         renderItem={(data) => (
-                                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, marginBottom: 8 }]}>
+                                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, marginBottom: 6 }]}>
                                                 <AssetRow
                                                     item={data.item}
                                                     currentPrice={contextPrices[data.item.instrumentId] || 0}
@@ -686,7 +686,8 @@ export const PortfolioScreen = () => {
                                         rightOpenValue={-210}
                                         disableRightSwipe
                                         useFlatList={false}
-                                        scrollEnabled={false}
+                                        closeOnRowBeginSwipe={true}
+                                        directionalLockEnabled={true}
                                     />
                                 )}
                             </View>
@@ -878,7 +879,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.03)',
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginBottom: 8,
+        marginBottom: 6,
         borderRadius: 16,
         overflow: 'hidden',
         height: '100%',

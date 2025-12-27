@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: Platform.OS === 'web' ? 16 : 12,
-        paddingHorizontal: Platform.OS === 'web' ? 20 : 16,
+        paddingVertical: Platform.OS === 'web' ? 10 : 12,
+        paddingHorizontal: Platform.OS === 'web' ? 16 : 16,
     },
     leftContainer: {
         flexDirection: 'row',
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
     },
     plText: {
-        fontSize: Platform.OS === 'web' ? 11 : 11,
+        fontSize: Platform.OS === 'web' ? 10 : 11,
         fontWeight: '600',
         letterSpacing: 0.2,
     },

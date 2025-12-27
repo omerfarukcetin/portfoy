@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -35,6 +35,8 @@ export const TransactionsScreen = () => {
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();
     const navigation = useNavigation();
+    const { width } = useWindowDimensions();
+    const isMobileLayout = Platform.OS !== 'web' || width < 768;
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
 
     // Edit Modal State
@@ -221,14 +223,14 @@ export const TransactionsScreen = () => {
     const renderRealizedHiddenItem = (data: { item: any }, rowMap: any) => (
         <View style={styles.rowBack}>
             <TouchableOpacity
-                style={[styles.backRightBtn, styles.backRightBtnRight, { backgroundColor: colors.danger }]}
+                style={[styles.backRightBtn, { backgroundColor: colors.danger + '15' }]}
                 onPress={() => {
                     rowMap[data.item.id].closeRow();
                     handleDeleteRealized(data.item.id, data.item.instrumentId);
                 }}
             >
-                <Trash2 size={24} color="#fff" />
-                <Text style={styles.backTextWhite}>Sil</Text>
+                <Trash2 size={24} color={colors.danger} />
+                <Text style={[styles.backTextWhite, { color: colors.danger }]}>Sil</Text>
             </TouchableOpacity>
         </View>
     );
@@ -236,24 +238,24 @@ export const TransactionsScreen = () => {
     const renderHiddenItem = (data: { item: PortfolioItem }, rowMap: any) => (
         <View style={styles.rowBack}>
             <TouchableOpacity
-                style={[styles.backRightBtn, styles.backRightBtnLeft, { backgroundColor: colors.primary }]}
+                style={[styles.backRightBtn, { backgroundColor: colors.primary + '15' }]}
                 onPress={() => {
                     rowMap[data.item.id].closeRow();
                     openEditModal(data.item);
                 }}
             >
-                <Pencil size={24} color="#fff" />
-                <Text style={styles.backTextWhite}>Düzenle</Text>
+                <Pencil size={24} color={colors.primary} />
+                <Text style={[styles.backTextWhite, { color: colors.primary }]}>Düzenle</Text>
             </TouchableOpacity>
             <TouchableOpacity
-                style={[styles.backRightBtn, styles.backRightBtnRight, { backgroundColor: colors.danger }]}
+                style={[styles.backRightBtn, { backgroundColor: colors.danger + '15' }]}
                 onPress={() => {
                     rowMap[data.item.id].closeRow();
                     handleDelete(data.item);
                 }}
             >
-                <Trash2 size={24} color="#fff" />
-                <Text style={styles.backTextWhite}>Sil</Text>
+                <Trash2 size={24} color={colors.danger} />
+                <Text style={[styles.backTextWhite, { color: colors.danger }]}>Sil</Text>
             </TouchableOpacity>
         </View>
     );
@@ -286,7 +288,7 @@ export const TransactionsScreen = () => {
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         <Text style={{ textAlign: 'center', color: colors.subText }}>{t('transactions.noOpenTrades')}</Text>
                     </View>
-                ) : Platform.OS === 'web' ? (
+                ) : !isMobileLayout ? (
                     // WEB: MODERN TABLE LAYOUT
                     <ScrollView contentContainerStyle={styles.scrollContent}>
                         <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
@@ -435,7 +437,7 @@ export const TransactionsScreen = () => {
                             {/* Trade List */}
                             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, marginBottom: 10 }}>İşlem Geçmişi</Text>
 
-                            {Platform.OS === 'web' ? (
+                            {!isMobileLayout ? (
                                 <View style={[styles.tableCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                     {/* Table Header */}
                                     <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>

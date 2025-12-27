@@ -934,12 +934,85 @@ export const MarketDataService = {
             return metals.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
         }
 
-        // TEFAS Funds (Mock for now, normally requires scraping or API)
+        // TEFAS Funds - Use data from GitHub/Supabase
         if (category === 'FON') {
-            // Mock search for funds
-            return [
-                { id: query.toUpperCase(), symbol: query.toUpperCase(), name: `${query.toUpperCase()} Fonu`, type: 'fund', currency: 'TRY', currentPrice: 0, lastUpdated: Date.now() }
-            ];
+            try {
+                // Get TEFAS data from cache or fetch
+                const cloudData = await fetchTefasSnapshot();
+                const searchQuery = query.toLowerCase().trim();
+
+                // Priority: Supabase/GitHub data, then local file
+                if (cloudData && cloudData.data) {
+                    const results: Instrument[] = [];
+
+                    for (const [code, fund] of Object.entries(cloudData.data) as [string, any][]) {
+                        const fundName = fund.name || code;
+                        if (code.toLowerCase().includes(searchQuery) ||
+                            fundName.toLowerCase().includes(searchQuery)) {
+                            results.push({
+                                id: code,
+                                symbol: code,
+                                name: fundName,
+                                type: 'fund',
+                                currency: 'TRY',
+                                currentPrice: fund.price || 0,
+                                dailyChange: fund.daily_change || fund.dailyChange || 0,
+                                lastUpdated: Date.now()
+                            });
+                        }
+                        if (results.length >= 50) break; // Limit results
+                    }
+
+                    return results;
+                }
+
+                // Fallback to local TEFAS data
+                if (tefasData && tefasData.data) {
+                    const results: Instrument[] = [];
+
+                    for (const [code, fund] of Object.entries(tefasData.data) as [string, any][]) {
+                        const fundName = fund.name || code;
+                        if (code.toLowerCase().includes(searchQuery) ||
+                            fundName.toLowerCase().includes(searchQuery)) {
+                            results.push({
+                                id: code,
+                                symbol: code,
+                                name: fundName,
+                                type: 'fund',
+                                currency: 'TRY',
+                                currentPrice: fund.price || 0,
+                                dailyChange: fund.dailyChange || 0,
+                                lastUpdated: Date.now()
+                            });
+                        }
+                        if (results.length >= 50) break;
+                    }
+
+                    return results;
+                }
+
+                // If no data, return manual entry option
+                return [{
+                    id: query.toUpperCase(),
+                    symbol: query.toUpperCase(),
+                    name: `${query.toUpperCase()} (Manuel)`,
+                    type: 'fund',
+                    currency: 'TRY',
+                    currentPrice: 0,
+                    lastUpdated: Date.now()
+                }];
+            } catch (error) {
+                console.error('Fund search error:', error);
+                return [{
+                    id: query.toUpperCase(),
+                    symbol: query.toUpperCase(),
+                    name: `${query.toUpperCase()} (Manuel)`,
+                    type: 'fund',
+                    currency: 'TRY',
+                    currentPrice: 0,
+                    lastUpdated: Date.now()
+                }];
+            }
         }
 
         // Forex / Döviz Fixed List

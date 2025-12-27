@@ -9,6 +9,7 @@ export interface Instrument {
   currency?: string;
   lastUpdated?: number;
   change24h?: number;
+  dailyChange?: number; // Daily change percentage (for TEFAS funds)
   instrumentId?: string;  // For crypto: CoinGecko/CoinCap ID (e.g., "worldcoin")
   subtype?: 'gram' | 'quarter' | 'half' | 'full' | 'ons'; // For gold
   error?: string; // Error message if fetching failed

@@ -38,6 +38,56 @@ def push_to_firebase(data):
     except Exception as e:
         print(f"❌ Firebase hatası: {e}")
 
+def push_to_supabase(data):
+    """Push TEFAS data to Supabase tefas_funds table"""
+    try:
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
+        
+        if not supabase_url or not supabase_key:
+            print("ℹ️ SUPABASE_URL veya SUPABASE_SERVICE_KEY bulunamadı, Supabase'e yükleme yapılmayacak.")
+            return
+        
+        print("☁️ Supabase'e bağlanılıyor...")
+        
+        # Prepare records for upsert
+        records = []
+        for code, fund_data in data['data'].items():
+            records.append({
+                'code': code,
+                'price': fund_data['price'],
+                'date': fund_data.get('date', ''),
+                'fetched_at': fund_data.get('fetchedAt', datetime.now().isoformat()),
+                'updated_at': datetime.now().isoformat()
+            })
+        
+        # Use Supabase REST API directly
+        headers = {
+            'apikey': supabase_key,
+            'Authorization': f'Bearer {supabase_key}',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+        }
+        
+        # Upsert in batches of 500
+        batch_size = 500
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i+batch_size]
+            response = requests.post(
+                f'{supabase_url}/rest/v1/tefas_funds',
+                headers=headers,
+                json=batch
+            )
+            if response.status_code not in [200, 201]:
+                print(f"⚠️ Supabase batch {i//batch_size + 1} hatası: {response.status_code} - {response.text}")
+            else:
+                print(f"✅ Supabase batch {i//batch_size + 1}: {len(batch)} kayıt yüklendi")
+        
+        print(f"✅ Supabase'e yüklendi ({len(records)} fon)")
+        
+    except Exception as e:
+        print(f"❌ Supabase hatası: {e}")
+
 def fetch_all_funds():
     print("🚀 TEFAS Verileri Çekiliyor...")
     
@@ -227,6 +277,9 @@ def fetch_all_funds():
             
             # Firebase Push
             push_to_firebase(final_data)
+            
+            # Supabase Push
+            push_to_supabase(final_data)
             
             return True
         

@@ -10,7 +10,7 @@ import { MarketDataService } from '../services/marketData';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const CashManagementScreen = () => {
-    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash } = usePortfolio();
+    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<CashItem | null>(null);
@@ -240,31 +240,32 @@ export const CashManagementScreen = () => {
         );
     };
 
-    // Sell PPF and add proceeds to cash balance
+    // Sell PPF and add proceeds to cash balance with profit tracking
     const handleSellPPF = async (item: CashItem) => {
-        if (item.type !== 'money_market_fund' || !item.instrumentId || !item.units) return;
+        if (item.type !== 'money_market_fund' || !item.instrumentId || !item.units || !item.averageCost) return;
 
         const currentPrice = fundPrices[item.instrumentId] || item.averageCost || 0;
         const currentValue = item.units * currentPrice;
+        const costBasis = item.units * item.averageCost;
+        const profit = currentValue - costBasis;
+        const profitPercent = costBasis > 0 ? (profit / costBasis) * 100 : 0;
 
         showAlert(
-            'Satış Yap',
-            `${item.name} satılacak.\nGüncel Değer: ${formatCurrency(currentValue, 'TRY')}\n\nEmin misiniz?`,
+            'Fon Sat',
+            `${item.name}\n\n` +
+            `Güncel Değer: ${formatCurrency(currentValue, 'TRY')}\n` +
+            `Maliyet: ${formatCurrency(costBasis, 'TRY')}\n` +
+            `Kâr/Zarar: ${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')} (${profitPercent >= 0 ? '+' : ''}${profitPercent.toFixed(2)}%)\n\n` +
+            `Satış işlemi "Gerçekleşen Kâr" olarak kaydedilecek.`,
             [
                 { text: 'İptal', style: 'cancel' },
                 {
                     text: 'Sat',
                     style: 'destructive',
                     onPress: async () => {
-                        console.log('💰 Selling PPF:', item.name, 'Value:', currentValue);
-
-                        // Delete the PPF item
-                        await deleteCashItem(item.id);
-
-                        // Add proceeds to cash balance
-                        await updateCash(currentValue);
-
-                        showAlert('Başarılı', `${item.name} satıldı ve ${formatCurrency(currentValue, 'TRY')} nakit bakiyenize eklendi.`);
+                        console.log('💰 Selling PPF:', item.name, 'Value:', currentValue, 'Profit:', profit);
+                        await sellCashFund(item.id, currentPrice, currentUsdRate);
+                        showAlert('Başarılı', `${item.name} satıldı.\n\nKâr: ${profit >= 0 ? '+' : ''}${formatCurrency(profit, 'TRY')}\nNakit bakiyenize ${formatCurrency(currentValue, 'TRY')} eklendi.`);
                     }
                 }
             ]

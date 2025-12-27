@@ -1,9 +1,8 @@
-import { db } from './firebaseConfig';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { supabase } from './supabaseClient';
 
 /**
- * Upload portfolio backup to Firestore
- * Path: users/{userId}/backups/latest
+ * Upload portfolio backup to Supabase
+ * Path: user's portfolios table
  */
 export const uploadBackup = async (userId: string, data: any): Promise<void> => {
     try {
@@ -14,8 +13,15 @@ export const uploadBackup = async (userId: string, data: any): Promise<void> => 
             platform: 'mobile'
         };
 
-        const docRef = doc(db, 'users', userId, 'backups', 'latest');
-        await setDoc(docRef, backupData);
+        const { error } = await supabase
+            .from('user_metadata')
+            .upsert({
+                id: userId,
+                backup_data: backupData,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
         console.log('Backup uploaded successfully');
     } catch (error) {
         console.error("Cloud Backup Error:", error);
@@ -24,16 +30,27 @@ export const uploadBackup = async (userId: string, data: any): Promise<void> => 
 };
 
 /**
- * Download portfolio backup from Firestore
+ * Download portfolio backup from Supabase
  * Returns null if no backup exists
  */
 export const downloadBackup = async (userId: string): Promise<any | null> => {
     try {
-        const docRef = doc(db, 'users', userId, 'backups', 'latest');
-        const docSnap = await getDoc(docRef);
+        const { data, error } = await supabase
+            .from('user_metadata')
+            .select('backup_data')
+            .eq('id', userId)
+            .single();
 
-        if (docSnap.exists()) {
-            return docSnap.data();
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('No backup found');
+                return null;
+            }
+            throw error;
+        }
+
+        if (data?.backup_data) {
+            return data.backup_data;
         } else {
             console.log('No backup found');
             return null;

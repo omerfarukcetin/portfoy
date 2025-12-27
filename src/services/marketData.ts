@@ -49,42 +49,83 @@ const TEFAS_CACHE_TTL = 60 * 60 * 1000; // 1 hour for TEFAS
 // If direct calls fail in RN, we might need a proxy or a different library.
 // For now, we'll try direct calls.
 
-// Firebase Cloud Data
-import { db } from './firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+// Supabase Cloud Data
+import { supabase } from './supabaseClient';
 
 // Import local data (Back to imported for now)
 import tefasDataRaw from '../data/tefas_data.json';
 const tefasData = tefasDataRaw as { lastUpdated: string; count: number; data: Record<string, { code: string; price: number; date: string }> };
 
-// In-Memory cache for TEFAS data (populated from Firebase)
+// GitHub raw URL for TEFAS data (updated via GitHub Actions)
+const GITHUB_TEFAS_URL = 'https://raw.githubusercontent.com/omerfarukcetin/portfoy/main/src/data/tefas_data.json';
+
+// In-Memory cache for TEFAS data
 let tefasDataCache: {
     lastUpdated: string;
     count: number;
     data: Record<string, { code: string; price: number; date: string }>
 } | null = null;
 
-// Fetch full snapshot from Firebase (Funds/daily_snapshot)
+// Fetch full snapshot - Priority: GitHub > Supabase > Local file
 const fetchTefasSnapshot = async () => {
     if (tefasDataCache) return tefasDataCache; // Return memory cache if available
 
+    // 1. Try GitHub first (most up-to-date via GitHub Actions)
     try {
-        const docRef = doc(db, "funds", "daily_snapshot");
-        const docSnap = await getDoc(docRef);
+        console.log('🔍 Fetching TEFAS data from GitHub...');
+        const response = await fetch(GITHUB_TEFAS_URL, {
+            cache: 'no-cache',
+            headers: { 'Accept': 'application/json' }
+        });
 
-        if (docSnap.exists()) {
-            const data = docSnap.data() as any;
-            tefasDataCache = data;
-            console.log(`☁️ Firebase Data Loaded: ${data.count} funds (Updated: ${data.lastUpdated})`);
-            return tefasDataCache;
-        } else {
-            console.warn("⚠️ No daily_snapshot found in Firebase.");
-            return null;
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.data && Object.keys(data.data).length > 0) {
+                tefasDataCache = {
+                    lastUpdated: data.lastUpdated || new Date().toISOString(),
+                    count: data.count || Object.keys(data.data).length,
+                    data: data.data
+                };
+                console.log(`✅ GitHub TEFAS Data Loaded: ${tefasDataCache.count} funds (${data.lastUpdated})`);
+                return tefasDataCache;
+            }
         }
     } catch (error) {
-        console.error("❌ Firebase Fetch Error:", error);
-        return null;
+        console.warn('⚠️ GitHub TEFAS fetch failed, trying Supabase...', error);
     }
+
+    // 2. Try Supabase
+    try {
+        const { data, error } = await supabase
+            .from('tefas_funds')
+            .select('*');
+
+        if (!error && data && data.length > 0) {
+            // Convert array to Record format
+            const fundRecord: Record<string, { code: string; price: number; date: string }> = {};
+            data.forEach((fund: any) => {
+                fundRecord[fund.code] = {
+                    code: fund.code,
+                    price: Number(fund.price),
+                    date: fund.date
+                };
+            });
+
+            tefasDataCache = {
+                lastUpdated: new Date().toISOString(),
+                count: data.length,
+                data: fundRecord
+            };
+            console.log(`🔷 Supabase TEFAS Data Loaded: ${data.length} funds`);
+            return tefasDataCache;
+        }
+    } catch (error) {
+        console.warn("⚠️ Supabase TEFAS fetch failed, using local data...", error);
+    }
+
+    // 3. Use local file as last resort
+    console.log('📦 Using local TEFAS data file');
+    return null; // Will fall back to tefasData import
 };
 
 const TEFAS_BASE_URL = 'https://www.tefas.gov.tr/api/DB';
@@ -938,46 +979,21 @@ export const MarketDataService = {
             }
         }
 
-        // Stocks (Yahoo Finance or Netlify proxy)
-        // Web platformunda CORS problemi var, Netlify Functions proxy kullan
+        // Stocks (Yahoo Finance or local list)
+        // Web platformunda CORS problemi var, yerel listeyi kullan
         if (Platform.OS === 'web') {
             try {
-                // Netlify Functions proxy URL
-                // Development: localhost:8888/.netlify/functions/yahoo-proxy
-                // Production: your-site.netlify.app/.netlify/functions/yahoo-proxy
-                const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-                    ? 'http://localhost:8888'
-                    : window.location.origin;
-
-                const proxyUrl = `${baseUrl}/.netlify/functions/yahoo-proxy?q=${encodeURIComponent(query)}&category=${category}`;
-
-                const response = await fetch(proxyUrl);
-                if (!response.ok) {
-                    throw new Error('Proxy request failed');
-                }
-
-                const data = await response.json();
-
-                return data.quotes.map((quote: any) => ({
-                    id: quote.symbol,
-                    symbol: quote.symbol,
-                    name: quote.shortname || quote.longname || quote.symbol,
-                    type: 'stock' as const,
-                    currency: category === 'BIST' ? 'TRY' : 'USD',
-                    currentPrice: 0,
-                    lastUpdated: Date.now()
-                }));
-            } catch (error) {
-                console.error('Web proxy search error:', error);
-                // Fallback to local data if proxy fails
+                // Use local stock data for web platform
                 const { BIST_STOCKS, US_STOCKS } = await import('../data/stocks');
                 const stockList = category === 'BIST' ? BIST_STOCKS : US_STOCKS;
+                const searchQuery = query.toLowerCase().trim();
 
-                return stockList
+                let results = stockList
                     .filter(stock =>
-                        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
-                        stock.name.toLowerCase().includes(query.toLowerCase())
+                        stock.symbol.toLowerCase().includes(searchQuery) ||
+                        stock.name.toLowerCase().includes(searchQuery)
                     )
+                    .slice(0, 50) // Limit results for performance
                     .map(stock => ({
                         id: stock.symbol,
                         symbol: stock.symbol,
@@ -987,6 +1003,29 @@ export const MarketDataService = {
                         currentPrice: 0,
                         lastUpdated: Date.now()
                     }));
+
+                // If no results found and query looks like a stock symbol, 
+                // add it as a custom entry (allows adding stocks not in our list)
+                if (results.length === 0 && searchQuery.length >= 3) {
+                    const symbol = category === 'BIST'
+                        ? (searchQuery.toUpperCase().endsWith('.IS') ? searchQuery.toUpperCase() : `${searchQuery.toUpperCase()}.IS`)
+                        : searchQuery.toUpperCase();
+
+                    results.push({
+                        id: symbol,
+                        symbol: symbol,
+                        name: `${searchQuery.toUpperCase()} (Manuel)`,
+                        type: 'stock' as const,
+                        currency: category === 'BIST' ? 'TRY' : 'USD',
+                        currentPrice: 0,
+                        lastUpdated: Date.now()
+                    });
+                }
+
+                return results;
+            } catch (error) {
+                console.error('Web stock search error:', error);
+                return [];
             }
         }
 

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio } from '../types';
 import { MarketDataService } from '../services/marketData';
 import { useAuth } from './AuthContext';
-import { saveUserPortfolios, loadUserPortfolios, migrateToFirestore } from '../services/firestoreService';
+import { saveUserPortfolios, loadUserPortfolios, migrateToSupabase } from '../services/supabaseService';
 
 interface HistoryPoint {
     date: string;
@@ -56,6 +56,7 @@ interface PortfolioContextType {
     updateCashItem: (id: string, amount: number) => Promise<void>;
     deleteCashItem: (id: string) => Promise<void>;
     updateCash: (amount: number) => Promise<void>;
+    sellCashFund: (id: string, sellPrice: number, currentUsdRate: number) => Promise<void>;
 
     // Other functions
     updatePortfolioTarget: (targetValue: number, currency: 'TRY' | 'USD') => Promise<void>;
@@ -152,7 +153,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         loadData();
         fetchCurrentUsdRate();
-    }, [user?.uid]);
+    }, [user?.id]);
 
     // Setup periodic price refresh
     useEffect(() => {
@@ -193,13 +194,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             await AsyncStorage.setItem('activePortfolioId', activeId);
             setPortfolios(newPortfolios);
 
-            // If user is logged in, sync to Firestore
-            if (user?.uid) {
-                console.log('☁️ Syncing specific active portfolio to Firestore:', activeId);
-                await saveUserPortfolios(user.uid, newPortfolios, activeId);
-                console.log('✅ Firestore sync completed successfully');
+            // If user is logged in, sync to Supabase
+            if (user?.id) {
+                console.log('🔷 Syncing portfolios to Supabase:', activeId);
+                await saveUserPortfolios(user.id, newPortfolios, activeId);
+                console.log('✅ Supabase sync completed successfully');
             } else {
-                console.log('⚠️ User not logged in, skipping Firestore sync');
+                console.log('⚠️ User not logged in, skipping Supabase sync');
             }
         } catch (e) {
             console.error('❌ Failed to save portfolios:', e);
@@ -245,38 +246,50 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setIsLoading(true);
             console.log('📥 loadData: Starting...');
 
-            // If user is logged in, try to load from Firestore first
-            if (user?.uid) {
-                console.log('📥 loadData: User logged in, trying Firestore:', user.uid);
+            // If user is logged in, try to load from Supabase first
+            if (user?.id) {
+                console.log('📥 loadData: User logged in, trying Supabase:', user.id);
                 try {
-                    const firestoreData = await loadUserPortfolios(user.uid);
-                    console.log('📥 loadData: Firestore returned', firestoreData.portfolios.length, 'portfolios');
+                    const supabaseData = await loadUserPortfolios(user.id);
+                    console.log('📥 loadData: Supabase returned', supabaseData.portfolios.length, 'portfolios');
 
-                    if (firestoreData.portfolios.length > 0) {
-                        // User has data in Firestore
-                        const portfolio = firestoreData.portfolios.find(p => p.id === (firestoreData.activePortfolioId || firestoreData.portfolios[0].id));
+                    if (supabaseData.portfolios.length > 0) {
+                        // User has data in Supabase
+                        const portfolio = supabaseData.portfolios.find(p => p.id === (supabaseData.activePortfolioId || supabaseData.portfolios[0].id));
                         console.log('📥 loadData: Active portfolio has', portfolio?.items?.length || 0, 'items');
 
-                        setPortfolios(firestoreData.portfolios);
-                        setActivePortfolioId(firestoreData.activePortfolioId || firestoreData.portfolios[0].id);
-                        console.log('✅ loadData: Loaded portfolios from Firestore');
+                        setPortfolios(supabaseData.portfolios);
+                        setActivePortfolioId(supabaseData.activePortfolioId || supabaseData.portfolios[0].id);
+                        console.log('✅ loadData: Loaded portfolios from Supabase');
                         return;
                     } else {
-                        console.log('📥 loadData: No Firestore data, checking AsyncStorage...');
-                        // Check if there's local data to migrate
-                        const storedPortfolios = await AsyncStorage.getItem('portfolios');
-                        if (storedPortfolios) {
-                            const parsedPortfolios = JSON.parse(storedPortfolios);
-                            const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
-                            console.log('📥 loadData: Found AsyncStorage data with', parsedPortfolios.length, 'portfolios');
+                        // No data in Supabase - check if we should migrate local data
+                        // Only migrate if the previous local user matches current user
+                        const previousUserId = await AsyncStorage.getItem('lastLoggedInUserId');
 
-                            // Migrate to Firestore
-                            await migrateToFirestore(user.uid, parsedPortfolios, storedActiveId || 'default');
-                            setPortfolios(parsedPortfolios);
-                            setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
-                            console.log('✅ loadData: Migrated local data to Firestore');
-                            return;
+                        if (previousUserId === user.id) {
+                            // Same user - migrate their local data
+                            console.log('📥 loadData: Same user, checking AsyncStorage for migration...');
+                            const storedPortfolios = await AsyncStorage.getItem('portfolios');
+                            if (storedPortfolios) {
+                                const parsedPortfolios = JSON.parse(storedPortfolios);
+                                const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
+                                console.log('📥 loadData: Found AsyncStorage data with', parsedPortfolios.length, 'portfolios');
+
+                                // Migrate to Supabase
+                                await migrateToSupabase(user.id, parsedPortfolios, storedActiveId || 'default');
+                                setPortfolios(parsedPortfolios);
+                                setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
+                                console.log('✅ loadData: Migrated local data to Supabase');
+                                return;
+                            }
+                        } else {
+                            // Different user or first time - don't migrate, start fresh
+                            console.log('📥 loadData: New user, skipping local data migration');
                         }
+
+                        // Save current user ID for future reference
+                        await AsyncStorage.setItem('lastLoggedInUserId', user.id);
                     }
 
                     // No data anywhere - create default portfolio
@@ -296,8 +309,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     await savePortfolios([defaultPortfolio], 'default');
                     setActivePortfolioId('default');
                     return;
-                } catch (firestoreError) {
-                    console.error('❌ loadData: Firestore load error, falling back to local:', firestoreError);
+                } catch (supabaseError) {
+                    console.error('❌ loadData: Supabase load error, falling back to local:', supabaseError);
                 }
             } else {
                 console.log('📥 loadData: User NOT logged in, using AsyncStorage only');
@@ -343,7 +356,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Reload data when user changes
     useEffect(() => {
         loadData();
-    }, [user?.uid]);
+    }, [user?.id]);
 
     // Multi-portfolio functions
     const createPortfolio = async (name: string, color: string, icon: string) => {
@@ -486,6 +499,93 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     };
 
+    // Sell a money market fund from cash items with profit tracking
+    const sellCashFund = async (id: string, sellPrice: number, currentUsdRate: number) => {
+        const ownerPortfolio = portfolios.find(p => (p.cashItems || []).some(item => item.id === id));
+        if (!ownerPortfolio) {
+            console.error('❌ Could not find portfolio containing cash fund:', id);
+            return;
+        }
+
+        const fundItem = ownerPortfolio.cashItems.find(item => item.id === id);
+        if (!fundItem || fundItem.type !== 'money_market_fund' || !fundItem.units || !fundItem.averageCost) {
+            console.error('❌ Invalid fund item for selling:', fundItem);
+            return;
+        }
+
+        const currentValue = fundItem.units * sellPrice;
+        const costBasis = fundItem.units * fundItem.averageCost;
+        const profitTry = currentValue - costBasis;
+
+        // Calculate USD profit
+        const costUsd = fundItem.historicalUsdRate ? costBasis / fundItem.historicalUsdRate : costBasis / currentUsdRate;
+        const valueUsd = currentValue / currentUsdRate;
+        const profitUsd = valueUsd - costUsd;
+
+        console.log('💰 Selling cash fund:', {
+            name: fundItem.name,
+            units: fundItem.units,
+            sellPrice,
+            currentValue,
+            costBasis,
+            profitTry,
+            profitUsd
+        });
+
+        // Create realized trade record
+        const trade: RealizedTrade = {
+            id: Date.now().toString(),
+            instrumentId: fundItem.instrumentId || fundItem.name,
+            amount: fundItem.units,
+            sellPrice: sellPrice,
+            buyPrice: fundItem.averageCost,
+            currency: 'TRY',
+            date: Date.now(),
+            profit: profitTry,
+            profitUsd: profitUsd,
+            profitTry: profitTry,
+            type: 'fund'
+        };
+
+        // Remove fund from cash items
+        const updatedCashItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
+
+        // Add proceeds to cash balance
+        const defaultCashIndex = updatedCashItems.findIndex(
+            item => item.type === 'cash' && item.currency === 'TRY'
+        );
+
+        if (defaultCashIndex !== -1) {
+            updatedCashItems[defaultCashIndex] = {
+                ...updatedCashItems[defaultCashIndex],
+                amount: updatedCashItems[defaultCashIndex].amount + currentValue
+            };
+        } else {
+            updatedCashItems.push({
+                id: Date.now().toString(),
+                type: 'cash',
+                name: 'Nakit (TL)',
+                amount: currentValue,
+                currency: 'TRY',
+                dateAdded: Date.now()
+            });
+        }
+
+        // Update portfolio with new cash items and add realized trade
+        const updatedPortfolio = {
+            ...ownerPortfolio,
+            cashItems: updatedCashItems,
+            realizedTrades: [...(ownerPortfolio.realizedTrades || []), trade]
+        };
+
+        const newPortfolios = portfolios.map(p =>
+            p.id === ownerPortfolio.id ? updatedPortfolio : p
+        );
+
+        await savePortfolios(newPortfolios);
+        console.log('✅ Fund sold successfully. Profit:', profitTry, 'TRY,', profitUsd.toFixed(2), 'USD');
+    };
+
     // Portfolio Functions
     const addAsset = async (asset: Omit<PortfolioItem, 'id'>) => {
         let targetId = activePortfolioId;
@@ -609,7 +709,29 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return;
         }
 
-        const targetPortfolio = portfolios.find(p => p.id === targetPortfolioId)!;
+        const targetPortfolio = portfolios.find(p => p.id === targetPortfolioId);
+        if (!targetPortfolio) {
+            console.error('❌ Target portfolio not found:', targetPortfolioId, 'Available:', portfolios.map(p => p.id));
+            // Create a default portfolio if none exists
+            console.log('📦 Creating default portfolio...');
+            const defaultPortfolio: Portfolio = {
+                id: 'default',
+                name: 'Ana Portföy',
+                color: '#007AFF',
+                icon: '💼',
+                createdAt: Date.now(),
+                items: [],
+                cashBalance: 0,
+                cashItems: [],
+                realizedTrades: [],
+                history: []
+            };
+            setPortfolios([defaultPortfolio]);
+            setActivePortfolioId('default');
+            // Retry with new portfolio - user should try again
+            return;
+        }
+
         const existingIndex = targetPortfolio.items.findIndex(p =>
             p.instrumentId.toUpperCase() === instrumentId.toUpperCase() &&
             p.type === instrument.type
@@ -1070,6 +1192,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             updateCashItem,
             deleteCashItem,
             updateCash,
+            sellCashFund,
             refreshPrices,
             updateTotalValue,
             resetData,

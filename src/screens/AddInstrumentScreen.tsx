@@ -238,6 +238,15 @@ export const AddInstrumentScreen = () => {
                     return;
                 }
 
+                console.log('🟢 AddInstrumentScreen: Calling addToPortfolio with:', {
+                    instrument: selectedInstrument.symbol,
+                    amount: parseFloat(amount.replace(',', '.')),
+                    cost: parseFloat(cost.replace(',', '.')),
+                    currency,
+                    dateTs,
+                    rate: isNaN(rate) ? undefined : rate
+                });
+
                 await addToPortfolio(
                     selectedInstrument,
                     parseFloat(amount.replace(',', '.')),
@@ -250,11 +259,13 @@ export const AddInstrumentScreen = () => {
                     undefined,
                     deduct
                 );
+                console.log('🟢 AddInstrumentScreen: addToPortfolio completed successfully');
             }
 
             showAlert('Başarılı', 'Varlık portföye eklendi');
             navigation.goBack();
         } catch (error) {
+            console.error('🔴 AddInstrumentScreen: Error adding instrument:', error);
             showAlert('Hata', 'Ekleme başarısız oldu');
         }
     };

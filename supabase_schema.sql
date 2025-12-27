@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS tefas_funds (
   code TEXT PRIMARY KEY,
   name TEXT,
   price NUMERIC NOT NULL,
+  daily_change NUMERIC DEFAULT 0,
   date TEXT NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

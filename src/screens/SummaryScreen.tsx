@@ -662,9 +662,9 @@ export const SummaryScreen = () => {
                                                 </TouchableOpacity>
                                             </View>
 
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 40 }}>
-                                                {/* Donut Chart */}
-                                                <View style={{ alignItems: 'center' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                                {/* Donut Chart with Legend */}
+                                                <View style={{ flex: 1, alignItems: 'center' }}>
                                                     {isInitialLoading ? (
                                                         <Skeleton width={220} height={220} borderRadius={110} />
                                                     ) : (
@@ -673,34 +673,13 @@ export const SummaryScreen = () => {
                                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
                                                             size={220}
                                                             strokeWidth={28}
-                                                            centerText={isHidden ? '••••' : `${(totalPortfolioTry / 1000).toFixed(0)}K`}
-                                                            centerSubtext="TOPLAM"
+                                                            centerText={isHidden ? '••••' : formatCurrency(totalPortfolioTry, 'TRY')}
+                                                            centerSubtext=""
+                                                            centerTextFontSize={16}
                                                             colors={colors}
-                                                            hideLegend={true}
+                                                            hideLegend={false}
                                                         />
                                                     )}
-                                                </View>
-
-                                                {/* Legend - 2 column grid */}
-                                                <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-                                                    {pieData.map((item, index) => {
-                                                        const total = pieData.reduce((sum, d) => sum + d.population, 0);
-                                                        const percentage = total > 0 ? ((item.population / total) * 100).toFixed(1) : '0.0';
-                                                        return (
-                                                            <View key={index} style={{ width: '45%', marginBottom: 8 }}>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color }} />
-                                                                    <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{item.name}</Text>
-                                                                </View>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4, marginLeft: 18 }}>
-                                                                    <Text style={{ fontSize: 16, color: colors.text, fontWeight: '700' }}>{percentage}%</Text>
-                                                                    <Text style={{ fontSize: 12, color: colors.subText }}>
-                                                                        {isHidden ? '•••' : formatCurrency(item.population, 'TRY')}
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-                                                        );
-                                                    })}
                                                 </View>
                                             </View>
                                         </View>
@@ -1103,7 +1082,7 @@ export const SummaryScreen = () => {
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={{ width: 140, height: 140 }}>
+                                    <View style={{ flex: 1 }}>
                                         <ShareableDonutChart
                                             ref={donutChartRef}
                                             data={pieData.map(item => ({ name: item.name, value: item.population, color: item.color }))}
@@ -1113,29 +1092,16 @@ export const SummaryScreen = () => {
                                             centerSubtext=""
                                             centerTextFontSize={13}
                                             colors={colors}
-                                            hideLegend={true}
-                                            isCompact={true}
+                                            hideLegend={false}
+                                            isCompact={false}
                                         />
-                                    </View>
-                                    <View style={{ flex: 1, gap: 6, paddingLeft: 16 }}>
-                                        {pieData.map((item, index) => (
-                                            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: item.color }} />
-                                                    <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600' }} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-                                                </View>
-                                                <Text style={{ fontSize: 11, color: colors.subText, fontWeight: '700', marginLeft: 4 }}>
-                                                    {((item.population / (totalPortfolioTry || 1)) * 100).toFixed(0)}%
-                                                </Text>
-                                            </View>
-                                        ))}
                                     </View>
                                 </View>
                             </Card>
                         )}
 
                         {/* Quick Insights Row */}
-                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 30, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 30, marginTop: 12 }}>
                             <TouchableOpacity
                                 style={{
                                     flex: 1,
@@ -1148,24 +1114,8 @@ export const SummaryScreen = () => {
                                 onPress={() => setMarketReportVisible(true)}
                             >
                                 <Zap size={16} color={colors.success} style={{ marginBottom: 4 }} />
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Piyasa Raporu</Text>
-                                <Text style={{ fontSize: 10, color: colors.subText, marginTop: 2 }}>Günlük analizleri gör</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: colors.primary + '10',
-                                    padding: 12,
-                                    borderRadius: 16,
-                                    borderWidth: 1,
-                                    borderColor: colors.primary + '30'
-                                }}
-                                onPress={() => (navigation as any).navigate('Alerts')}
-                            >
-                                <Bell size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Fiyat Alarmları</Text>
-                                <Text style={{ fontSize: 10, color: colors.subText, marginTop: 2 }}>Takip listeni incele</Text>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Piyasa Raporu</Text>
+                                <Text style={{ fontSize: 11, color: colors.subText, marginTop: 2 }}>Günlük analizleri gör</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

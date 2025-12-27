@@ -81,9 +81,14 @@ export const ShareableDonutChart = forwardRef<ShareableDonutChartHandle, Shareab
     const displayCenterSubtext = hidePrices ? undefined : props.centerSubtext;
 
     const ChartContent = (
-        <View style={[styles.container, { backgroundColor: props.colors.cardBackground }, isCompact && { padding: 0, marginVertical: 0 }]}>
+        <View style={[
+            styles.container,
+            { backgroundColor: props.colors.cardBackground },
+            isCompact && { padding: 0 },
+            { flexDirection: 'row', alignItems: 'center', padding: 20 }
+        ]}>
             {/* Chart */}
-            <View style={styles.chartWrapper}>
+            <View style={[styles.chartWrapper, { flex: 1, marginVertical: 0 }]}>
                 <DonutChart
                     {...props}
                     data={displayData}
@@ -91,26 +96,23 @@ export const ShareableDonutChart = forwardRef<ShareableDonutChartHandle, Shareab
                     centerSubtext={displayCenterSubtext}
                 />
             </View>
-            <View style={{ alignItems: 'flex-end', marginTop: -10, marginBottom: 10, opacity: 0.3 }}>
-                <Text style={{ fontSize: 9, color: props.colors.text, fontWeight: '700' }}>PORTFÖY CEPTE</Text>
-            </View>
 
             {/* Legend - Always included for download unless specifically hidden */}
             {!props.hideLegend && (
-                <View style={styles.legend}>
+                <View style={[styles.legend, { flex: 1.2, marginLeft: 20, marginTop: 0 }]}>
                     {props.data.map((item, index) => {
                         const total = props.data.reduce((sum, d) => sum + d.value, 0);
-                        const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
+                        const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
 
                         return (
                             <View key={index} style={styles.legendItem}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                                    <Text style={[styles.legendText, { color: props.colors.text }]} numberOfLines={1}>
+                                    <Text style={[styles.legendText, { color: props.colors.text, fontSize: 12 }]} numberOfLines={1}>
                                         {item.name}
                                     </Text>
                                 </View>
-                                <Text style={[styles.legendPercent, { color: props.colors.subText }]}>
+                                <Text style={[styles.legendPercent, { color: props.colors.subText, fontSize: 12, marginLeft: 8 }]}>
                                     {hidePrices ? '••%' : `%${percentage}`}
                                 </Text>
                             </View>
@@ -118,17 +120,6 @@ export const ShareableDonutChart = forwardRef<ShareableDonutChartHandle, Shareab
                     })}
                 </View>
             )}
-
-            {/* Watermark for privacy mode */}
-            {
-                hidePrices && (
-                    <View style={styles.watermark}>
-                        <Text style={[styles.watermarkText, { color: props.colors.subText }]}>
-                            Tutarlar gizlendi
-                        </Text>
-                    </View>
-                )
-            }
         </View>
     );
 

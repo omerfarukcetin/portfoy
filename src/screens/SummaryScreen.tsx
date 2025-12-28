@@ -1107,13 +1107,15 @@ export const SummaryScreen = () => {
                     </View>
                 )}
             </ScrollView>
-            {/* FAB */}
-            <TouchableOpacity
-                style={[styles.fab, { backgroundColor: colors.primary }]}
-                onPress={() => (navigation as any).navigate('AddInstrument')}
-            >
-                <Plus size={24} color="#fff" />
-            </TouchableOpacity>
+            {/* FAB - Only show on Web as Mobile has one in the bottom tab bar */}
+            {Platform.OS === 'web' && (
+                <TouchableOpacity
+                    style={[styles.fab, { backgroundColor: colors.primary }]}
+                    onPress={() => (navigation as any).navigate('AddInstrument')}
+                >
+                    <Plus size={24} color="#fff" />
+                </TouchableOpacity>
+            )}
 
 
             {/* Critical Updates Modal */}

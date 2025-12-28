@@ -35,20 +35,35 @@ export const saveUserPortfolios = async (
         const existingIds = new Set((existingPortfolios || []).map(p => p.id));
         const newIds = new Set(portfolios.map(p => p.id));
 
-        // 3. Delete removed portfolios (cascade will delete items, cash, trades, history)
-        const toDelete = [...existingIds].filter(id => !newIds.has(id));
-        if (toDelete.length > 0) {
-            console.log('🔷 Deleting old portfolios:', toDelete);
-            for (const id of toDelete) {
-                await supabase.from('portfolio_items').delete().eq('portfolio_id', id).eq('user_id', userId);
-                await supabase.from('cash_items').delete().eq('portfolio_id', id).eq('user_id', userId);
-                await supabase.from('realized_trades').delete().eq('portfolio_id', id).eq('user_id', userId);
-                await supabase.from('portfolio_history').delete().eq('portfolio_id', id).eq('user_id', userId);
-                await supabase.from('portfolios').delete().eq('id', id).eq('user_id', userId);
+        // 3. Delete removed portfolios and all their child data
+        const toDeleteIds = [...existingIds].filter(id => !newIds.has(id));
+        if (toDeleteIds.length > 0) {
+            console.log('🔷 Pruning data for deleted portfolios:', toDeleteIds);
+            try {
+                // Batch delete from all related tables
+                const deletePromises = [
+                    supabase.from('portfolio_items').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
+                    supabase.from('cash_items').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
+                    supabase.from('realized_trades').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
+                    supabase.from('portfolio_history').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
+                ];
+
+                await Promise.all(deletePromises);
+
+                // Finally delete the portfolios themselves
+                const { error: finalError } = await supabase.from('portfolios').delete().in('id', toDeleteIds).eq('user_id', userId);
+
+                if (finalError) {
+                    console.error('❌ Error deleting portfolios from Supabase:', finalError);
+                } else {
+                    console.log('✅ Orphaned portfolios successfully pruned');
+                }
+            } catch (e) {
+                console.error('❌ Failed to prune deleted portfolios:', e);
             }
         }
 
-        // 4. Upsert all portfolios
+        // 4. Upsert each portfolio and its components
         for (const portfolio of portfolios) {
             // Upsert portfolio
             const { error: portfolioError } = await supabase
@@ -67,18 +82,29 @@ export const saveUserPortfolios = async (
                 });
 
             if (portfolioError) {
-                console.error('❌ Error saving portfolio:', portfolioError);
+                console.error(`❌ Error saving portfolio ${portfolio.id}:`, portfolioError);
                 throw portfolioError;
             }
 
-            // Delete existing items for this portfolio and re-insert 
-            // NOTE: We no longer delete from portfolio_history here to prevent accidental data loss 
-            // of previous days. We use upsert for history instead.
-            await supabase.from('portfolio_items').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
-            await supabase.from('cash_items').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
-            await supabase.from('realized_trades').delete().eq('portfolio_id', portfolio.id).eq('user_id', userId);
+            // Pruning: Get existing item IDs to know what to delete
+            const { data: existingItems } = await supabase.from('portfolio_items').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
+            const { data: existingCash } = await supabase.from('cash_items').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
+            const { data: existingTrades } = await supabase.from('realized_trades').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
 
-            // Insert portfolio items
+            const currentItemIds = new Set(portfolio.items.map(i => i.id));
+            const currentCashIds = new Set((portfolio.cashItems || []).map(i => i.id));
+            const currentTradeIds = new Set((portfolio.realizedTrades || []).map(i => i.id));
+
+            // Delete orphans
+            const itemsToDelete = (existingItems || []).filter(i => !currentItemIds.has(i.id)).map(i => i.id);
+            const cashToDelete = (existingCash || []).filter(i => !currentCashIds.has(i.id)).map(i => i.id);
+            const tradesToDelete = (existingTrades || []).filter(i => !currentTradeIds.has(i.id)).map(i => i.id);
+
+            if (itemsToDelete.length > 0) await supabase.from('portfolio_items').delete().in('id', itemsToDelete).eq('user_id', userId);
+            if (cashToDelete.length > 0) await supabase.from('cash_items').delete().in('id', cashToDelete).eq('user_id', userId);
+            if (tradesToDelete.length > 0) await supabase.from('realized_trades').delete().in('id', tradesToDelete).eq('user_id', userId);
+
+            // Upsert portfolio items
             if (portfolio.items && portfolio.items.length > 0) {
                 const items = portfolio.items.map(item => ({
                     id: item.id,
@@ -101,15 +127,14 @@ export const saveUserPortfolios = async (
                     custom_current_price: item.customCurrentPrice
                 }));
 
-                console.log('🔷 Inserting portfolio items:', items.length);
-                const { error } = await supabase.from('portfolio_items').insert(items);
+                const { error } = await supabase.from('portfolio_items').upsert(items);
                 if (error) {
-                    console.error('❌ Error saving portfolio items:', error);
+                    console.error(`❌ Error upserting portfolio items for ${portfolio.id}:`, error);
                     throw error;
                 }
             }
 
-            // Insert cash items
+            // Upsert cash items
             if (portfolio.cashItems && portfolio.cashItems.length > 0) {
                 const cashItems = portfolio.cashItems.map(item => ({
                     id: item.id,
@@ -127,14 +152,14 @@ export const saveUserPortfolios = async (
                     historical_usd_rate: item.historicalUsdRate
                 }));
 
-                const { error } = await supabase.from('cash_items').insert(cashItems);
+                const { error } = await supabase.from('cash_items').upsert(cashItems);
                 if (error) {
-                    console.error('❌ Error saving cash items:', error);
+                    console.error(`❌ Error upserting cash items for ${portfolio.id}:`, error);
                     throw error;
                 }
             }
 
-            // Insert realized trades
+            // Upsert realized trades
             if (portfolio.realizedTrades && portfolio.realizedTrades.length > 0) {
                 const trades = portfolio.realizedTrades.map(trade => ({
                     id: trade.id,
@@ -152,14 +177,14 @@ export const saveUserPortfolios = async (
                     type: trade.type
                 }));
 
-                const { error } = await supabase.from('realized_trades').insert(trades);
+                const { error } = await supabase.from('realized_trades').upsert(trades);
                 if (error) {
-                    console.error('❌ Error saving realized trades:', error);
+                    console.error(`❌ Error upserting realized trades for ${portfolio.id}:`, error);
                     throw error;
                 }
             }
 
-            // Insert history
+            // Upsert history
             if (portfolio.history && portfolio.history.length > 0) {
                 const history = portfolio.history.map(h => ({
                     portfolio_id: portfolio.id,
@@ -173,8 +198,7 @@ export const saveUserPortfolios = async (
                     onConflict: 'portfolio_id,user_id,date'
                 });
                 if (error) {
-                    console.error('❌ Error saving portfolio history:', error);
-                    // Don't throw for history - it's not critical
+                    console.error(`❌ Error upserting history for ${portfolio.id}:`, error);
                 }
             }
         }

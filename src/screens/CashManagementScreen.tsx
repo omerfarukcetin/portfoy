@@ -616,29 +616,7 @@ export const CashManagementScreen = () => {
                                                 />
                                             </View>
 
-                                            {/* Date Picker */}
-                                            <View style={styles.formGroup}>
-                                                <Text style={[styles.label, { color: colors.text }]}>Alım Tarihi</Text>
-                                                <TouchableOpacity
-                                                    style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, justifyContent: 'center' }]}
-                                                    onPress={() => setShowDatePicker(true)}
-                                                >
-                                                    <Text style={{ color: colors.text, fontSize: 16 }}>{dateStr}</Text>
-                                                </TouchableOpacity>
-                                                {showDatePicker && (
-                                                    <DateTimePicker
-                                                        value={new Date(dateStr)}
-                                                        mode="date"
-                                                        display="default"
-                                                        onChange={(event, selectedDate) => {
-                                                            setShowDatePicker(false);
-                                                            if (selectedDate) {
-                                                                setDateStr(selectedDate.toISOString().split('T')[0]);
-                                                            }
-                                                        }}
-                                                    />
-                                                )}
-                                            </View>
+                                            {/* Date Picker removed - handled at bottom */}
 
                                             {/* Historical USD Rate */}
                                             <View style={styles.formGroup}>

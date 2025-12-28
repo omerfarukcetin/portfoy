@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio } from '../types';
 import { MarketDataService } from '../services/marketData';
@@ -185,60 +186,58 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     };
 
-    const savePortfolios = async (newPortfolios: Portfolio[], newActiveId?: string) => {
+    const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const savePortfolios = (newPortfolios: Portfolio[] | ((prev: Portfolio[]) => Portfolio[]), newActiveId?: string) => {
         const activeId = newActiveId || activePortfolioId;
 
-        // 1. Update LOCAL state immediately for snappy UI
-        setPortfolios(newPortfolios);
+        // 1. Update LOCAL state immediately
+        setPortfolios(prev => {
+            const updated = typeof newPortfolios === 'function' ? newPortfolios(prev) : newPortfolios;
+
+            // Background tasks for storage
+            (async () => {
+                try {
+                    await AsyncStorage.setItem('portfolios', JSON.stringify(updated));
+                    if (newActiveId) await AsyncStorage.setItem('activePortfolioId', newActiveId);
+
+                    // Debounced sync to Supabase
+                    if (user?.id) {
+                        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+                        syncTimeoutRef.current = setTimeout(async () => {
+                            try {
+                                console.log('🔷 Debounced background sync to Supabase...');
+                                await saveUserPortfolios(user.id, updated, activeId);
+                                console.log('✅ Supabase sync completed');
+                            } catch (e) {
+                                console.error('❌ Supabase sync failed:', e);
+                                // Notify user about sync failure
+                                const errorMessage = 'Bulut senkronizasyonu başarısız oldu. Verileriniz bu cihazda güvende, ancak internet bağlantınızı kontrol etmeniz önerilir.';
+                                if (Platform.OS === 'web') {
+                                    window.alert(errorMessage);
+                                } else {
+                                    Alert.alert('Eşitleme Hatası', errorMessage);
+                                }
+                            }
+                        }, 1000);
+                    }
+                } catch (e) {
+                    console.error('❌ Failed to save to local storage:', e);
+                }
+            })();
+
+            return updated;
+        });
+
         if (newActiveId) setActivePortfolioId(newActiveId);
-
-        try {
-            console.log('💾 Saving portfolios to storage...');
-            // Always save to AsyncStorage as backup (Fast)
-            await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
-            await AsyncStorage.setItem('activePortfolioId', activeId);
-
-            // 2. Sync to Supabase in the background if logged in
-            if (user?.id) {
-                console.log('🔷 Background syncing portfolios to Supabase:', activeId);
-                // We don't await this if we want maximum speed, but let's keep it awaited for data integrity
-                // unless it's proven to be the main bottleneck. 
-                // Actually, let's keep it awaited but the UI should have already reflected the local change if used correctly.
-                await saveUserPortfolios(user.id, newPortfolios, activeId);
-                console.log('✅ Supabase sync completed');
-            }
-        } catch (e) {
-            console.error('❌ Failed to save portfolios:', e);
-        }
     };
 
     const updateActivePortfolio = async (updates: Partial<Portfolio>) => {
-        if (!activePortfolio) return;
+        if (!activePortfolioId) return;
 
-        // Update local state FIRST for immediate UI feedback
-        if (updates.items !== undefined) {
-            setPortfolio(updates.items);
-            console.log('✅ Portfolio items updated immediately - count:', updates.items.length);
-        }
-        if (updates.realizedTrades !== undefined) {
-            setRealizedTrades(updates.realizedTrades);
-            console.log('✅ Realized trades updated - count:', updates.realizedTrades.length);
-        }
-        if (updates.history !== undefined) {
-            setHistory(updates.history);
-        }
-        if (updates.cashItems !== undefined) {
-            setCashItems(updates.cashItems);
-            console.log('✅ Cash items updated - count:', updates.cashItems.length);
-        }
-
-        // Then save to storage (async, won't block UI)
-        const updatedPortfolio = { ...activePortfolio, ...updates };
-        const newPortfolios = portfolios.map(p =>
-            p.id === activePortfolioId ? updatedPortfolio : p
-        );
-
-        await savePortfolios(newPortfolios);
+        savePortfolios(prev => prev.map(p =>
+            p.id === activePortfolioId ? { ...p, ...updates } : p
+        ));
     };
 
     const loadData = async () => {
@@ -360,8 +359,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Multi-portfolio functions
     const createPortfolio = async (name: string, color: string, icon: string) => {
+        const id = Date.now().toString();
         const newPortfolio: Portfolio = {
-            id: Date.now().toString(),
+            id,
             name,
             color,
             icon,
@@ -373,236 +373,190 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             history: []
         };
 
-        const newPortfolios = [...portfolios, newPortfolio];
-        await savePortfolios(newPortfolios);
-
-        // Switch to new portfolio
-        setActivePortfolioId(newPortfolio.id);
-        await AsyncStorage.setItem('activePortfolioId', newPortfolio.id);
+        savePortfolios(prev => [...prev, newPortfolio], id);
     };
 
     const deletePortfolio = async (id: string) => {
-        if (portfolios.length <= 1) {
-            alert('En az bir portföy olmalıdır.');
-            return;
-        }
+        console.log('🗑️ Attempting to delete portfolio:', id);
 
-        const newPortfolios = portfolios.filter(p => p.id !== id);
-        await savePortfolios(newPortfolios);
+        savePortfolios(prev => {
+            if (prev.length <= 1) {
+                console.log('⚠️ Cannot delete last portfolio');
+                return prev;
+            }
 
-        // If we deleted the active portfolio, switch to the first one
-        if (id === activePortfolioId) {
-            const firstId = newPortfolios[0].id;
-            setActivePortfolioId(firstId);
-            await AsyncStorage.setItem('activePortfolioId', firstId);
-        }
+            const filtered = prev.filter(p => p.id !== id);
+            console.log('✅ Portfolio filtered from local state. Remaining:', filtered.length);
+            return filtered;
+        }, id === activePortfolioId ? portfolios.find(p => p.id !== id)?.id : activePortfolioId);
     };
 
     const switchPortfolio = async (id: string) => {
-        if (id === ALL_PORTFOLIOS_ID || portfolios.find(p => p.id === id)) {
-            setActivePortfolioId(id);
-            await AsyncStorage.setItem('activePortfolioId', id);
-        }
+        setActivePortfolioId(id);
+        await AsyncStorage.setItem('activePortfolioId', id);
     };
 
     const renamePortfolio = async (id: string, newName: string) => {
-        const newPortfolios = portfolios.map(p =>
+        savePortfolios(prev => prev.map(p =>
             p.id === id ? { ...p, name: newName } : p
-        );
-        await savePortfolios(newPortfolios);
+        ));
     };
 
     const updatePortfolioColor = async (id: string, color: string) => {
-        const newPortfolios = portfolios.map(p =>
+        savePortfolios(prev => prev.map(p =>
             p.id === id ? { ...p, color } : p
-        );
-        await savePortfolios(newPortfolios);
+        ));
     };
 
     const updatePortfolioIcon = async (id: string, icon: string) => {
-        const newPortfolios = portfolios.map(p =>
+        savePortfolios(prev => prev.map(p =>
             p.id === id ? { ...p, icon } : p
-        );
-        await savePortfolios(newPortfolios);
+        ));
     };
 
     // Cash Management Functions
     const addCashItem = async (item: Omit<CashItem, 'id'>) => {
-        let targetId = activePortfolioId;
-        if (targetId === ALL_PORTFOLIOS_ID) {
-            targetId = portfolios.length > 0 ? portfolios[0].id : '';
-        }
+        savePortfolios(prev => {
+            let targetId = activePortfolioId;
+            if (targetId === ALL_PORTFOLIOS_ID) {
+                targetId = prev.length > 0 ? prev[0].id : '';
+            }
 
-        if (!targetId) return;
+            if (!targetId) return prev;
 
-        const targetPortfolio = portfolios.find(p => p.id === targetId)!;
-        const newItem: CashItem = {
-            ...item,
-            id: Date.now().toString(),
-            dateAdded: Date.now()
-        };
+            const newItem: CashItem = {
+                ...item,
+                id: Date.now().toString(),
+                dateAdded: Date.now()
+            };
 
-        const newCashItems = [...(targetPortfolio.cashItems || []), newItem];
-        const newPortfolios = portfolios.map(p =>
-            p.id === targetId ? { ...p, cashItems: newCashItems } : p
-        );
-        await savePortfolios(newPortfolios);
+            return prev.map(p =>
+                p.id === targetId ? { ...p, cashItems: [...(p.cashItems || []), newItem] } : p
+            );
+        });
     };
 
     const updateCashItem = async (id: string, amount: number) => {
-        const ownerPortfolio = portfolios.find(p => (p.cashItems || []).some(item => item.id === id));
-        if (!ownerPortfolio) return;
+        savePortfolios(prev => prev.map(ownerPortfolio => {
+            if (!(ownerPortfolio.cashItems || []).some(item => item.id === id)) return ownerPortfolio;
 
-        const updatedItems = ownerPortfolio.cashItems.map(item =>
-            item.id === id ? { ...item, amount } : item
-        );
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? { ...p, cashItems: updatedItems } : p
-        );
-        await savePortfolios(newPortfolios);
+            const updatedItems = ownerPortfolio.cashItems.map(item =>
+                item.id === id ? { ...item, amount } : item
+            );
+            return { ...ownerPortfolio, cashItems: updatedItems };
+        }));
     };
 
     const deleteCashItem = async (id: string) => {
-        const ownerPortfolio = portfolios.find(p => (p.cashItems || []).some(item => item.id === id));
-        if (!ownerPortfolio) return;
+        savePortfolios(prev => prev.map(ownerPortfolio => {
+            if (!(ownerPortfolio.cashItems || []).some(item => item.id === id)) return ownerPortfolio;
 
-        const updatedItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? { ...p, cashItems: updatedItems } : p
-        );
-        await savePortfolios(newPortfolios);
+            const updatedItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
+            return { ...ownerPortfolio, cashItems: updatedItems };
+        }));
     };
 
     const updateCash = async (amount: number) => {
-        let defaultCash = cashItems.find(item => item.type === 'cash' && item.currency === 'TRY');
+        savePortfolios(prev => {
+            const currentPortfolio = prev.find(p => p.id === activePortfolioId) || prev[0];
+            if (!currentPortfolio) return prev;
 
-        if (defaultCash) {
-            const newAmount = defaultCash.amount + amount;
-            // Prevent negative balance
-            if (newAmount < 0) {
-                console.log('⚠️ Cannot deduct more than available cash balance');
-                return;
+            let defaultCash = (currentPortfolio.cashItems || []).find(item => item.type === 'cash' && item.currency === 'TRY');
+
+            if (defaultCash) {
+                const newAmount = defaultCash.amount + amount;
+                if (newAmount < 0) return prev;
+
+                const updatedItems = currentPortfolio.cashItems.map(item =>
+                    item.id === defaultCash!.id ? { ...item, amount: newAmount } : item
+                );
+                return prev.map(p => p.id === currentPortfolio.id ? { ...p, cashItems: updatedItems } : p);
+            } else if (amount > 0) {
+                const newItem: CashItem = {
+                    id: Date.now().toString(),
+                    type: 'cash',
+                    name: 'Nakit (TL)',
+                    amount: amount,
+                    currency: 'TRY',
+                    dateAdded: Date.now()
+                };
+                return prev.map(p => p.id === currentPortfolio.id ? { ...p, cashItems: [...(p.cashItems || []), newItem] } : p);
             }
-            await updateCashItem(defaultCash.id, newAmount);
-            console.log('💰 Cash updated:', defaultCash.amount, '+', amount, '=', newAmount);
-        } else if (amount > 0) {
-            // Only create new cash item for positive amounts
-            await addCashItem({
-                type: 'cash',
-                name: 'Nakit (TL)',
-                amount: amount,
-                currency: 'TRY'
-            });
-            console.log('💰 New cash item created with amount:', amount);
-        } else {
-            console.log('⚠️ No existing cash item to deduct from');
-        }
-    };
-
-    // Sell a money market fund from cash items with profit tracking
-    const sellCashFund = async (id: string, sellPrice: number, currentUsdRate: number) => {
-        const ownerPortfolio = portfolios.find(p => (p.cashItems || []).some(item => item.id === id));
-        if (!ownerPortfolio) {
-            console.error('❌ Could not find portfolio containing cash fund:', id);
-            return;
-        }
-
-        const fundItem = ownerPortfolio.cashItems.find(item => item.id === id);
-        if (!fundItem || fundItem.type !== 'money_market_fund' || !fundItem.units || !fundItem.averageCost) {
-            console.error('❌ Invalid fund item for selling:', fundItem);
-            return;
-        }
-
-        const currentValue = fundItem.units * sellPrice;
-        const costBasis = fundItem.units * fundItem.averageCost;
-        const profitTry = currentValue - costBasis;
-
-        // Calculate USD profit
-        const costUsd = fundItem.historicalUsdRate ? costBasis / fundItem.historicalUsdRate : costBasis / currentUsdRate;
-        const valueUsd = currentValue / currentUsdRate;
-        const profitUsd = valueUsd - costUsd;
-
-        console.log('💰 Selling cash fund:', {
-            name: fundItem.name,
-            units: fundItem.units,
-            sellPrice,
-            currentValue,
-            costBasis,
-            profitTry,
-            profitUsd
+            return prev;
         });
-
-        // Create realized trade record
-        const trade: RealizedTrade = {
-            id: Date.now().toString(),
-            instrumentId: fundItem.instrumentId || fundItem.name,
-            amount: fundItem.units,
-            sellPrice: sellPrice,
-            buyPrice: fundItem.averageCost,
-            currency: 'TRY',
-            date: Date.now(),
-            profit: profitTry,
-            profitUsd: profitUsd,
-            profitTry: profitTry,
-            type: 'fund'
-        };
-
-        // Remove fund from cash items
-        const updatedCashItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
-
-        // Add proceeds to cash balance
-        const defaultCashIndex = updatedCashItems.findIndex(
-            item => item.type === 'cash' && item.currency === 'TRY'
-        );
-
-        if (defaultCashIndex !== -1) {
-            updatedCashItems[defaultCashIndex] = {
-                ...updatedCashItems[defaultCashIndex],
-                amount: updatedCashItems[defaultCashIndex].amount + currentValue
-            };
-        } else {
-            updatedCashItems.push({
-                id: Date.now().toString(),
-                type: 'cash',
-                name: 'Nakit (TL)',
-                amount: currentValue,
-                currency: 'TRY',
-                dateAdded: Date.now()
-            });
-        }
-
-        // Update portfolio with new cash items and add realized trade
-        const updatedPortfolio = {
-            ...ownerPortfolio,
-            cashItems: updatedCashItems,
-            realizedTrades: [...(ownerPortfolio.realizedTrades || []), trade]
-        };
-
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? updatedPortfolio : p
-        );
-
-        await savePortfolios(newPortfolios);
-        console.log('✅ Fund sold successfully. Profit:', profitTry, 'TRY,', profitUsd.toFixed(2), 'USD');
     };
 
-    // Portfolio Functions
+    const sellCashFund = async (id: string, sellPrice: number, currentUsdRate: number) => {
+        savePortfolios(prev => {
+            const ownerPortfolio = prev.find(p => (p.cashItems || []).some(item => item.id === id));
+            if (!ownerPortfolio) return prev;
+
+            const fundItem = ownerPortfolio.cashItems.find(item => item.id === id);
+            if (!fundItem || fundItem.type !== 'money_market_fund' || !fundItem.units || !fundItem.averageCost) return prev;
+
+            const currentValue = fundItem.units * sellPrice;
+            const costBasis = fundItem.units * fundItem.averageCost;
+            const profitTry = currentValue - costBasis;
+
+            const costUsd = fundItem.historicalUsdRate ? costBasis / fundItem.historicalUsdRate : costBasis / currentUsdRate;
+            const valueUsd = currentValue / currentUsdRate;
+            const profitUsd = valueUsd - costUsd;
+
+            const trade: RealizedTrade = {
+                id: Date.now().toString(),
+                instrumentId: fundItem.instrumentId || fundItem.name,
+                amount: fundItem.units,
+                sellPrice: sellPrice,
+                buyPrice: fundItem.averageCost,
+                currency: 'TRY',
+                date: Date.now(),
+                profit: profitTry,
+                profitUsd: profitUsd,
+                profitTry: profitTry,
+                type: 'fund'
+            };
+
+            let updatedCashItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
+            const defaultCashIndex = updatedCashItems.findIndex(item => item.type === 'cash' && item.currency === 'TRY');
+
+            if (defaultCashIndex !== -1) {
+                updatedCashItems[defaultCashIndex] = {
+                    ...updatedCashItems[defaultCashIndex],
+                    amount: updatedCashItems[defaultCashIndex].amount + currentValue
+                };
+            } else {
+                updatedCashItems.push({
+                    id: Date.now().toString() + '_cash',
+                    type: 'cash',
+                    name: 'Nakit (TL)',
+                    amount: currentValue,
+                    currency: 'TRY',
+                    dateAdded: Date.now()
+                });
+            }
+
+            return prev.map(p =>
+                p.id === ownerPortfolio.id
+                    ? { ...p, cashItems: updatedCashItems, realizedTrades: [...(p.realizedTrades || []), trade] }
+                    : p
+            );
+        });
+    };
+
     const addAsset = async (asset: Omit<PortfolioItem, 'id'>) => {
-        let targetId = activePortfolioId;
-        if (targetId === ALL_PORTFOLIOS_ID) {
-            targetId = portfolios.length > 0 ? portfolios[0].id : '';
-        }
+        savePortfolios(prev => {
+            let targetId = activePortfolioId;
+            if (targetId === ALL_PORTFOLIOS_ID) {
+                targetId = prev.length > 0 ? prev[0].id : '';
+            }
 
-        if (!targetId) return;
+            if (!targetId) return prev;
 
-        const targetPortfolio = portfolios.find(p => p.id === targetId)!;
-        const newItem = { ...asset, id: Date.now().toString() };
-        const newPortfolioItems = [...(targetPortfolio.items || []), newItem];
-
-        const newPortfolios = portfolios.map(p =>
-            p.id === targetId ? { ...p, items: newPortfolioItems } : p
-        );
-        await savePortfolios(newPortfolios);
+            const newItem = { ...asset, id: Date.now().toString() };
+            return prev.map(p =>
+                p.id === targetId ? { ...p, items: [...(p.items || []), newItem] } : p
+            );
+        });
     };
 
     const updateAsset = async (
@@ -618,65 +572,55 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             besStateContribYield: number
         }
     ) => {
-        const ownerPortfolio = portfolios.find(p => p.items.some(item => item.id === id));
-        if (!ownerPortfolio) {
-            console.error('❌ Could not find owner portfolio for asset:', id);
-            return;
-        }
+        savePortfolios(prev => prev.map(ownerPortfolio => {
+            if (!ownerPortfolio.items.some(item => item.id === id)) return ownerPortfolio;
 
-        const updatedItems = ownerPortfolio.items.map(item => {
-            if (item.id === id) {
-                const updates: Partial<PortfolioItem> = {
-                    amount: newAmount,
-                    averageCost: newAverageCost
-                };
+            const updatedItems = ownerPortfolio.items.map(item => {
+                if (item.id === id) {
+                    const updates: Partial<PortfolioItem> = {
+                        amount: newAmount,
+                        averageCost: newAverageCost
+                    };
 
-                if (besData) {
-                    updates.besPrincipal = besData.besPrincipal;
-                    updates.besPrincipalYield = besData.besPrincipalYield;
-                    updates.besStateContrib = besData.besStateContrib;
-                    updates.besStateContribYield = besData.besStateContribYield;
-                    updates.averageCost = besData.besPrincipal;
-                }
-
-                if (newDate) {
-                    updates.dateAdded = newDate;
-                }
-
-                if (historicalUsdRate) {
-                    const rateToUse = historicalUsdRate;
-                    if (item.currency === 'USD') {
-                        updates.originalCostUsd = newAverageCost * newAmount;
-                        updates.originalCostTry = newAverageCost * newAmount * rateToUse;
-                    } else {
-                        updates.originalCostTry = newAverageCost * newAmount;
-                        updates.originalCostUsd = newAverageCost * newAmount / rateToUse;
+                    if (besData) {
+                        updates.besPrincipal = besData.besPrincipal;
+                        updates.besPrincipalYield = besData.besPrincipalYield;
+                        updates.besStateContrib = besData.besStateContrib;
+                        updates.besStateContribYield = besData.besStateContribYield;
+                        updates.averageCost = besData.besPrincipal;
                     }
+
+                    if (newDate) {
+                        updates.dateAdded = newDate;
+                    }
+
+                    if (historicalUsdRate) {
+                        if (item.currency === 'USD') {
+                            updates.originalCostUsd = newAverageCost * newAmount;
+                            updates.originalCostTry = newAverageCost * newAmount * historicalUsdRate;
+                        } else {
+                            updates.originalCostTry = newAverageCost * newAmount;
+                            updates.originalCostUsd = newAverageCost * newAmount / historicalUsdRate;
+                        }
+                    }
+
+                    return { ...item, ...updates };
                 }
+                return item;
+            });
 
-                return { ...item, ...updates };
-            }
-            return item;
-        });
-
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? { ...p, items: updatedItems } : p
-        );
-        await savePortfolios(newPortfolios);
+            return { ...ownerPortfolio, items: updatedItems };
+        }));
     };
 
     const deleteAsset = async (id: string) => {
-        const ownerPortfolio = portfolios.find(p => p.items.some(item => item.id === id));
-        if (!ownerPortfolio) {
-            console.error('❌ Could not find owner portfolio for asset:', id);
-            return;
-        }
-
-        const updatedItems = ownerPortfolio.items.filter(item => item.id !== id);
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? { ...p, items: updatedItems } : p
-        );
-        await savePortfolios(newPortfolios);
+        savePortfolios(prev => prev.map(ownerPortfolio => {
+            if (!ownerPortfolio.items.some(item => item.id === id)) return ownerPortfolio;
+            return {
+                ...ownerPortfolio,
+                items: ownerPortfolio.items.filter(item => item.id !== id)
+            };
+        }));
     };
 
     const addToPortfolio = async (
@@ -691,236 +635,177 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         customData?: { name?: string, currentPrice?: number },
         deductFromCash?: boolean
     ) => {
-        const rateToUse = historicalUsdRate || currentUsdRate;
-        const instrumentId = instrument.instrumentId || instrument.id;
+        savePortfolios(prev => {
+            const rateToUse = historicalUsdRate || currentUsdRate;
+            const instrumentId = instrument.instrumentId || instrument.id;
 
-        let targetPortfolioId = activePortfolioId;
-        if (targetPortfolioId === ALL_PORTFOLIOS_ID) {
-            // Find if asset already exists in any portfolio
-            const existingIn = portfolios.find(p => p.items.some(p_item =>
-                p_item.instrumentId.toUpperCase() === instrumentId.toUpperCase() &&
-                p_item.type === instrument.type
-            ));
-            targetPortfolioId = existingIn?.id || (portfolios.length > 0 ? portfolios[0].id : '');
-        }
-
-        if (!targetPortfolioId) {
-            console.error('❌ No portfolio available to add asset');
-            return;
-        }
-
-        const targetPortfolio = portfolios.find(p => p.id === targetPortfolioId);
-        if (!targetPortfolio) {
-            console.error('❌ Target portfolio not found:', targetPortfolioId, 'Available:', portfolios.map(p => p.id));
-            // Create a default portfolio if none exists
-            console.log('📦 Creating default portfolio...');
-            const defaultPortfolio: Portfolio = {
-                id: 'default',
-                name: 'Ana Portföy',
-                color: '#007AFF',
-                icon: '💼',
-                createdAt: Date.now(),
-                items: [],
-                cashBalance: 0,
-                cashItems: [],
-                realizedTrades: [],
-                history: []
-            };
-            setPortfolios([defaultPortfolio]);
-            setActivePortfolioId('default');
-            // Retry with new portfolio - user should try again
-            return;
-        }
-
-        const existingIndex = targetPortfolio.items.findIndex(p =>
-            p.instrumentId.toUpperCase() === instrumentId.toUpperCase() &&
-            p.type === instrument.type
-        );
-
-        let newPortfolioItems = [...targetPortfolio.items];
-
-        if (existingIndex !== -1) {
-            const existing = targetPortfolio.items[existingIndex];
-            const totalAmount = existing.amount + amount;
-            const weightedAverageCost = ((existing.amount * existing.averageCost) + (amount * cost)) / totalAmount;
-
-            let totalOriginalCostUsd = (existing.originalCostUsd || 0);
-            let totalOriginalCostTry = (existing.originalCostTry || 0);
-
-            if (currency === 'USD') {
-                totalOriginalCostUsd += cost * amount;
-                totalOriginalCostTry += cost * amount * rateToUse;
-            } else {
-                totalOriginalCostTry += cost * amount;
-                totalOriginalCostUsd += cost * amount / rateToUse;
+            let targetPortfolioId = activePortfolioId;
+            if (targetPortfolioId === ALL_PORTFOLIOS_ID) {
+                const existingIn = prev.find(p => p.items.some(p_item =>
+                    p_item.instrumentId.toUpperCase() === instrumentId.toUpperCase() &&
+                    p_item.type === instrument.type
+                ));
+                targetPortfolioId = existingIn?.id || (prev.length > 0 ? prev[0].id : '');
             }
 
-            newPortfolioItems[existingIndex] = {
-                ...existing,
-                amount: totalAmount,
-                averageCost: weightedAverageCost,
-                originalCostUsd: totalOriginalCostUsd,
-                originalCostTry: totalOriginalCostTry,
-            };
-        } else {
-            const newItem: PortfolioItem = {
-                id: Date.now().toString(),
-                instrumentId,
-                amount,
-                averageCost: cost,
-                currency,
-                originalCostUsd: currency === 'USD' ? cost * amount : cost * amount / rateToUse,
-                originalCostTry: currency === 'TRY' ? cost * amount : cost * amount * rateToUse,
-                dateAdded: date,
-                type: instrument.type,
-                besPrincipal: besData?.principal,
-                besStateContrib: besData?.stateContrib,
-                besStateContribYield: besData?.stateContribYield,
-                besPrincipalYield: besData?.principalYield,
-                customCategory: customCategory,
-                customName: customData?.name,
-                customCurrentPrice: customData?.currentPrice,
-            };
-            newPortfolioItems.push(newItem);
-        }
+            if (!targetPortfolioId) return prev;
 
-        let updatedCashItems = [...(targetPortfolio.cashItems || [])];
-        if (deductFromCash && currency === 'TRY') {
-            const totalCost = amount * cost;
-            const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
-            if (defaultCashIndex !== -1) {
-                updatedCashItems[defaultCashIndex] = {
-                    ...updatedCashItems[defaultCashIndex],
-                    amount: updatedCashItems[defaultCashIndex].amount - totalCost
-                };
-                console.log('💰 Deducted from cash:', totalCost, 'New balance:', updatedCashItems[defaultCashIndex].amount);
-            } else {
-                console.log('⚠️ No default cash item found to deduct from');
-            }
-        }
+            return prev.map(targetPortfolio => {
+                if (targetPortfolio.id !== targetPortfolioId) return targetPortfolio;
 
-        const newPortfolios = portfolios.map(p =>
-            p.id === targetPortfolioId ? { ...p, items: newPortfolioItems, cashItems: updatedCashItems } : p
-        );
-        await savePortfolios(newPortfolios);
+                const existingIndex = targetPortfolio.items.findIndex(p =>
+                    p.instrumentId.toUpperCase() === instrumentId.toUpperCase() &&
+                    p.type === instrument.type
+                );
+
+                let newPortfolioItems = [...targetPortfolio.items];
+
+                if (existingIndex !== -1) {
+                    const existing = targetPortfolio.items[existingIndex];
+                    const totalAmount = existing.amount + amount;
+                    const weightedAverageCost = ((existing.amount * existing.averageCost) + (amount * cost)) / totalAmount;
+
+                    let totalOriginalCostUsd = (existing.originalCostUsd || 0);
+                    let totalOriginalCostTry = (existing.originalCostTry || 0);
+
+                    if (currency === 'USD') {
+                        totalOriginalCostUsd += cost * amount;
+                        totalOriginalCostTry += cost * amount * rateToUse;
+                    } else {
+                        totalOriginalCostTry += cost * amount;
+                        totalOriginalCostUsd += cost * amount / rateToUse;
+                    }
+
+                    newPortfolioItems[existingIndex] = {
+                        ...existing,
+                        amount: totalAmount,
+                        averageCost: weightedAverageCost,
+                        original_cost_usd: totalOriginalCostUsd, // Fix: Use correct field names based on type
+                        original_cost_try: totalOriginalCostTry,
+                    } as PortfolioItem;
+                    // Wait, PortfolioItem type uses camelCase: originalCostUsd, originalCostTry.
+                    // Let me fix the mapping here.
+                    newPortfolioItems[existingIndex] = {
+                        ...existing,
+                        amount: totalAmount,
+                        averageCost: weightedAverageCost,
+                        originalCostUsd: totalOriginalCostUsd,
+                        originalCostTry: totalOriginalCostTry,
+                    };
+                } else {
+                    const newItem: PortfolioItem = {
+                        id: Date.now().toString(),
+                        instrumentId,
+                        amount,
+                        averageCost: cost,
+                        currency,
+                        originalCostUsd: currency === 'USD' ? cost * amount : cost * amount / rateToUse,
+                        originalCostTry: currency === 'TRY' ? cost * amount : cost * amount * rateToUse,
+                        dateAdded: date,
+                        type: instrument.type,
+                        besPrincipal: besData?.principal,
+                        besStateContrib: besData?.stateContrib,
+                        besStateContribYield: besData?.stateContribYield,
+                        besPrincipalYield: besData?.principalYield,
+                        customCategory: customCategory,
+                        customName: customData?.name,
+                        customCurrentPrice: customData?.currentPrice,
+                    };
+                    newPortfolioItems.push(newItem);
+                }
+
+                let updatedCashItems = [...(targetPortfolio.cashItems || [])];
+                if (deductFromCash && currency === 'TRY') {
+                    const totalCost = amount * cost;
+                    const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
+                    if (defaultCashIndex !== -1) {
+                        updatedCashItems[defaultCashIndex] = {
+                            ...updatedCashItems[defaultCashIndex],
+                            amount: updatedCashItems[defaultCashIndex].amount - totalCost
+                        };
+                    }
+                }
+
+                return { ...targetPortfolio, items: newPortfolioItems, cashItems: updatedCashItems };
+            });
+        });
     };
 
     const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number) => {
-        console.log('🔴 sellAsset called:', { id, amountToSell, sellPrice, sellDate, historicalRate });
+        savePortfolios(prev => {
+            const ownerPortfolio = prev.find(p => p.items.some(item => item.id === id));
+            if (!ownerPortfolio) return prev;
 
-        // Find which portfolio owns this asset
-        const ownerPortfolio = portfolios.find(p => p.items.some(item => item.id === id));
-        if (!ownerPortfolio) {
-            console.error('❌ Could not find owner portfolio for asset:', id);
-            return;
-        }
+            const itemIndex = ownerPortfolio.items.findIndex(p => p.id === id);
+            const item = ownerPortfolio.items[itemIndex];
 
-        const itemIndex = ownerPortfolio.items.findIndex(p => p.id === id);
-        const item = ownerPortfolio.items[itemIndex];
-        console.log('✅ Found item in portfolio:', ownerPortfolio.name, item);
+            if (item.amount < amountToSell) return prev;
 
-        if (item.amount < amountToSell) {
-            console.log('❌ Not enough amount to sell');
-            return;
-        }
+            const costBasis = item.averageCost * amountToSell;
+            const saleProceeds = sellPrice * amountToSell;
+            const profit = saleProceeds - costBasis;
+            const rateToUse = historicalRate || currentUsdRate;
 
-        const costBasis = item.averageCost * amountToSell;
-        const saleProceeds = sellPrice * amountToSell;
-        const profit = saleProceeds - costBasis;
+            let profitUsd = 0;
+            let profitTry = 0;
+            let proceedsTry = 0;
 
-        // Use historical rate if provided, otherwise use current rate
-        const rateToUse = historicalRate || currentUsdRate;
+            if (item.currency === 'USD') {
+                profitUsd = profit;
+                profitTry = profit * rateToUse;
+                proceedsTry = saleProceeds * rateToUse;
+            } else {
+                profitTry = profit;
+                profitUsd = profit / rateToUse;
+                proceedsTry = saleProceeds;
+            }
 
-        let profitUsd = 0;
-        let profitTry = 0;
-        let proceedsTry = 0;
-
-        if (item.currency === 'USD') {
-            profitUsd = profit;
-            profitTry = profit * rateToUse;
-            proceedsTry = saleProceeds * rateToUse;
-        } else {
-            profitTry = profit;
-            profitUsd = profit / rateToUse;
-            proceedsTry = saleProceeds;
-        }
-
-        const trade: RealizedTrade = {
-            id: Math.random().toString(36).substr(2, 9),
-            instrumentId: item.instrumentId,
-            amount: amountToSell,
-            sellPrice,
-            buyPrice: item.averageCost,
-            currency: item.currency,
-            date: sellDate || Date.now(),
-            profit,
-            profitUsd,
-            profitTry,
-            type: item.type // Store asset type for category grouping
-        };
-
-        console.log('💰 Created trade:', trade);
-
-        const newItems = [...ownerPortfolio.items];
-        if (item.amount === amountToSell) {
-            newItems.splice(itemIndex, 1);
-            console.log('🗑️ Removed item completely from', ownerPortfolio.name);
-        } else {
-            newItems[itemIndex] = {
-                ...item,
-                amount: item.amount - amountToSell
+            const trade: RealizedTrade = {
+                id: Math.random().toString(36).substr(2, 9),
+                instrumentId: item.instrumentId,
+                amount: amountToSell,
+                sellPrice,
+                buyPrice: item.averageCost,
+                currency: item.currency,
+                date: sellDate || Date.now(),
+                profit,
+                profitUsd,
+                profitTry,
+                type: item.type
             };
-            console.log('📉 Reduced amount in', ownerPortfolio.name, ':', newItems[itemIndex].amount);
-        }
 
-        // Update both portfolio items and realized trades atomically (including cash) in the owner portfolio
-        console.log('📝 Updating owner portfolio:', ownerPortfolio.name);
+            const newItems = [...ownerPortfolio.items];
+            if (item.amount === amountToSell) {
+                newItems.splice(itemIndex, 1);
+            } else {
+                newItems[itemIndex] = { ...item, amount: item.amount - amountToSell };
+            }
 
-        // Calculate updated cash items
-        let updatedCashItems = [...(ownerPortfolio.cashItems || [])];
-        const defaultCashIndex = updatedCashItems.findIndex(
-            item => item.type === 'cash' && item.currency === 'TRY'
-        );
+            let updatedCashItems = [...(ownerPortfolio.cashItems || [])];
+            const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
 
-        if (defaultCashIndex !== -1) {
-            // Update existing cash item
-            updatedCashItems[defaultCashIndex] = {
-                ...updatedCashItems[defaultCashIndex],
-                amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
-            };
-        } else {
-            // Create new cash item
-            updatedCashItems.push({
-                id: Date.now().toString(),
-                type: 'cash',
-                name: 'Nakit (TL)',
-                amount: proceedsTry,
-                currency: 'TRY',
-                dateAdded: Date.now()
-            });
-        }
+            if (defaultCashIndex !== -1) {
+                updatedCashItems[defaultCashIndex] = {
+                    ...updatedCashItems[defaultCashIndex],
+                    amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
+                };
+            } else {
+                updatedCashItems.push({
+                    id: Date.now().toString(),
+                    type: 'cash',
+                    name: 'Nakit (TL)',
+                    amount: proceedsTry,
+                    currency: 'TRY',
+                    dateAdded: Date.now()
+                });
+            }
 
-        const updatedPortfolio = {
-            ...ownerPortfolio,
-            items: newItems,
-            realizedTrades: [...(ownerPortfolio.realizedTrades || []), trade],
-            cashItems: updatedCashItems
-        };
-
-        console.log('📊 New realized trades count:', updatedPortfolio.realizedTrades.length);
-        console.log('💵 Updated cash items:', updatedCashItems);
-
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? updatedPortfolio : p
-        );
-
-        try {
-            await savePortfolios(newPortfolios);
-            console.log('✅ Portfolios saved successfully');
-        } catch (error) {
-            console.error('❌ Error saving portfolios:', error);
-            throw error;
-        }
+            return prev.map(p =>
+                p.id === ownerPortfolio.id
+                    ? { ...p, items: newItems, realizedTrades: [...(p.realizedTrades || []), trade], cashItems: updatedCashItems }
+                    : p
+            );
+        });
     };
 
     const removeFromPortfolio = async (id: string) => {

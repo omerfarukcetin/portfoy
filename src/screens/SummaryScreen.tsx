@@ -1107,8 +1107,8 @@ export const SummaryScreen = () => {
                     </View>
                 )}
             </ScrollView>
-            {/* FAB - Only show on Web as Mobile has one in the bottom tab bar */}
-            {Platform.OS === 'web' && (
+            {/* FAB - Only show on Desktop/Large screens as Mobile has one in the bottom tab bar */}
+            {isLargeScreen && (
                 <TouchableOpacity
                     style={[styles.fab, { backgroundColor: colors.primary }]}
                     onPress={() => (navigation as any).navigate('AddInstrument')}

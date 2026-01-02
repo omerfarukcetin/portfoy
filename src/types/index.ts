@@ -50,6 +50,16 @@ export interface RealizedTrade {
   type?: InstrumentType; // Asset type for category grouping
 }
 
+export interface Dividend {
+  id: string;
+  instrumentId: string; // The stock/asset symbol
+  amount: number; // Gross dividend amount
+  netAmount?: number; // Net dividend amount after tax
+  currency: 'TRY' | 'USD';
+  date: number; // Payment date
+  sharesAtDate?: number; // Optional: Shares owned at record date
+}
+
 export interface CashItem {
   id: string;
   type: 'cash' | 'money_market_fund' | 'deposit';
@@ -75,6 +85,7 @@ export interface Portfolio {
   cashBalance: number;
   cashItems: CashItem[];
   realizedTrades: RealizedTrade[];
+  dividends: Dividend[];
   history: { date: string; valueTry: number; valueUsd: number }[];
   targetValueTry?: number;
   targetCurrency?: 'TRY' | 'USD';

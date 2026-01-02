@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText, Briefcase } from 'lucide-react-native';
+import { LayoutGrid, PieChart, ArrowLeftRight, Heart, Settings, LogOut, FileText, Briefcase, DollarSign } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ const IconMap: { [key: string]: any } = {
     'log-out': LogOut,
     'file-text': FileText,
     'bar-chart': PieChart,
+    'dollar-sign': DollarSign,
 };
 
 export const Sidebar = () => {
@@ -29,7 +30,7 @@ export const Sidebar = () => {
             // Method 1: Try window.location
             if (Platform.OS === 'web') {
                 const path = window.location.hash || window.location.pathname;
-                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Analytics|Settings)/i);
+                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Analytics|Settings|Dividends)/i);
                 if (routeMatch) {
                     const newRoute = routeMatch[1];
                     if (newRoute !== currentRoute) {
@@ -65,6 +66,7 @@ export const Sidebar = () => {
         { name: 'Summary', label: 'Genel Bakış', icon: 'grid' },
         { name: 'Portfolio', label: 'Portföy', icon: 'pie-chart' },
         { name: 'Transactions', label: 'İşlemler', icon: 'repeat' },
+        { name: 'Dividends', label: 'Temettüler', icon: 'dollar-sign' },
         { name: 'Favorites', label: 'Takip Listesi', icon: 'heart' },
     ];
 

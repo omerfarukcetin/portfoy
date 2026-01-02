@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio } from '../types';
+import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio, Dividend } from '../types';
 import { MarketDataService } from '../services/marketData';
 import { useAuth } from './AuthContext';
 import { saveUserPortfolios, loadUserPortfolios, migrateToSupabase } from '../services/supabaseService';
@@ -28,6 +28,9 @@ interface PortfolioContextType {
     totalValueUsd: number;
     totalRealizedProfitTry: number;
     totalRealizedProfitUsd: number;
+    dividends: Dividend[];
+    totalDividendsTry: number;
+    totalDividendsUsd: number;
     isLoading: boolean;
 
     // Real-time Pricing State
@@ -59,6 +62,11 @@ interface PortfolioContextType {
     updateCash: (amount: number) => Promise<void>;
     sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number) => Promise<void>;
 
+    // Dividend functions
+    addDividend: (dividend: Omit<Dividend, 'id'>) => Promise<void>;
+    updateDividend: (id: string, updates: Partial<Dividend>) => Promise<void>;
+    deleteDividend: (id: string) => Promise<void>;
+
     // Other functions
     updatePortfolioTarget: (targetValue: number, currency: 'TRY' | 'USD') => Promise<void>;
     refreshAllPrices: () => Promise<void>;
@@ -88,6 +96,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [realizedTrades, setRealizedTrades] = useState<RealizedTrade[]>([]);
     const [history, setHistory] = useState<HistoryPoint[]>([]);
     const [cashItems, setCashItems] = useState<CashItem[]>([]);
+    const [dividends, setDividends] = useState<Dividend[]>([]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [totalValueTry, setTotalValueTry] = useState(0);
@@ -113,6 +122,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             cashBalance: portfolios.reduce((sum, p) => sum + (p.cashBalance || 0), 0),
             cashItems: portfolios.flatMap(p => p.cashItems || []),
             realizedTrades: portfolios.flatMap(p => p.realizedTrades || []),
+            dividends: portfolios.flatMap(p => p.dividends || []),
             history: [] // History aggregation is complex, skip for now
         } as Portfolio
         : portfolios.find(p => p.id === activePortfolioId) || null;
@@ -124,10 +134,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const allItems = portfolios.flatMap(p => p.items);
             const allCash = portfolios.flatMap(p => p.cashItems || []);
             const allTrades = portfolios.flatMap(p => p.realizedTrades || []);
+            const allDividends = portfolios.flatMap(p => p.dividends || []);
 
             setPortfolio(allItems);
             setCashItems(allCash);
             setRealizedTrades(allTrades);
+            setDividends(allDividends);
             setHistory([]); // Multi-portfolio history aggregation not yet supported
         } else {
             const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
@@ -137,6 +149,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 setRealizedTrades(currentPortfolio.realizedTrades);
                 setHistory(currentPortfolio.history || []);
                 setCashItems(currentPortfolio.cashItems);
+                setDividends(currentPortfolio.dividends || []);
             }
         }
     }, [activePortfolioId, portfolios]); // Sync when ID OR data changes
@@ -303,6 +316,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         cashBalance: 0,
                         cashItems: [],
                         realizedTrades: [],
+                        dividends: [],
                         history: []
                     };
                     await savePortfolios([defaultPortfolio], 'default');
@@ -340,6 +354,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     cashBalance: 0,
                     cashItems: [],
                     realizedTrades: [],
+                    dividends: [],
                     history: []
                 };
                 setPortfolios([defaultPortfolio]);
@@ -370,6 +385,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             cashBalance: 0,
             cashItems: [],
             realizedTrades: [],
+            dividends: [],
             history: []
         };
 
@@ -959,7 +975,17 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const totalRealizedProfitTry = realizedTrades.reduce((sum, t) => sum + t.profitTry, 0);
-    const totalRealizedProfitUsd = realizedTrades.reduce((sum, t) => sum + t.profitUsd, 0);
+    const totalRealizedProfitUsd = realizedTrades.reduce((sum, trade) => sum + (trade.profitUsd || 0), 0);
+
+    const totalDividendsTry = dividends.reduce((sum, div) => {
+        if (div.currency === 'TRY') return sum + div.amount;
+        return sum + (div.amount * currentUsdRate);
+    }, 0);
+
+    const totalDividendsUsd = dividends.reduce((sum, div) => {
+        if (div.currency === 'USD') return sum + div.amount;
+        return sum + (div.amount / currentUsdRate);
+    }, 0);
 
     const getPortfolioTotalValue = () => {
         return totalValueTry;
@@ -1052,14 +1078,38 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const deleteRealizedTrade = async (id: string) => {
-        const ownerPortfolio = portfolios.find(p => (p.realizedTrades || []).some(t => t.id === id));
-        if (!ownerPortfolio) return;
+        savePortfolios(prev => prev.map(p => ({
+            ...p,
+            realizedTrades: (p.realizedTrades || []).filter(t => t.id !== id)
+        })));
+    };
 
-        const newTrades = (ownerPortfolio.realizedTrades || []).filter(t => t.id !== id);
-        const newPortfolios = portfolios.map(p =>
-            p.id === ownerPortfolio.id ? { ...p, realizedTrades: newTrades } : p
-        );
-        await savePortfolios(newPortfolios);
+    const addDividend = async (dividend: Omit<Dividend, 'id'>) => {
+        if (!activePortfolioId) return;
+        const newDividend: Dividend = {
+            ...dividend,
+            id: Date.now().toString()
+        };
+
+        savePortfolios(prev => prev.map(p =>
+            p.id === activePortfolioId
+                ? { ...p, dividends: [...(p.dividends || []), newDividend] }
+                : p
+        ));
+    };
+
+    const updateDividend = async (id: string, updates: Partial<Dividend>) => {
+        savePortfolios(prev => prev.map(p => ({
+            ...p,
+            dividends: (p.dividends || []).map(div => div.id === id ? { ...div, ...updates } : div)
+        })));
+    };
+
+    const deleteDividend = async (id: string) => {
+        savePortfolios(prev => prev.map(p => ({
+            ...p,
+            dividends: (p.dividends || []).filter(div => div.id !== id)
+        })));
     };
 
     return (
@@ -1076,6 +1126,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             totalValueUsd,
             totalRealizedProfitTry,
             totalRealizedProfitUsd,
+            dividends,
+            totalDividendsTry,
+            totalDividendsUsd,
             isLoading,
             createPortfolio,
             deletePortfolio,
@@ -1106,6 +1159,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             dailyChanges,
             lastPricesUpdate,
             currentUsdRate,
+            addDividend,
+            updateDividend,
+            deleteDividend,
             updatePortfolioTarget,
             deleteRealizedTrade
         }}>

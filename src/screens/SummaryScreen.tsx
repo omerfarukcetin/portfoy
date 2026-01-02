@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react-native';
 
 import { PortfolioSwitcher } from '../components/PortfolioSwitcher';
 import { useTheme } from '../context/ThemeContext';
@@ -57,7 +57,8 @@ export const SummaryScreen = () => {
         currentUsdRate: contextUsdRate,
         lastPricesUpdate,
         refreshAllPrices,
-        activePortfolio
+        activePortfolio,
+        totalDividendsTry
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -635,6 +636,29 @@ export const SummaryScreen = () => {
                                                 </Text>
                                             </View>
                                         )}
+                                    </TouchableOpacity>
+
+                                    {/* Temettüler */}
+                                    <TouchableOpacity
+                                        style={{
+                                            flex: 1,
+                                            backgroundColor: colors.cardBackground,
+                                            borderRadius: 16,
+                                            padding: 20,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => (navigation as any).navigate('Dividends')}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: colors.success + '15', padding: 10, borderRadius: 10 }}>
+                                                <DollarSign size={18} color={colors.success} />
+                                            </View>
+                                        </View>
+                                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '500' }}>Temettüler</Text>
+                                        <Text style={{ color: colors.success, fontSize: 22, fontWeight: '700', marginTop: 4 }}>
+                                            {isHidden ? '•••' : formatCurrency(totalDividendsTry, 'TRY')}
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
 

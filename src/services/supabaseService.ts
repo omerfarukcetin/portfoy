@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Portfolio, PortfolioItem, CashItem, RealizedTrade } from '../types';
+import { Portfolio, PortfolioItem, CashItem, RealizedTrade, Dividend } from '../types';
 
 /**
  * Save all portfolios for a user to Supabase
@@ -45,6 +45,7 @@ export const saveUserPortfolios = async (
                     supabase.from('portfolio_items').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
                     supabase.from('cash_items').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
                     supabase.from('realized_trades').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
+                    supabase.from('dividends').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
                     supabase.from('portfolio_history').delete().in('portfolio_id', toDeleteIds).eq('user_id', userId),
                 ];
 
@@ -90,19 +91,23 @@ export const saveUserPortfolios = async (
             const { data: existingItems } = await supabase.from('portfolio_items').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
             const { data: existingCash } = await supabase.from('cash_items').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
             const { data: existingTrades } = await supabase.from('realized_trades').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
+            const { data: existingDividends } = await supabase.from('dividends').select('id').eq('portfolio_id', portfolio.id).eq('user_id', userId);
 
             const currentItemIds = new Set(portfolio.items.map(i => i.id));
             const currentCashIds = new Set((portfolio.cashItems || []).map(i => i.id));
             const currentTradeIds = new Set((portfolio.realizedTrades || []).map(i => i.id));
+            const currentDividendIds = new Set((portfolio.dividends || []).map(i => i.id));
 
             // Delete orphans
             const itemsToDelete = (existingItems || []).filter(i => !currentItemIds.has(i.id)).map(i => i.id);
             const cashToDelete = (existingCash || []).filter(i => !currentCashIds.has(i.id)).map(i => i.id);
             const tradesToDelete = (existingTrades || []).filter(i => !currentTradeIds.has(i.id)).map(i => i.id);
+            const dividendsToDelete = (existingDividends || []).filter(i => !currentDividendIds.has(i.id)).map(i => i.id);
 
             if (itemsToDelete.length > 0) await supabase.from('portfolio_items').delete().in('id', itemsToDelete).eq('user_id', userId);
             if (cashToDelete.length > 0) await supabase.from('cash_items').delete().in('id', cashToDelete).eq('user_id', userId);
             if (tradesToDelete.length > 0) await supabase.from('realized_trades').delete().in('id', tradesToDelete).eq('user_id', userId);
+            if (dividendsToDelete.length > 0) await supabase.from('dividends').delete().in('id', dividendsToDelete).eq('user_id', userId);
 
             // Upsert portfolio items
             if (portfolio.items && portfolio.items.length > 0) {
@@ -180,6 +185,27 @@ export const saveUserPortfolios = async (
                 const { error } = await supabase.from('realized_trades').upsert(trades);
                 if (error) {
                     console.error(`❌ Error upserting realized trades for ${portfolio.id}:`, error);
+                    throw error;
+                }
+            }
+
+            // Upsert dividends
+            if (portfolio.dividends && portfolio.dividends.length > 0) {
+                const dividends = portfolio.dividends.map(div => ({
+                    id: div.id,
+                    portfolio_id: portfolio.id,
+                    user_id: userId,
+                    instrument_id: div.instrumentId,
+                    amount: div.amount,
+                    net_amount: div.netAmount,
+                    currency: div.currency,
+                    date: div.date,
+                    shares_at_date: div.sharesAtDate
+                }));
+
+                const { error } = await supabase.from('dividends').upsert(dividends);
+                if (error) {
+                    console.error(`❌ Error upserting dividends for ${portfolio.id}:`, error);
                     throw error;
                 }
             }
@@ -267,6 +293,13 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 .eq('portfolio_id', p.id)
                 .eq('user_id', userId);
 
+            // Load dividends
+            const { data: dividendsData } = await supabase
+                .from('dividends')
+                .select('*')
+                .eq('portfolio_id', p.id)
+                .eq('user_id', userId);
+
             // Load history
             const { data: historyData } = await supabase
                 .from('portfolio_history')
@@ -323,6 +356,16 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 type: trade.type
             }));
 
+            const dividends: Dividend[] = (dividendsData || []).map(div => ({
+                id: div.id,
+                instrumentId: div.instrument_id,
+                amount: Number(div.amount),
+                netAmount: div.net_amount ? Number(div.net_amount) : undefined,
+                currency: div.currency,
+                date: div.date,
+                sharesAtDate: div.shares_at_date ? Number(div.shares_at_date) : undefined
+            }));
+
             const history = (historyData || []).map(h => ({
                 date: h.date,
                 valueTry: Number(h.value_try),
@@ -339,6 +382,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 cashBalance: p.cash_balance ? Number(p.cash_balance) : 0,
                 cashItems,
                 realizedTrades,
+                dividends,
                 history,
                 targetValueTry: p.target_value_try ? Number(p.target_value_try) : undefined,
                 targetCurrency: p.target_currency

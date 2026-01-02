@@ -12,6 +12,7 @@ import { AssetDetailScreen } from '../screens/AssetDetailScreen';
 import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
+import { DividendsScreen } from '../screens/DividendsScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -43,6 +44,7 @@ const PAGE_TITLES: Record<string, string> = {
     'AssetDetail': 'Varlık Detayı - Portföy Cepte',
     'Login': 'Giriş Yap - Portföy Cepte',
     'Register': 'Kayıt Ol - Portföy Cepte',
+    'Dividends': 'Temettüler - Portföy Cepte',
 };
 
 const Stack = createNativeStackNavigator();
@@ -362,6 +364,7 @@ const WebNavigator = () => {
                                 component={AssetDetailScreen}
                                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
                             />
+                            <Stack.Screen name="Dividends" component={DividendsScreen} />
                         </Stack.Navigator>
                     </View>
                 </View>
@@ -418,6 +421,7 @@ const MainNavigator = () => {
                 component={AssetDetailScreen}
                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
             />
+            <Stack.Screen name="Dividends" component={DividendsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
         </Stack.Navigator>
     );

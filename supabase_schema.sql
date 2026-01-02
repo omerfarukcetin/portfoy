@@ -81,6 +81,19 @@ CREATE TABLE IF NOT EXISTS realized_trades (
   type TEXT
 );
 
+-- Dividends table
+CREATE TABLE IF NOT EXISTS dividends (
+  id TEXT PRIMARY KEY,
+  portfolio_id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  instrument_id TEXT NOT NULL,
+  amount NUMERIC NOT NULL,
+  net_amount NUMERIC,
+  currency TEXT NOT NULL,
+  date BIGINT NOT NULL,
+  shares_at_date NUMERIC
+);
+
 -- Portfolio history (daily snapshots)
 CREATE TABLE IF NOT EXISTS portfolio_history (
   id SERIAL PRIMARY KEY,
@@ -111,6 +124,7 @@ ALTER TABLE portfolios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cash_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE realized_trades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dividends ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tefas_funds ENABLE ROW LEVEL SECURITY;
 
@@ -160,6 +174,11 @@ DROP POLICY IF EXISTS "Users can manage own realized trades" ON realized_trades;
 CREATE POLICY "Users can manage own realized trades" ON realized_trades 
   FOR ALL USING (auth.uid() = user_id);
 
+-- Dividends Policies
+DROP POLICY IF EXISTS "Users can manage own dividends" ON dividends;
+CREATE POLICY "Users can manage own dividends" ON dividends 
+  FOR ALL USING (auth.uid() = user_id);
+
 -- Portfolio History Policies
 DROP POLICY IF EXISTS "Users can manage own portfolio history" ON portfolio_history;
 CREATE POLICY "Users can manage own portfolio history" ON portfolio_history 
@@ -181,4 +200,6 @@ CREATE INDEX IF NOT EXISTS idx_cash_items_portfolio_id ON cash_items(portfolio_i
 CREATE INDEX IF NOT EXISTS idx_cash_items_user_id ON cash_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_realized_trades_portfolio_id ON realized_trades(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_realized_trades_user_id ON realized_trades(user_id);
+CREATE INDEX IF NOT EXISTS idx_dividends_portfolio_id ON dividends(portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_dividends_user_id ON dividends(user_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_history_portfolio_id ON portfolio_history(portfolio_id);

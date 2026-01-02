@@ -57,7 +57,7 @@ interface PortfolioContextType {
     updateCashItem: (id: string, amount: number) => Promise<void>;
     deleteCashItem: (id: string) => Promise<void>;
     updateCash: (amount: number) => Promise<void>;
-    sellCashFund: (id: string, sellPrice: number, currentUsdRate: number) => Promise<void>;
+    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number) => Promise<void>;
 
     // Other functions
     updatePortfolioTarget: (targetValue: number, currency: 'TRY' | 'USD') => Promise<void>;
@@ -486,7 +486,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellCashFund = async (id: string, sellPrice: number, currentUsdRate: number) => {
+    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => (p.cashItems || []).some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -494,8 +494,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const fundItem = ownerPortfolio.cashItems.find(item => item.id === id);
             if (!fundItem || fundItem.type !== 'money_market_fund' || !fundItem.units || !fundItem.averageCost) return prev;
 
-            const currentValue = fundItem.units * sellPrice;
-            const costBasis = fundItem.units * fundItem.averageCost;
+            const actualUnitsToSell = Math.min(unitsToSell, fundItem.units);
+            const currentValue = actualUnitsToSell * sellPrice;
+            const costBasis = actualUnitsToSell * fundItem.averageCost;
             const profitTry = currentValue - costBasis;
 
             const costUsd = fundItem.historicalUsdRate ? costBasis / fundItem.historicalUsdRate : costBasis / currentUsdRate;
@@ -505,7 +506,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const trade: RealizedTrade = {
                 id: Date.now().toString(),
                 instrumentId: fundItem.instrumentId || fundItem.name,
-                amount: fundItem.units,
+                amount: actualUnitsToSell,
                 sellPrice: sellPrice,
                 buyPrice: fundItem.averageCost,
                 currency: 'TRY',
@@ -516,7 +517,22 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 type: 'fund'
             };
 
-            let updatedCashItems = ownerPortfolio.cashItems.filter(item => item.id !== id);
+            let updatedCashItems = [...(ownerPortfolio.cashItems || [])];
+
+            if (actualUnitsToSell >= fundItem.units) {
+                // Sell all
+                updatedCashItems = updatedCashItems.filter(item => item.id !== id);
+            } else {
+                // Partial sell
+                updatedCashItems = updatedCashItems.map(item =>
+                    item.id === id ? {
+                        ...item,
+                        units: (item.units || 0) - actualUnitsToSell,
+                        amount: ((item.units || 0) - actualUnitsToSell) * (item.averageCost || 0)
+                    } : item
+                );
+            }
+
             const defaultCashIndex = updatedCashItems.findIndex(item => item.type === 'cash' && item.currency === 'TRY');
 
             if (defaultCashIndex !== -1) {

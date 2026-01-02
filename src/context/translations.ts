@@ -8,6 +8,7 @@ export const translations = {
             favorites: 'Favoriler',
             analytics: 'Analiz',
             settings: 'Ayarlar',
+            dividends: 'Temettüler',
         },
         // Common
         common: {
@@ -131,6 +132,7 @@ export const translations = {
             favorites: 'Favorites',
             analytics: 'Analysis',
             settings: 'Settings',
+            dividends: 'Dividends',
         },
         // Common
         common: {

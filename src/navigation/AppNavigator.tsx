@@ -273,22 +273,22 @@ const HomeTabNavigator = () => {
             <Tab.Screen
                 name="Summary"
                 component={SummaryScreen}
-                options={{ title: t('nav.summary') }}
+                options={{ title: 'Özet' }}
             />
             <Tab.Screen
                 name="Portfolio"
                 component={PortfolioScreen}
-                options={{ title: t('nav.portfolio') }}
+                options={{ title: 'Portföy' }}
             />
             <Tab.Screen
                 name="Transactions"
                 component={TransactionsScreen}
-                options={{ title: t('nav.transactions') }}
+                options={{ title: 'İşlemler' }}
             />
             <Tab.Screen
                 name="Favorites"
                 component={FavoritesScreen}
-                options={{ title: t('nav.favorites') }}
+                options={{ title: 'Favoriler' }}
             />
         </Tab.Navigator>
     );
@@ -344,60 +344,62 @@ const WebNavigator = () => {
                 <View style={{ flex: 1, backgroundColor: colors.background }}>
                     <View style={{ flex: 1, maxWidth: 1800, width: '100%', alignSelf: 'center' }}>
                         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Summary">
-                            <Stack.Screen name="Summary" component={SummaryScreen} />
-                            <Stack.Screen name="Portfolio" component={PortfolioScreen} />
-                            <Stack.Screen name="Transactions" component={TransactionsScreen} />
-                            <Stack.Screen name="Favorites" component={FavoritesScreen} />
-                            <Stack.Screen name="Settings" component={SettingsScreen} />
+                            <Stack.Screen name="Summary" component={SummaryScreen} options={{ title: 'Özet' }} />
+                            <Stack.Screen name="Portfolio" component={PortfolioScreen} options={{ title: 'Portföy' }} />
+                            <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'İşlemler' }} />
+                            <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favoriler' }} />
+                            <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
                             <Stack.Screen
                                 name="AddInstrument"
                                 component={AddInstrumentScreen}
-                                options={{ presentation: 'modal' }}
+                                options={{ presentation: 'modal', title: 'Varlık Ekle' }}
                             />
                             <Stack.Screen
                                 name="CashManagement"
                                 component={CashManagementScreen}
-                                options={{ presentation: 'modal' }}
+                                options={{ presentation: 'modal', title: 'Yedek Akçe' }}
                             />
                             <Stack.Screen
                                 name="AssetDetail"
                                 component={AssetDetailScreen}
                                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
                             />
-                            <Stack.Screen name="Dividends" component={DividendsScreen} />
+                            <Stack.Screen name="Dividends" component={DividendsScreen} options={{ title: 'Temettüler' }} />
                         </Stack.Navigator>
                     </View>
                 </View>
             </View>
 
             {/* Bottom Tab Bar - Mobile only */}
-            {isMobile && (
-                <View style={[webStyles.bottomTabBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.border }]}>
-                    {mobileMenuItems.map((item) => {
-                        const isActive = activeTab === item.name;
-                        const isAddButton = item.name === 'AddInstrument';
-                        return (
-                            <TouchableOpacity
-                                key={item.name}
-                                style={[webStyles.tabItem, isAddButton && webStyles.addButtonTab]}
-                                onPress={() => handleTabPress(item.name)}
-                            >
-                                <item.Icon
-                                    size={isAddButton ? 28 : 22}
-                                    color={isAddButton ? '#fff' : (isActive ? colors.primary : colors.subText)}
-                                    strokeWidth={isActive || isAddButton ? 2.5 : 2}
-                                />
-                                {!isAddButton && (
-                                    <Text style={[webStyles.tabLabel, { color: isActive ? colors.primary : colors.subText }]}>
-                                        {item.label}
-                                    </Text>
-                                )}
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-            )}
-        </View>
+            {
+                isMobile && (
+                    <View style={[webStyles.bottomTabBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.border }]}>
+                        {mobileMenuItems.map((item) => {
+                            const isActive = activeTab === item.name;
+                            const isAddButton = item.name === 'AddInstrument';
+                            return (
+                                <TouchableOpacity
+                                    key={item.name}
+                                    style={[webStyles.tabItem, isAddButton && webStyles.addButtonTab]}
+                                    onPress={() => handleTabPress(item.name)}
+                                >
+                                    <item.Icon
+                                        size={isAddButton ? 28 : 22}
+                                        color={isAddButton ? '#fff' : (isActive ? colors.primary : colors.subText)}
+                                        strokeWidth={isActive || isAddButton ? 2.5 : 2}
+                                    />
+                                    {!isAddButton && (
+                                        <Text style={[webStyles.tabLabel, { color: isActive ? colors.primary : colors.subText }]}>
+                                            {item.label}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                )
+            }
+        </View >
     );
 };
 
@@ -409,19 +411,19 @@ const MainNavigator = () => {
             <Stack.Screen
                 name="AddInstrument"
                 component={AddInstrumentScreen}
-                options={{ presentation: 'modal' }}
+                options={{ presentation: 'modal', title: 'Varlık Ekle' }}
             />
             <Stack.Screen
                 name="CashManagement"
                 component={CashManagementScreen}
-                options={{ presentation: 'modal' }}
+                options={{ presentation: 'modal', title: 'Yedek Akçe' }}
             />
             <Stack.Screen
                 name="AssetDetail"
                 component={AssetDetailScreen}
                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
             />
-            <Stack.Screen name="Dividends" component={DividendsScreen} />
+            <Stack.Screen name="Dividends" component={DividendsScreen} options={{ title: 'Temettüler' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
         </Stack.Navigator>
     );
@@ -447,6 +449,7 @@ export const AppNavigator = () => {
             'AssetDetail': `Varlık Detayı - ${APP_NAME}`,
             'Login': `Giriş Yap - ${APP_NAME}`,
             'Register': `Kayıt Ol - ${APP_NAME}`,
+            'Dividends': `Temettüler - ${APP_NAME}`,
             'Main': APP_NAME,
         };
 

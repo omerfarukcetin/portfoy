@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -11,7 +11,11 @@ import { MarketDataService } from '../services/marketData';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SellCashFundModal } from '../components/SellCashFundModal';
 
+const TABLET_WIDTH = 768;
+
 export const CashManagementScreen = () => {
+    const { width } = useWindowDimensions();
+    const isLargeScreen = width >= TABLET_WIDTH;
     const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
@@ -389,59 +393,89 @@ export const CashManagementScreen = () => {
                     }
 
                     return (
-                        <TouchableOpacity
-                            activeOpacity={1}
-                            style={[styles.itemCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                            onPress={() => openEditModal(item)}
-                        >
-                            <View style={styles.itemHeader}>
-                                <View style={styles.itemTitleRow}>
-                                    {(() => {
-                                        const Icon = getTypeIcon(item.type);
-                                        return <Icon size={20} color={colors.primary} />;
-                                    })()}
-                                    <View style={{ marginLeft: 12, flex: 1 }}>
-                                        <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
-                                        <Text style={[styles.itemType, { color: colors.subText }]}>
-                                            {getTypeLabel(item.type)}
-                                            {item.interestRate && ` • %${item.interestRate} faiz`}
-                                            {item.units && ` • ${item.units.toLocaleString('tr-TR')} adet`}
-                                        </Text>
+                        <View style={isLargeScreen ? styles.desktopItemContainer : null}>
+                            <TouchableOpacity
+                                activeOpacity={1}
+                                style={[styles.itemCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, flex: isLargeScreen ? 1 : undefined }]}
+                                onPress={() => openEditModal(item)}
+                            >
+                                <View style={styles.itemHeader}>
+                                    <View style={styles.itemTitleRow}>
+                                        {(() => {
+                                            const Icon = getTypeIcon(item.type);
+                                            return <Icon size={20} color={colors.primary} />;
+                                        })()}
+                                        <View style={{ marginLeft: 12, flex: 1 }}>
+                                            <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
+                                            <Text style={[styles.itemType, { color: colors.subText }]}>
+                                                {getTypeLabel(item.type)}
+                                                {item.interestRate && ` • %${item.interestRate} faiz`}
+                                                {item.units && ` • ${item.units.toLocaleString('tr-TR')} adet`}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
-                            </View>
-                            <View style={styles.itemFooter}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.itemAmount, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
-                                        {formatCurrency(currentValue, item.currency)}
-                                    </Text>
-                                    {item.type === 'money_market_fund' && item.instrumentId && fundPrices[item.instrumentId] && (
-                                        <>
-                                            <Text style={{ color: profit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '600', marginTop: 2 }}>
-                                                TRY: {profit >= 0 ? '+' : ''}{formatCurrency(profit, 'TRY')} ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%)
-                                            </Text>
-                                            {item.historicalUsdRate && currentUsdRate > 0 && (
-                                                <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600', marginTop: 1 }}>
-                                                    USD: {profitUsd >= 0 ? '+' : ''}${profitUsd.toFixed(2)} ({profitUsdPercent >= 0 ? '+' : ''}{profitUsdPercent.toFixed(2)}%)
-                                                </Text>
-                                            )}
-                                        </>
-                                    )}
-                                </View>
-                                {item.type === 'money_market_fund' && item.averageCost && (
-                                    <View style={{ alignItems: 'flex-end', flex: 0.8 }}>
-                                        <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]} numberOfLines={1}>
-                                            Maliyet: {formatCurrency(cost, 'TRY')}
+                                <View style={styles.itemFooter}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.itemAmount, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                                            {formatCurrency(currentValue, item.currency)}
                                         </Text>
-                                        {item.historicalUsdRate && (
-                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]} numberOfLines={1}>
-                                                (${costUsd.toFixed(2)})
-                                            </Text>
+                                        {item.type === 'money_market_fund' && item.instrumentId && fundPrices[item.instrumentId] && (
+                                            <>
+                                                <Text style={{ color: profit >= 0 ? colors.success : colors.danger, fontSize: 13, fontWeight: '600', marginTop: 2 }}>
+                                                    TRY: {profit >= 0 ? '+' : ''}{formatCurrency(profit, 'TRY')} ({profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%)
+                                                </Text>
+                                                {item.historicalUsdRate && currentUsdRate > 0 && (
+                                                    <Text style={{ color: profitUsd >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '600', marginTop: 1 }}>
+                                                        USD: {profitUsd >= 0 ? '+' : ''}${profitUsd.toFixed(2)} ({profitUsdPercent >= 0 ? '+' : ''}{profitUsdPercent.toFixed(2)}%)
+                                                    </Text>
+                                                )}
+                                            </>
                                         )}
                                     </View>
-                                )}
-                            </View>
-                        </TouchableOpacity>
+                                    {item.type === 'money_market_fund' && item.averageCost && (
+                                        <View style={{ alignItems: 'flex-end', flex: 0.8 }}>
+                                            <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 12 }]} numberOfLines={1}>
+                                                Maliyet: {formatCurrency(cost, 'TRY')}
+                                            </Text>
+                                            {item.historicalUsdRate && (
+                                                <Text style={[styles.itemCurrency, { color: colors.subText, fontSize: 11 }]} numberOfLines={1}>
+                                                    (${costUsd.toFixed(2)})
+                                                </Text>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+
+                            {isLargeScreen && (
+                                <View style={styles.desktopActions}>
+                                    {item.type === 'money_market_fund' && item.units && (
+                                        <TouchableOpacity
+                                            style={[styles.desktopActionBtn, { backgroundColor: colors.success + '15' }]}
+                                            onPress={() => handleSellPPF(item)}
+                                        >
+                                            <TrendingDown size={18} color={colors.success} />
+                                            <Text style={[styles.desktopActionText, { color: colors.success }]}>Sat</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        style={[styles.desktopActionBtn, { backgroundColor: colors.primary + '15' }]}
+                                        onPress={() => openEditModal(item)}
+                                    >
+                                        <Plus size={18} color={colors.primary} />
+                                        <Text style={[styles.desktopActionText, { color: colors.primary }]}>Düzelt</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.desktopActionBtn, { backgroundColor: colors.danger + '15' }]}
+                                        onPress={() => handleDelete(item)}
+                                    >
+                                        <Trash2 size={18} color={colors.danger} />
+                                        <Text style={[styles.desktopActionText, { color: colors.danger }]}>Sil</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
                     );
                 }}
                 renderHiddenItem={(data, rowMap) => (
@@ -482,6 +516,7 @@ export const CashManagementScreen = () => {
                 )}
                 rightOpenValue={-210}
                 disableRightSwipe
+                disableLeftSwipe={isLargeScreen}
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
@@ -901,6 +936,32 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    desktopItemContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 12,
+    },
+    desktopActions: {
+        flexDirection: 'row',
+        gap: 8,
+        height: 100, // Matching card height approximately
+        marginBottom: 12,
+    },
+    desktopActionBtn: {
+        width: 60,
+        height: '100%',
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    desktopActionText: {
+        fontSize: 10,
+        fontWeight: '700',
+        marginTop: 4,
     },
     itemCard: {
         padding: 16,

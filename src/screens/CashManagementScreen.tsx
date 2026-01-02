@@ -395,7 +395,7 @@ export const CashManagementScreen = () => {
                     return (
                         <View style={isLargeScreen ? styles.desktopItemContainer : null}>
                             <TouchableOpacity
-                                activeOpacity={1}
+                                activeOpacity={0.7}
                                 style={[styles.itemCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, flex: isLargeScreen ? 1 : undefined }]}
                                 onPress={() => openEditModal(item)}
                             >
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
     desktopActions: {
         flexDirection: 'row',
         gap: 8,
-        height: 100, // Matching card height approximately
+        alignSelf: 'stretch',
         marginBottom: 12,
     },
     desktopActionBtn: {

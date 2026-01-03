@@ -260,6 +260,8 @@ const styles = StyleSheet.create({
     keyboardView: {
         width: '100%',
         maxHeight: '90%',
+        maxWidth: 500,
+        alignSelf: 'center',
     },
     container: {
         borderTopLeftRadius: 28,

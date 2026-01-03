@@ -126,15 +126,18 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'center',
+        alignItems: 'center',
         padding: 12,
     },
     keyboardView: {
         width: '100%',
+        maxWidth: 400,
     },
     container: {
         borderRadius: 16,
         padding: 12,
         maxHeight: '90%',
+        width: '100%',
     },
     header: {
         flexDirection: 'row',
@@ -157,7 +160,7 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     input: {
-        height: 40,
+        height: 38,
         borderRadius: 8,
         paddingHorizontal: 12,
         marginBottom: 8,
@@ -184,11 +187,11 @@ const styles = StyleSheet.create({
         margin: '1%',
     },
     addButton: {
-        height: 42,
+        height: 40,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 12,
+        marginTop: 10,
     },
     buttonText: {
         color: '#FFF',

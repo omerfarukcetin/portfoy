@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { Alert } from 'react-native';
 import { BudgetItem, BudgetCategory } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
@@ -30,6 +31,10 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [categories, setCategories] = useState<BudgetCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const showAlert = (title: string, message: string) => {
+        Alert.alert(title, message);
+    };
+
     useEffect(() => {
         if (user) {
             refreshAllData();
@@ -49,7 +54,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const fetchCategories = async () => {
         try {
             const { data, error } = await supabase
-                .from('budget_categories')
+                .from('kategoriler')
                 .select('*')
                 .eq('user_id', user?.id)
                 .order('created_at', { ascending: true });
@@ -62,8 +67,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
             setCategories(loadedCategories);
             return loadedCategories;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching categories:', error);
+            showAlert('Hata', `Kategoriler yüklenirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
             return [];
         }
     };
@@ -71,7 +77,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const fetchItems = async () => {
         try {
             const { data, error } = await supabase
-                .from('budget_items')
+                .from('harcamalar')
                 .select('*')
                 .eq('user_id', user?.id)
                 .order('date', { ascending: false });
@@ -91,8 +97,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             setItems(mappedItems as BudgetItem[]);
             return mappedItems;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching items:', error);
+            showAlert('Hata', `İşlemler yüklenirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
             return [];
         }
     };
@@ -122,7 +129,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }));
 
         const { data, error } = await supabase
-            .from('budget_categories')
+            .from('kategoriler')
             .insert(toInsert)
             .select();
 
@@ -162,7 +169,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 3. Cloud Sync
         try {
             const { error } = await supabase
-                .from('budget_items')
+                .from('harcamalar')
                 .insert([{
                     id,
                     user_id: user?.id,
@@ -175,8 +182,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     linked_portfolio_id: item.linkedPortfolioId
                 }]);
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error adding budget item:', error);
+            showAlert('Hata', `İşlem kaydedilirken bir hata oluştu: ${error.message}`);
             // Revert on fail? (Skipping for simplicity in this version)
         }
     };
@@ -199,7 +207,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         try {
             const { error } = await supabase
-                .from('budget_items')
+                .from('harcamalar')
                 .update({
                     category_id: updatedItem.categoryId,
                     type: updatedItem.type,
@@ -211,8 +219,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 })
                 .eq('id', id);
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating budget item:', error);
+            showAlert('Hata', `İşlem güncellenirken bir hata oluştu: ${error.message}`);
         }
     };
 
@@ -228,12 +237,13 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         try {
             const { error } = await supabase
-                .from('budget_items')
+                .from('harcamalar')
                 .delete()
                 .eq('id', id);
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error deleting budget item:', error);
+            showAlert('Hata', `İşlem silinirken bir hata oluştu: ${error.message}`);
         }
     };
 
@@ -241,7 +251,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         try {
             const id = Math.random().toString(36).substr(2, 9);
             const { error } = await supabase
-                .from('budget_categories')
+                .from('kategoriler')
                 .insert([{
                     id,
                     user_id: user?.id,
@@ -254,8 +264,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // After successful insert, refresh categories from DB
             await fetchCategories();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error adding category:', error);
+            showAlert('Hata', `Kategori eklenirken bir hata oluştu: ${error.message}`);
             throw error;
         }
     };
@@ -263,15 +274,16 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updateCategory = async (id: string, updates: Partial<BudgetCategory>) => {
         try {
             const { error } = await supabase
-                .from('budget_categories')
+                .from('kategoriler')
                 .update(updates)
                 .eq('id', id);
             if (error) throw error;
 
             // Refresh from DB
             await fetchCategories();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating category:', error);
+            showAlert('Hata', `Kategori güncellenirken bir hata oluştu: ${error.message}`);
             throw error;
         }
     };
@@ -279,15 +291,16 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const deleteCategory = async (id: string) => {
         try {
             const { error } = await supabase
-                .from('budget_categories')
+                .from('kategoriler')
                 .delete()
                 .eq('id', id);
             if (error) throw error;
 
             // Items are deleted by CASCADE in DB, so refresh both
             await Promise.all([fetchCategories(), fetchItems()]);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error deleting category:', error);
+            showAlert('Hata', `Kategori silinirken bir hata oluştu: ${error.message}`);
             throw error;
         }
     };

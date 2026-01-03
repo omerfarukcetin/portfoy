@@ -203,31 +203,31 @@ CREATE INDEX IF NOT EXISTS idx_realized_trades_user_id ON realized_trades(user_i
 CREATE INDEX IF NOT EXISTS idx_dividends_portfolio_id ON dividends(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_dividends_user_id ON dividends(user_id);
 -- =====================================================
--- BUDGET MANAGEMENT TABLES
+-- BUDGET MANAGEMENT TABLES (TURKISH NAMES)
 -- =====================================================
 
 -- Budget categories (dynamic)
-CREATE TABLE IF NOT EXISTS budget_categories (
+CREATE TABLE IF NOT EXISTS kategoriler (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   type TEXT NOT NULL, -- 'income' or 'expense'
   name TEXT NOT NULL,
-  icon TEXT, -- Lucide icon name or emoji
+  icon TEXT, 
   color TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Budget items (transactions)
-CREATE TABLE IF NOT EXISTS budget_items (
+CREATE TABLE IF NOT EXISTS harcamalar (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  category_id TEXT REFERENCES budget_categories(id) ON DELETE CASCADE,
+  category_id TEXT REFERENCES kategoriler(id) ON DELETE CASCADE,
   type TEXT NOT NULL, -- 'income' or 'expense'
   amount NUMERIC NOT NULL,
   currency TEXT NOT NULL DEFAULT 'TRY',
   date BIGINT NOT NULL, -- Epoch
   note TEXT,
-  linked_portfolio_id TEXT, -- For integration (withdrawals/investments)
+  linked_portfolio_id TEXT, 
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -235,27 +235,27 @@ CREATE TABLE IF NOT EXISTS budget_items (
 -- ENABLE ROW LEVEL SECURITY
 -- =====================================================
 
-ALTER TABLE budget_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE budget_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kategoriler ENABLE ROW LEVEL SECURITY;
+ALTER TABLE harcamalar ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- RLS POLICIES
 -- =====================================================
 
--- Budget Categories Policies
-DROP POLICY IF EXISTS "Users can manage own budget categories" ON budget_categories;
-CREATE POLICY "Users can manage own budget categories" ON budget_categories 
+-- Categories Policies
+DROP POLICY IF EXISTS "Users can manage own kategoriler" ON kategoriler;
+CREATE POLICY "Users can manage own kategoriler" ON kategoriler 
   FOR ALL USING (auth.uid() = user_id);
 
--- Budget Items Policies
-DROP POLICY IF EXISTS "Users can manage own budget items" ON budget_items;
-CREATE POLICY "Users can manage own budget items" ON budget_items 
+-- Items Policies
+DROP POLICY IF EXISTS "Users can manage own harcamalar" ON harcamalar;
+CREATE POLICY "Users can manage own harcamalar" ON harcamalar 
   FOR ALL USING (auth.uid() = user_id);
 
 -- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
 
-CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id);
-CREATE INDEX IF NOT EXISTS idx_budget_items_user_id ON budget_items(user_id);
-CREATE INDEX IF NOT EXISTS idx_budget_items_category_id ON budget_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_kategoriler_user_id ON kategoriler(user_id);
+CREATE INDEX IF NOT EXISTS idx_harcamalar_user_id ON harcamalar(user_id);
+CREATE INDEX IF NOT EXISTS idx_harcamalar_category_id ON harcamalar(category_id);

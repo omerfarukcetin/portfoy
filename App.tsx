@@ -6,6 +6,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import { SettingsProvider } from './src/context/SettingsContext';
 import { FavoritesProvider } from './src/context/FavoritesContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { BudgetProvider } from './src/context/BudgetContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -17,7 +18,9 @@ export default function App() {
             <SettingsProvider>
               <FavoritesProvider>
                 <PortfolioProvider>
-                  <AppNavigator />
+                  <BudgetProvider>
+                    <AppNavigator />
+                  </BudgetProvider>
                 </PortfolioProvider>
               </FavoritesProvider>
             </SettingsProvider>

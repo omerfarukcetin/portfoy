@@ -510,38 +510,98 @@ export const SummaryScreen = () => {
                                             </Text>
                                         </View>
                                     </View>
-                                    {/* K/Z Badge */}
-                                    <View style={{
-                                        backgroundColor: 'rgba(255,255,255,0.15)',
-                                        paddingHorizontal: 20,
-                                        paddingVertical: 16,
-                                        borderRadius: 16,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        gap: 12
-                                    }}>
-                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}>
-                                            <TrendingUp size={20} color={totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30'} />
-                                        </View>
-                                        <View>
-                                            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>TOPLAM KÂR/ZARAR</Text>
-                                            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 2 }}>
-                                                {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')}`}
-                                            </Text>
-                                        </View>
+                                    {/* K/Z Badge Area */}
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        {/* Total P/L */}
                                         <View style={{
-                                            backgroundColor: totalUnrealizedProfitPercent >= 0 ? '#34C759' : '#FF3B30',
-                                            paddingHorizontal: 10,
-                                            paddingVertical: 6,
-                                            borderRadius: 8,
-                                            marginLeft: 8
+                                            backgroundColor: 'rgba(255,255,255,0.15)',
+                                            paddingHorizontal: 20,
+                                            paddingVertical: 16,
+                                            borderRadius: 16,
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            gap: 12
                                         }}>
-                                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
-                                                {isHidden ? '•••' : `%${totalUnrealizedProfitPercent.toFixed(2)}`}
-                                            </Text>
+                                            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}>
+                                                <TrendingUp size={20} color={totalUnrealizedProfitTry >= 0 ? '#34C759' : '#FF3B30'} />
+                                            </View>
+                                            <View>
+                                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>TOPLAM KÂR/ZARAR</Text>
+                                                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 2 }}>
+                                                    {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${formatCurrency(totalUnrealizedProfitTry, 'TRY')}`}
+                                                </Text>
+                                            </View>
+                                            <View style={{
+                                                backgroundColor: totalUnrealizedProfitPercent >= 0 ? '#34C759' : '#FF3B30',
+                                                paddingHorizontal: 10,
+                                                paddingVertical: 6,
+                                                borderRadius: 8,
+                                                marginLeft: 8
+                                            }}>
+                                                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                                                    {isHidden ? '•••' : `%${totalUnrealizedProfitPercent.toFixed(2)}`}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Daily Change (Desktop Main Card) */}
+                                        <View style={{
+                                            backgroundColor: 'rgba(255,255,255,0.1)',
+                                            paddingHorizontal: 16,
+                                            paddingVertical: 16,
+                                            borderRadius: 16,
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            borderWidth: 1,
+                                            borderColor: 'rgba(255,255,255,0.1)'
+                                        }}>
+                                            <View>
+                                                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700' }}>GÜNLÜK</Text>
+                                                <Text style={{ color: dailyProfit >= 0 ? '#4ADE80' : '#FF7E7E', fontSize: 18, fontWeight: '800', marginTop: 1 }}>
+                                                    {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${dailyProfitPercent.toFixed(1)}%`}
+                                                </Text>
+                                            </View>
                                         </View>
                                     </View>
                                 </GradientCard>
+
+                                {/* Portfolio History Chart (Desktop) */}
+                                {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (
+                                    <View style={{
+                                        backgroundColor: colors.cardBackground,
+                                        borderRadius: 20,
+                                        padding: 24,
+                                        borderWidth: 1,
+                                        borderColor: colors.border
+                                    }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                            <View>
+                                                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Portföy Gelişimi</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                                    <Zap size={14} color={colors.warning} />
+                                                    <Text style={{ fontSize: 12, color: colors.subText, fontWeight: '500' }}>
+                                                        Grafik günlük takiple oluşur. Uygulamayı her gün açmayı unutmayın!
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <TouchableOpacity
+                                                onPress={() => portfolioChartRef.current?.captureImage()}
+                                                style={{ padding: 10, backgroundColor: colors.background, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
+                                            >
+                                                <Download size={18} color={colors.subText} />
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={{ height: 300 }}>
+                                            <PortfolioChart
+                                                ref={portfolioChartRef}
+                                                currentValue={totalPortfolioTry}
+                                                history={history}
+                                                isMobile={false}
+                                            />
+                                        </View>
+                                    </View>
+                                )}
 
                                 {/* 3 Stat Cards Row */}
                                 <View style={{ flexDirection: 'row', gap: 16 }}>
@@ -967,14 +1027,30 @@ export const SummaryScreen = () => {
                                         }}>
                                             {isHidden ? '•••' : `${totalUnrealizedProfitTry >= 0 ? '+' : ''}${totalUnrealizedProfitPercent.toFixed(1)}%`}
                                         </Text>
-                                        <Text style={{
-                                            color: 'rgba(255,255,255,0.8)',
-                                            fontSize: 11,
-                                            fontWeight: '600'
-                                        }}>
-                                            ({isHidden ? '•••' : formatCurrency(totalUnrealizedProfitTry, 'TRY')})
-                                        </Text>
+                                        <View style={{ width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                            {dailyProfit >= 0 ? (
+                                                <TrendingUp size={10} color="#4ADE80" />
+                                            ) : (
+                                                <TrendingDown size={10} color="#FF7E7E" />
+                                            )}
+                                            <Text style={{
+                                                color: dailyProfit >= 0 ? '#4ADE80' : '#FF7E7E',
+                                                fontSize: 13,
+                                                fontWeight: '800'
+                                            }}>
+                                                {isHidden ? '•••' : `${dailyProfit >= 0 ? '+' : ''}${dailyProfitPercent.toFixed(1)}%`}
+                                            </Text>
+                                        </View>
                                     </View>
+                                    <Text style={{
+                                        color: 'rgba(255,255,255,0.8)',
+                                        fontSize: 11,
+                                        fontWeight: '600',
+                                        marginTop: 2
+                                    }}>
+                                        Toplam: {isHidden ? '•••' : formatCurrency(totalUnrealizedProfitTry, 'TRY')}
+                                    </Text>
                                 </View>
                                 <TouchableOpacity
                                     onPress={() => setIsHidden(!isHidden)}
@@ -1059,7 +1135,12 @@ export const SummaryScreen = () => {
                         {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (
                             <View style={{ marginTop: 4, marginBottom: 8 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
-                                    <View />
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                                        <Zap size={14} color={colors.warning} />
+                                        <Text style={{ fontSize: 11, color: colors.subText, fontWeight: '500' }}>
+                                            Grafik günlük takiple oluşur. Uygulamayı her gün açmayı unutmayın!
+                                        </Text>
+                                    </View>
                                     <TouchableOpacity
                                         onPress={() => portfolioChartRef.current?.captureImage()}
                                         style={{ padding: 6, backgroundColor: colors.cardBackground, borderRadius: 6, borderWidth: 1, borderColor: colors.border }}

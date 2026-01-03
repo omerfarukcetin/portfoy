@@ -12,7 +12,9 @@ import { AssetDetailScreen } from '../screens/AssetDetailScreen';
 import { CashManagementScreen } from '../screens/CashManagementScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
+import { ManageCategoriesScreen } from '../screens/ManageCategoriesScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
+import { WalletScreen } from '../screens/WalletScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -28,7 +30,8 @@ import {
     Settings,
     Briefcase,
     List,
-    Home
+    Home,
+    Wallet
 } from 'lucide-react-native';
 import { Sidebar } from '../components/web/Sidebar';
 
@@ -41,10 +44,12 @@ const PAGE_TITLES: Record<string, string> = {
     'Settings': 'Ayarlar - Portföy Cepte',
     'AddInstrument': 'Varlık Ekle - Portföy Cepte',
     'CashManagement': 'Yedek Akçe - Portföy Cepte',
+    'ManageCategories': 'Kategorileri Yönet - Portföy Cepte',
     'AssetDetail': 'Varlık Detayı - Portföy Cepte',
     'Login': 'Giriş Yap - Portföy Cepte',
     'Register': 'Kayıt Ol - Portföy Cepte',
     'Dividends': 'Temettüler - Portföy Cepte',
+    'Wallet': 'Cüzdan - Portföy Cepte',
 };
 
 const Stack = createNativeStackNavigator();
@@ -79,6 +84,9 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 } else if (route.name === 'Favorites') {
                     Icon = Star;
                     activeColor = '#FFCC00';
+                } else if (route.name === 'Wallet') {
+                    Icon = Wallet;
+                    activeColor = '#10B981';
                 }
 
                 const onPress = () => {
@@ -281,6 +289,11 @@ const HomeTabNavigator = () => {
                 options={{ title: 'Portföy' }}
             />
             <Tab.Screen
+                name="Wallet"
+                component={WalletScreen}
+                options={{ title: 'Cüzdan' }}
+            />
+            <Tab.Screen
                 name="Transactions"
                 component={TransactionsScreen}
                 options={{ title: 'İşlemler' }}
@@ -365,6 +378,7 @@ const WebNavigator = () => {
                                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
                             />
                             <Stack.Screen name="Dividends" component={DividendsScreen} options={{ title: 'Temettüler' }} />
+                            <Stack.Screen name="ManageCategories" component={ManageCategoriesScreen} options={{ title: 'Kategorileri Yönet' }} />
                         </Stack.Navigator>
                     </View>
                 </View>
@@ -425,6 +439,7 @@ const MainNavigator = () => {
             />
             <Stack.Screen name="Dividends" component={DividendsScreen} options={{ title: 'Temettüler' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
+            <Stack.Screen name="ManageCategories" component={ManageCategoriesScreen} options={{ title: 'Kategorileri Yönet' }} />
         </Stack.Navigator>
     );
 };

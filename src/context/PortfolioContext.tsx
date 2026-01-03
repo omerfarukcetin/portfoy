@@ -78,6 +78,7 @@ interface PortfolioContextType {
     importData: (portfolios: Portfolio[], activePortfolioId: string) => Promise<void>;
     getPortfolioTotalValue: () => number;
     getPortfolioDistribution: () => { name: string; value: number; color: string }[];
+    updatePortfolioCash: (portfolioId: string, amount: number) => Promise<void>;
 }
 
 const ALL_PORTFOLIOS_ID = 'all-portfolios';
@@ -1112,6 +1113,34 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         })));
     };
 
+    const updatePortfolioCash = async (portfolioId: string, amount: number) => {
+        savePortfolios(prev => {
+            return prev.map(p => {
+                if (p.id !== portfolioId) return p;
+
+                const cashItems = [...(p.cashItems || [])];
+                const tryCashIndex = cashItems.findIndex(item => item.type === 'cash' && item.currency === 'TRY');
+
+                if (tryCashIndex !== -1) {
+                    cashItems[tryCashIndex] = {
+                        ...cashItems[tryCashIndex],
+                        amount: cashItems[tryCashIndex].amount + amount
+                    };
+                } else if (amount > 0) {
+                    cashItems.push({
+                        id: Date.now().toString() + '_cash',
+                        type: 'cash',
+                        name: 'Nakit (TL)',
+                        amount: amount,
+                        currency: 'TRY',
+                        dateAdded: Date.now()
+                    });
+                }
+                return { ...p, cashItems };
+            });
+        });
+    };
+
     return (
         <PortfolioContext.Provider value={{
             portfolios,
@@ -1163,7 +1192,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             updateDividend,
             deleteDividend,
             updatePortfolioTarget,
-            deleteRealizedTrade
+            deleteRealizedTrade,
+            updatePortfolioCash
         }}>
             {children}
         </PortfolioContext.Provider>

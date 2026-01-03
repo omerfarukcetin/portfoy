@@ -202,4 +202,60 @@ CREATE INDEX IF NOT EXISTS idx_realized_trades_portfolio_id ON realized_trades(p
 CREATE INDEX IF NOT EXISTS idx_realized_trades_user_id ON realized_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_dividends_portfolio_id ON dividends(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_dividends_user_id ON dividends(user_id);
-CREATE INDEX IF NOT EXISTS idx_portfolio_history_portfolio_id ON portfolio_history(portfolio_id);
+-- =====================================================
+-- BUDGET MANAGEMENT TABLES
+-- =====================================================
+
+-- Budget categories (dynamic)
+CREATE TABLE IF NOT EXISTS budget_categories (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  type TEXT NOT NULL, -- 'income' or 'expense'
+  name TEXT NOT NULL,
+  icon TEXT, -- Lucide icon name or emoji
+  color TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Budget items (transactions)
+CREATE TABLE IF NOT EXISTS budget_items (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  category_id TEXT REFERENCES budget_categories(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- 'income' or 'expense'
+  amount NUMERIC NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'TRY',
+  date BIGINT NOT NULL, -- Epoch
+  note TEXT,
+  linked_portfolio_id TEXT, -- For integration (withdrawals/investments)
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- ENABLE ROW LEVEL SECURITY
+-- =====================================================
+
+ALTER TABLE budget_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budget_items ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- RLS POLICIES
+-- =====================================================
+
+-- Budget Categories Policies
+DROP POLICY IF EXISTS "Users can manage own budget categories" ON budget_categories;
+CREATE POLICY "Users can manage own budget categories" ON budget_categories 
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Budget Items Policies
+DROP POLICY IF EXISTS "Users can manage own budget items" ON budget_items;
+CREATE POLICY "Users can manage own budget items" ON budget_items 
+  FOR ALL USING (auth.uid() = user_id);
+
+-- =====================================================
+-- INDEXES FOR PERFORMANCE
+-- =====================================================
+
+CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id);
+CREATE INDEX IF NOT EXISTS idx_budget_items_user_id ON budget_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_budget_items_category_id ON budget_items(category_id);

@@ -94,13 +94,18 @@ export const SettingsScreen = () => {
         );
     };
 
-    const ToggleItem = ({ label, value, onValueChange, isLast, icon }: { label: string, value: boolean, onValueChange: (val: boolean) => void, isLast?: boolean, icon?: any }) => {
+    const ToggleItem = ({ label, description, value, onValueChange, isLast, icon }: { label: string, description?: string, value: boolean, onValueChange: (val: boolean) => void, isLast?: boolean, icon?: any }) => {
         const IconComponent = icon;
         return (
-            <View style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }, { alignItems: 'center' }]}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
                     {IconComponent && <IconComponent size={18} color={colors.text} style={{ marginRight: 12 }} />}
-                    <Text style={[styles.itemLabel, { color: colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.itemLabel, { color: colors.text, fontSize: 15 * fontScale }]}>{label}</Text>
+                        {description && (
+                            <Text style={{ color: colors.subText, fontSize: 11 * fontScale, marginTop: 2 }}>{description}</Text>
+                        )}
+                    </View>
                 </View>
                 <Switch
                     value={value}
@@ -131,7 +136,7 @@ export const SettingsScreen = () => {
     const handleCloudBackup = async () => {
         if (!user) return Alert.alert('Giriş Yapın', 'Yedekleme için oturum açmalısınız.');
         try {
-            await uploadBackup(user.uid, { version: '1.0', exportDate: new Date().toISOString(), portfolios, activePortfolioId });
+            await uploadBackup(user.id, { version: '1.0', exportDate: new Date().toISOString(), portfolios, activePortfolioId });
             Alert.alert('Başarılı', 'Yedek alındı. ✅');
         } catch { Alert.alert('Hata', 'Yedekleme başarısız.'); }
     };
@@ -143,7 +148,7 @@ export const SettingsScreen = () => {
             {
                 text: 'Yükle', style: 'destructive', onPress: async () => {
                     try {
-                        const data = await downloadBackup(user.uid);
+                        const data = await downloadBackup(user.id);
                         if (!data) return Alert.alert('Bulunamadı', 'Yedek yok.');
                         await AsyncStorage.setItem('portfolios', JSON.stringify(data.portfolios));
                         if (data.activePortfolioId) await AsyncStorage.setItem('activePortfolioId', data.activePortfolioId);
@@ -264,7 +269,8 @@ export const SettingsScreen = () => {
                         }}
                     />
                     <ToggleItem
-                        label="Portföy Grafiği"
+                        label="Gelişim Grafiği"
+                        description="Portföy değerini zamanla takip eder."
                         icon={BarChart2}
                         value={portfolioChartVisible}
                         onValueChange={togglePortfolioChart}

@@ -111,3 +111,22 @@ export interface NotificationSettings {
   bigMoveAlertEnabled: boolean;
   bigMoveThreshold: number; // Default 5%
 }
+
+export interface BudgetCategory {
+  id: string;
+  type: 'income' | 'expense';
+  name: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface BudgetItem {
+  id: string;
+  categoryId: string;
+  type: 'income' | 'expense';
+  amount: number;
+  currency: 'TRY' | 'USD';
+  date: number;
+  note?: string;
+  linkedPortfolioId?: string; // For integration (withdrawals/investments)
+}

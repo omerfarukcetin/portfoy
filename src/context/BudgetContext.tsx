@@ -106,17 +106,17 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const setupDefaultCategories = async () => {
         const defaults: Omit<BudgetCategory, 'id'>[] = [
-            { type: 'income', name: 'Maaş', icon: 'wallet', color: '#4ADE80' },
-            { type: 'income', name: 'Ek Gelir', icon: 'plus-circle', color: '#22D3EE' },
-            { type: 'income', name: 'Portföy Çekimi', icon: 'arrow-down-circle', color: '#F472B6' },
-            { type: 'income', name: 'Diğer', icon: 'help-circle', color: '#94A3B8' },
-            { type: 'expense', name: 'Market', icon: 'shopping-cart', color: '#F87171' },
-            { type: 'expense', name: 'Kira/Fatura', icon: 'home', color: '#FB923C' },
-            { type: 'expense', name: 'Ulaşım', icon: 'truck', color: '#FBBF24' },
-            { type: 'expense', name: 'Sağlık', icon: 'heart', color: '#F87171' },
-            { type: 'expense', name: 'Eğlence', icon: 'music', color: '#A78BFA' },
-            { type: 'expense', name: 'Yatırım', icon: 'trending-up', color: '#34D399' },
-            { type: 'expense', name: 'Diğer', icon: 'help-circle', color: '#94A3B8' },
+            { type: 'income', name: 'Maaş', icon: '💰', color: '#4ADE80' },
+            { type: 'income', name: 'Ek Gelir', icon: '💵', color: '#22D3EE' },
+            { type: 'income', name: 'Portföy Çekimi', icon: '🏧', color: '#F472B6' },
+            { type: 'income', name: 'Diğer', icon: '➕', color: '#94A3B8' },
+            { type: 'expense', name: 'Market', icon: '🛒', color: '#F87171' },
+            { type: 'expense', name: 'Kira/Fatura', icon: '🏠', color: '#FB923C' },
+            { type: 'expense', name: 'Ulaşım', icon: '🚗', color: '#FBBF24' },
+            { type: 'expense', name: 'Sağlık', icon: '🏥', color: '#F87171' },
+            { type: 'expense', name: 'Eğlence', icon: '🎉', color: '#A78BFA' },
+            { type: 'expense', name: 'Yatırım', icon: '📈', color: '#34D399' },
+            { type: 'expense', name: 'Diğer', icon: '➖', color: '#94A3B8' },
         ];
 
         const toInsert = defaults.map(cat => ({

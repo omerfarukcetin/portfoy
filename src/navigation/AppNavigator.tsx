@@ -336,9 +336,9 @@ const WebNavigator = () => {
     const mobileMenuItems = [
         { name: 'Summary', label: 'Özet', Icon: LayoutDashboard },
         { name: 'Portfolio', label: 'Portföy', Icon: PieChart },
+        { name: 'Wallet', label: 'Cüzdan', Icon: Wallet },
         { name: 'AddInstrument', label: 'Ekle', Icon: Plus },
         { name: 'Transactions', label: 'İşlemler', Icon: Repeat },
-        { name: 'Settings', label: 'Ayarlar', Icon: Settings },
     ];
 
     const handleTabPress = (tabName: string) => {
@@ -362,6 +362,7 @@ const WebNavigator = () => {
                             <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'İşlemler' }} />
                             <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favoriler' }} />
                             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
+                            <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Cüzdan' }} />
                             <Stack.Screen
                                 name="AddInstrument"
                                 component={AddInstrumentScreen}

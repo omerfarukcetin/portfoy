@@ -82,6 +82,10 @@ def push_to_supabase(data):
                 print(f"⚠️ Supabase batch {i//batch_size + 1} hatası: {response.status_code} - {response.text}")
             else:
                 print(f"✅ Supabase batch {i//batch_size + 1}: {len(batch)} kayıt yüklendi")
+            
+            # Small delay between batches
+            import time
+            time.sleep(0.5)
         
         print(f"✅ Supabase'e yüklendi ({len(records)} fon)")
         
@@ -110,24 +114,43 @@ def fetch_all_funds():
 
     # TEFAS data might be empty on weekends or for "today".
     # For a true "daily" return, we want the difference between the most recent workday (T) and the one before it (T-1).
+    def is_workday(d):
+        # 0: Monday, 4: Friday
+        if d.weekday() >= 5:
+            return False
+        # Fixed holidays in Turkey
+        holidays = [
+            (1, 1),   # New Year 
+            (4, 23),  # National Sovereignty
+            (5, 1),   # Labor Day
+            (5, 19),  # Youth & Sports
+            (7, 15),  # Democracy Day
+            (8, 30),  # Victory Day
+            (10, 29), # Republic Day
+        ]
+        if (d.month, d.day) in holidays:
+            return False
+        return True
+
+    def get_prev_workday(d):
+        d = d - timedelta(days=1)
+        while not is_workday(d):
+            d = d - timedelta(days=1)
+        return d
+
     now = datetime.now()
+    # Determine end_date: the most recent trading day with completed results
+    # TEFAS usually updates between 00:00 and 09:00 TRT for the previous day.
+    target_end = now
+    if now.hour < 10: # If early morning, use the day before yesterday as endpoint
+        target_end = target_end - timedelta(days=1)
     
-    # Logic to find the last TWO active trading days for comparison
-    if now.weekday() == 0: # Monday: We want Thu to Fri (since Mon price isn't out yet)
-        end_date = now - timedelta(days=3) # Friday
-        start_date = end_date - timedelta(days=1) # Thursday
-    elif now.weekday() == 6: # Sunday: We want Thu to Fri
-        end_date = now - timedelta(days=2) # Friday
-        start_date = end_date - timedelta(days=1) # Thursday
-    elif now.weekday() == 5: # Saturday: We want Thu to Fri
-        end_date = now - timedelta(days=1) # Friday
-        start_date = end_date - timedelta(days=1) # Thursday
-    elif now.weekday() == 1: # Tuesday: We want Fri to Mon (Mon price is out)
-        end_date = now - timedelta(days=1) # Monday
-        start_date = end_date - timedelta(days=3) # Friday
-    else: # Wed, Thu, Fri: yesterday vs day before yesterday
-        end_date = now - timedelta(days=1) 
-        start_date = end_date - timedelta(days=1)
+    # Go back until we find a workday
+    while not is_workday(target_end):
+        target_end = target_end - timedelta(days=1)
+    
+    end_date = target_end
+    start_date = get_prev_workday(end_date)
     
     # TEFAS BindComparisonFundReturns
     start_str = start_date.strftime('%Y-%m-%d')
@@ -166,7 +189,13 @@ def fetch_all_funds():
             headers=post_headers
         )
         
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"❌ JSON Decode Hatası: {e}")
+            print(f"📄 Yanıt İçeriği: {response.text[:500]}")
+            return
+        
         fund_list = []
         fund_daily_returns = {}  # Store daily returns from this API
         
@@ -193,9 +222,22 @@ def fetch_all_funds():
             return
 
         # Step 2: Fetch detailed prices for each fund (to get exact latest price)
-        print("💰 Fiyatlar çekiliyor (Bu işlem birkaç dakika sürebilir)...")
-        
+        # Load existing data for additive updates
+        output_dir = "src/data"
+        output_file = f"{output_dir}/tefas_data.json"
         price_data_map = {}
+        
+        if os.path.exists(output_file):
+            try:
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    old_data = json.load(f)
+                    if 'data' in old_data:
+                        price_data_map = old_data['data']
+                        print(f"📂 Mevcut {len(price_data_map)} fon verisi yüklendi (üzerine güncellenecek).")
+            except Exception as e:
+                print(f"⚠️ Mevcut veri yüklenemedi: {e}")
+
+        print("💰 Fiyatlar çekiliyor (Sıralı ve gecikmeli işlem yapılıyor)...")
         
         import concurrent.futures
 
@@ -205,10 +247,14 @@ def fetch_all_funds():
                 # BindHistoryInfo payload
                 # Use YYYY-MM-DD for this one as verified in Step 139/verify_tefas_history verification
                 # wait, fetch_tefas_data.py currently has start_str as YYYY-MM-DD (from Step 236 modification).
+                # Fetch last 30 days to ensure we get the latest price
+                history_end = datetime.now()
+                history_start = history_end - timedelta(days=30)
+                
                 p_payload = {
                     "fontip": "YAT",
-                    "bastarih": start_str, # YYYY-MM-DD
-                    "bittarih": end_str,   # YYYY-MM-DD
+                    "bastarih": history_start.strftime('%Y-%m-%d'),
+                    "bittarih": history_end.strftime('%Y-%m-%d'),
                     "fonkod": code
                 }
                 
@@ -265,56 +311,70 @@ def fetch_all_funds():
         # For DEMO/Verification sake, let's cap at 50, but comment out the cap for production.
         # Actually I will just run for ALL. It's 2000 items. 20 threads = 100 batches. 100 * 0.5s = 50s. Acceptable.
         
-        # Reducing threads to avoid WAF blocking (4 seems safe)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(get_price, code) for code in fund_list]
-            
-            count = 0
-            for future in concurrent.futures.as_completed(futures):
-                code, price, date = future.result()
-                if price:
-                    # Get daily change from earlier API call
-                    daily_info = fund_daily_returns.get(code, {})
-                    price_data_map[code] = {
-                        "code": code,
-                        "price": price,
-                        "date": date,
-                        "dailyChange": daily_info.get('daily_change', 0),
-                        "name": daily_info.get('name', ''),
-                        "fetchedAt": datetime.now().isoformat()
-                    }
-                count += 1
-                if count % 100 == 0:
-                    print(f"⏳ {count}/{len(fund_list)} tamamlandı...")
-
-        print(f"✅ {len(price_data_map)} adet fon fiyatı alındı.")
-
-        if price_data_map:
-            # 4. Save to JSON
-            output_dir = "src/data"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            
-            output_file = f"{output_dir}/tefas_data.json"
+        import random
+        import time
+        
+        def save_data(data_map):
+            if not data_map:
+                return
             
             final_data = {
                 "lastUpdated": datetime.now().isoformat(),
-                "count": len(price_data_map),
-                "data": price_data_map
+                "count": len(data_map),
+                "data": data_map
             }
             
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(final_data, f, ensure_ascii=False, indent=2)
+            print(f"💾 Veriler kaydedildi ({len(data_map)} fon): {output_file}")
+            return final_data
+
+        try:
+            count = 0
+            success_count = 0
+            for code in fund_list:
+                count += 1
+                code_res, price, date = get_price(code)
                 
-            print(f"💾 Veriler kaydedildi: {output_file}")
+                if price:
+                    daily_info = fund_daily_returns.get(code, {})
+                    try:
+                        daily_change_val = float(daily_info.get('daily_change', 0) or 0)
+                    except:
+                        daily_change_val = 0.0
+                    
+                    price_data_map[code] = {
+                        "code": code,
+                        "price": price,
+                        "date": date,
+                        "dailyChange": daily_change_val,
+                        "daily_change": daily_change_val,
+                        "name": daily_info.get('name', ''),
+                        "fetchedAt": datetime.now().isoformat()
+                    }
+                    success_count += 1
+                
+                # Randomized jitter to avoid WAF (0.2s - 0.7s)
+                if count < len(fund_list):
+                    time.sleep(random.uniform(0.2, 0.7))
+                
+                if count % 20 == 0:
+                    print(f"⏳ {count}/{len(fund_list)} tamamlandı... (Yeni başarılar: {success_count})")
+                
+                # Periodically save locally
+                if count % 100 == 0:
+                    save_data(price_data_map)
+                    
+        finally:
+            print(f"🏁 İşlem tamamlanıyor. Son durum kaydediliyor...")
+            final_result = save_data(price_data_map)
             
-            # Firebase Push
-            push_to_firebase(final_data)
-            
-            # Supabase Push
-            push_to_supabase(final_data)
-            
-            return True
+            if final_result:
+                # Firebase Push
+                push_to_firebase(final_result)
+                # Supabase Push
+                push_to_supabase(final_result)
+                return True
         
         return False
 
@@ -323,8 +383,6 @@ def fetch_all_funds():
         import traceback
         traceback.print_exc()
         return False
-
-
 
 if __name__ == "__main__":
     fetch_all_funds()

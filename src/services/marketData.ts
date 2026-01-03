@@ -656,13 +656,22 @@ export const MarketDataService = {
 
         if (cloudData && cloudData.data && cloudData.data[upperCode]) {
             const fund = cloudData.data[upperCode] as any;
-            return {
-                symbol: upperCode,
-                name: fund.name || upperCode,
-                currentPrice: Number(fund.price),
-                change24h: fund.dailyChange || fund.daily_change || 0,
-                lastUpdated: new Date(fund.date).getTime()
-            };
+            const price = Number(fund.price);
+            const change = fund.dailyChange || fund.daily_change || 0;
+
+            // If we have price and non-zero change, return immediately
+            // If change is 0, it might be due to holiday issue, so we might want to fall back 
+            // BUT only if the fetchedAt is old. For now, let's just use it if it's non-zero.
+            if (price > 0 && change !== 0) {
+                return {
+                    symbol: upperCode,
+                    name: fund.name || upperCode,
+                    currentPrice: price,
+                    change24h: change,
+                    lastUpdated: new Date(fund.date).getTime()
+                };
+            }
+            // If change is 0, we'll fall back to direct API to verify if there's a real change
         }
 
         // 2. Fallback to Local JSON (Backup if Cloud fails)
@@ -1276,7 +1285,7 @@ export const MarketDataService = {
                     date,
                     value: gramGoldTL
                 };
-            }).filter((item): item is { date: string, value: number } => item !== null && item.value > 0);
+            }).filter((item: any): item is { date: string, value: number } => item !== null && item.value > 0);
 
             return history;
         } catch (error) {

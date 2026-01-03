@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     categoryItem: {
-        width: (width - 48) / 6,
-        margin: 2,
+        width: '14.5%',
+        margin: '1%',
         aspectRatio: 1,
         borderRadius: 8,
         justifyContent: 'center',

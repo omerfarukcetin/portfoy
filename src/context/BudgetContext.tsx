@@ -31,6 +31,24 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [categories, setCategories] = useState<BudgetCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const fixIcon = (icon: string) => {
+        const mapping: { [key: string]: string } = {
+            'wallet': '💰',
+            'plus-circle': '💵',
+            'arrow-down-circle': '🏧',
+            'help-circle': '❓',
+            'shopping-cart': '🛒',
+            'home': '🏠',
+            'truck': '🚗',
+            'heart': '🏥',
+            'music': '🎉',
+            'trending-up': '📈',
+            'plus': '➕',
+            'minus': '➖'
+        };
+        return mapping[icon] || icon;
+    };
+
     const showAlert = (title: string, message: string) => {
         Alert.alert(title, message);
     };
@@ -61,12 +79,31 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             if (error) throw error;
 
-            let loadedCategories = data as BudgetCategory[];
-            if (loadedCategories.length === 0) {
-                loadedCategories = await setupDefaultCategories();
+            let loadedCategories = (data || []) as BudgetCategory[];
+
+            // 1. Fix Icons (Map legacy names to emojis)
+            loadedCategories = loadedCategories.map(cat => ({
+                ...cat,
+                icon: fixIcon(cat.icon || '💰')
+            }));
+
+            // 2. Deduplicate (Keep first occurrence per name+type)
+            const seen = new Set();
+            const uniqueCategories = loadedCategories.filter(cat => {
+                const key = `${cat.name}-${cat.type}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            if (uniqueCategories.length === 0) {
+                const defaults = await setupDefaultCategories();
+                setCategories(defaults);
+                return defaults;
             }
-            setCategories(loadedCategories);
-            return loadedCategories;
+
+            setCategories(uniqueCategories);
+            return uniqueCategories;
         } catch (error: any) {
             console.error('Error fetching categories:', error);
             showAlert('Hata', `Kategoriler yüklenirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);

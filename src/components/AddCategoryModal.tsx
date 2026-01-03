@@ -68,7 +68,7 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = ({ visible, onC
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                             <Text style={[styles.label, { color: colors.subText }]}>Kategori Adı</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
@@ -76,7 +76,8 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = ({ visible, onC
                                 onChangeText={setName}
                                 placeholder="Örn: Market"
                                 placeholderTextColor={colors.subText}
-                                autoFocus
+                                onSubmitEditing={handleAdd}
+                                blurOnSubmit={false}
                             />
 
                             <Text style={[styles.label, { color: colors.subText }]}>İkon Seç</Text>
@@ -90,7 +91,7 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = ({ visible, onC
                                         ]}
                                         onPress={() => setSelectedIcon(icon)}
                                     >
-                                        <Text style={{ fontSize: 24 }}>{icon}</Text>
+                                        <Text style={{ fontSize: 20 }}>{icon}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -125,73 +126,73 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'center',
-        padding: 20,
+        padding: 12,
     },
     keyboardView: {
         width: '100%',
     },
     container: {
-        borderRadius: 24,
-        padding: 20,
-        maxHeight: '80%',
+        borderRadius: 16,
+        padding: 12,
+        maxHeight: '90%',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 8,
     },
     title: {
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: 'bold',
     },
     closeButton: {
-        padding: 4,
+        padding: 2,
     },
     label: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '600',
-        marginBottom: 8,
-        marginLeft: 4,
-        marginTop: 10,
+        marginBottom: 4,
+        marginLeft: 2,
+        marginTop: 4,
     },
     input: {
-        height: 48,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        marginBottom: 12,
-        fontSize: 16,
+        height: 40,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginBottom: 8,
+        fontSize: 14,
         borderWidth: 1,
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginHorizontal: -4,
+        marginHorizontal: -2,
     },
     gridItem: {
-        width: '18%',
+        width: '10.5%',
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
+        borderRadius: 8,
         margin: '1%',
     },
     colorItem: {
-        width: '13%',
+        width: '8.5%',
         aspectRatio: 1,
-        borderRadius: 12,
+        borderRadius: 6,
         margin: '1%',
     },
     addButton: {
-        height: 50,
-        borderRadius: 14,
+        height: 42,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 20,
+        marginTop: 12,
     },
     buttonText: {
         color: '#FFF',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
     },
 });

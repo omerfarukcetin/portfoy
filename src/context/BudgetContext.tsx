@@ -32,7 +32,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     useEffect(() => {
         if (user) {
-            loadData();
+            refreshAllData();
         } else {
             setItems([]);
             setCategories([]);
@@ -40,37 +40,45 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     }, [user]);
 
-    const loadData = async () => {
+    const refreshAllData = async () => {
         setIsLoading(true);
+        await Promise.all([fetchCategories(), fetchItems()]);
+        setIsLoading(false);
+    };
+
+    const fetchCategories = async () => {
         try {
-            // 1. Load Categories
-            const { data: catData, error: catError } = await supabase
+            const { data, error } = await supabase
                 .from('budget_categories')
                 .select('*')
                 .eq('user_id', user?.id)
                 .order('created_at', { ascending: true });
 
-            if (catError) throw catError;
+            if (error) throw error;
 
-            let loadedCategories = catData as BudgetCategory[];
-
-            // If no categories, add defaults
+            let loadedCategories = data as BudgetCategory[];
             if (loadedCategories.length === 0) {
                 loadedCategories = await setupDefaultCategories();
             }
             setCategories(loadedCategories);
+            return loadedCategories;
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            return [];
+        }
+    };
 
-            // 2. Load Items
-            const { data: itemData, error: itemError } = await supabase
+    const fetchItems = async () => {
+        try {
+            const { data, error } = await supabase
                 .from('budget_items')
                 .select('*')
                 .eq('user_id', user?.id)
                 .order('date', { ascending: false });
 
-            if (itemError) throw itemError;
+            if (error) throw error;
 
-            // Map keys from snake_case to camelCase
-            const mappedItems = (itemData || []).map((item: any) => ({
+            const mappedItems = (data || []).map((item: any) => ({
                 id: item.id,
                 categoryId: item.category_id,
                 type: item.type,
@@ -82,11 +90,10 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }));
 
             setItems(mappedItems as BudgetItem[]);
-
+            return mappedItems;
         } catch (error) {
-            console.error('Error loading budget data:', error);
-        } finally {
-            setIsLoading(false);
+            console.error('Error fetching items:', error);
+            return [];
         }
     };
 
@@ -231,12 +238,8 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const addCategory = async (category: Omit<BudgetCategory, 'id'>) => {
-        const id = Math.random().toString(36).substr(2, 9);
-        const newCat: BudgetCategory = { ...category, id };
-
-        setCategories(prev => [...prev, newCat]);
-
         try {
+            const id = Math.random().toString(36).substr(2, 9);
             const { error } = await supabase
                 .from('budget_categories')
                 .insert([{
@@ -248,38 +251,44 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     color: category.color
                 }]);
             if (error) throw error;
+
+            // After successful insert, refresh categories from DB
+            await fetchCategories();
         } catch (error) {
             console.error('Error adding category:', error);
+            throw error;
         }
     };
 
     const updateCategory = async (id: string, updates: Partial<BudgetCategory>) => {
-        setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-
         try {
             const { error } = await supabase
                 .from('budget_categories')
                 .update(updates)
                 .eq('id', id);
             if (error) throw error;
+
+            // Refresh from DB
+            await fetchCategories();
         } catch (error) {
             console.error('Error updating category:', error);
+            throw error;
         }
     };
 
     const deleteCategory = async (id: string) => {
-        setCategories(prev => prev.filter(c => c.id !== id));
-        // Items will be deleted by CASCADE in Supabase
-        setItems(prev => prev.filter(i => i.categoryId !== id));
-
         try {
             const { error } = await supabase
                 .from('budget_categories')
                 .delete()
                 .eq('id', id);
             if (error) throw error;
+
+            // Items are deleted by CASCADE in DB, so refresh both
+            await Promise.all([fetchCategories(), fetchItems()]);
         } catch (error) {
             console.error('Error deleting category:', error);
+            throw error;
         }
     };
 

@@ -215,25 +215,32 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     await AsyncStorage.setItem('portfolios', JSON.stringify(updated));
                     if (newActiveId) await AsyncStorage.setItem('activePortfolioId', newActiveId);
 
-                    // Debounced sync to Supabase
+                    // Debounced sync to Supabase (Increased to 5s to reduce server load)
                     if (user?.id) {
                         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
                         syncTimeoutRef.current = setTimeout(async () => {
-                            try {
-                                console.log('🔷 Debounced background sync to Supabase...');
-                                await saveUserPortfolios(user.id, updated, activeId);
-                                console.log('✅ Supabase sync completed');
-                            } catch (e) {
-                                console.error('❌ Supabase sync failed:', e);
-                                // Notify user about sync failure
-                                const errorMessage = 'Bulut senkronizasyonu başarısız oldu. Verileriniz bu cihazda güvende, ancak internet bağlantınızı kontrol etmeniz önerilir.';
-                                if (Platform.OS === 'web') {
-                                    window.alert(errorMessage);
-                                } else {
-                                    Alert.alert('Eşitleme Hatası', errorMessage);
+                            let retryCount = 0;
+                            const maxRetries = 2;
+
+                            const attemptSync = async () => {
+                                try {
+                                    console.log(`🔷 Debounced background sync to Supabase (Attempt ${retryCount + 1})...`);
+                                    await saveUserPortfolios(user.id, updated, activeId);
+                                    console.log('✅ Supabase sync completed');
+                                } catch (e) {
+                                    console.error(`❌ Supabase sync failed (Attempt ${retryCount + 1}):`, e);
+                                    if (retryCount < maxRetries) {
+                                        retryCount++;
+                                        setTimeout(attemptSync, 5000 * retryCount); // Backoff retry
+                                    } else {
+                                        // Final failure: Log silently, don't interrupt the user with Alerts
+                                        console.warn('Final cloud sync attempt failed. Data is saved locally and will try again on next change.');
+                                    }
                                 }
-                            }
-                        }, 1000);
+                            };
+
+                            attemptSync();
+                        }, 5000);
                     }
                 } catch (e) {
                     console.error('❌ Failed to save to local storage:', e);

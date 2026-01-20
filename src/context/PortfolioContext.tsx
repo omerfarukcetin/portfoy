@@ -121,6 +121,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [syncError, setSyncError] = useState<string | null>(null);
 
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
+    const loadDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Derived active portfolio
     const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
@@ -218,12 +219,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!user?.id || !pendingSyncData.current) return;
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
-        const { portfolios, activeId } = pendingSyncData.current;
+        const dataToSync = pendingSyncData.current;
+        const { portfolios, activeId } = dataToSync;
         console.log('🚀 Triggering IMMEDIATE sync to Supabase (App moving to background)...');
         try {
             await saveUserPortfolios(user.id, portfolios, activeId);
             console.log('✅ Immediate sync success');
-            pendingSyncData.current = null;
+            if (pendingSyncData.current === dataToSync) {
+                pendingSyncData.current = null;
+            }
         } catch (e) {
             console.error('❌ Immediate sync failed:', e);
         }
@@ -284,11 +288,17 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                                     setIsSyncing(false);
                                     return;
                                 }
+
+                                const dataToSync = pendingSyncData.current;
                                 try {
                                     console.log(`🔷 Debounced background sync to Supabase (Attempt ${retryCount + 1})...`);
-                                    await saveUserPortfolios(user.id, updated, activeId);
+                                    await saveUserPortfolios(user.id, dataToSync.portfolios, dataToSync.activeId);
                                     console.log('✅ Supabase sync completed');
-                                    pendingSyncData.current = null; // Clear pending data on success
+
+                                    // ONLY clear if no newer data has arrived during the sync
+                                    if (pendingSyncData.current === dataToSync) {
+                                        pendingSyncData.current = null;
+                                    }
                                     setIsSyncing(false);
                                 } catch (e) {
                                     console.error(`❌ Supabase sync failed (Attempt ${retryCount + 1}):`, e);
@@ -304,7 +314,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                             };
 
                             attemptSync();
-                        }, 1500); // Reduced to 1.5s for better responsiveness
+                        }, 800); // Reduced to 800ms for better responsiveness
                     }
                 } catch (e) {
                     console.error('❌ Failed to save to local storage:', e);
@@ -432,6 +442,50 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setIsLoading(false);
         }
     };
+
+    const debouncedLoadData = () => {
+        if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current);
+        loadDataTimeoutRef.current = setTimeout(() => {
+            loadData();
+        }, 1000); // Wait 1s before reloading to allow current device to finish its own sync
+    };
+
+    // Realtime subscription for cross-device updates
+    useEffect(() => {
+        if (!user?.id) return;
+
+        console.log('🔷 Realtime: Subscribing to portfolio_changes...');
+        const channel = supabase
+            .channel('portfolio_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'portfolios',
+                    filter: `user_id=eq.${user.id}`
+                },
+                (payload: any) => {
+                    // Only reload if the change didn't come from THIS instance 
+                    // (we determine this by presence of pendingSyncData)
+                    if (!pendingSyncData.current) {
+                        console.log('🔄 Realtime: Change detected in Supabase, reloading...', payload.eventType);
+                        debouncedLoadData();
+                    } else {
+                        console.log('⏭️ Realtime: Change ignored because local sync is in progress');
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log('📡 Realtime status:', status);
+            });
+
+        return () => {
+            console.log('🔷 Realtime: Unsubscribing...');
+            supabase.removeChannel(channel);
+            if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current);
+        };
+    }, [user?.id]);
 
     // Reload data when user changes
     useEffect(() => {

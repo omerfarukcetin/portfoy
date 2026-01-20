@@ -26,6 +26,8 @@ interface PortfolioContextType {
     cashBalance: number;
     totalValueTry: number;
     totalValueUsd: number;
+    totalCostBasisTry: number;
+    dailyProfit: number;
     totalRealizedProfitTry: number;
     totalRealizedProfitUsd: number;
     dividends: Dividend[];
@@ -102,10 +104,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [isLoading, setIsLoading] = useState(false);
     const [totalValueTry, setTotalValueTry] = useState(0);
     const [totalValueUsd, setTotalValueUsd] = useState(0);
+    const [totalCostBasisTry, setTotalCostBasisTry] = useState(0);
+    const [dailyProfit, setDailyProfit] = useState(0);
     const [currentUsdRate, setCurrentUsdRate] = useState(30);
 
     // Real-time Pricing State
     const [prices, setPrices] = useState<Record<string, number>>({});
+    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
 
@@ -867,10 +872,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const refreshAllPrices = async () => {
-        if (portfolio.length === 0) return;
+        if (portfolio.length === 0 && cashItems.length === 0) return;
 
         console.log('🔄 Refreshing all prices from Context...');
         const newPrices: Record<string, number> = {};
+        const newFundPrices: Record<string, number> = {};
         const newDailyChanges: Record<string, number> = {};
 
         try {
@@ -880,7 +886,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 setCurrentUsdRate(rateData.currentPrice);
             }
 
-            // Fetch all prices in parallel using batch API
+            // Fetch regular prices in parallel
             const regularItems = portfolio.filter(item => !item.customCurrentPrice);
             const priceResults = await MarketDataService.fetchMultiplePrices(regularItems);
 
@@ -898,14 +904,102 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 }
             }
 
+            // Fetch Fund Prices for PPF
+            const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+            for (const item of fundItems) {
+                if (item.instrumentId) {
+                    try {
+                        const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
+                        if (priceResult && priceResult.currentPrice) {
+                            newFundPrices[item.instrumentId] = priceResult.currentPrice;
+                        }
+                    } catch (e) {
+                        console.warn(`Failed to fetch fund price for ${item.instrumentId}`, e);
+                    }
+                }
+            }
+
             setPrices(prev => ({ ...prev, ...newPrices }));
+            setFundPrices(prev => ({ ...prev, ...newFundPrices }));
             setDailyChanges(prev => ({ ...prev, ...newDailyChanges }));
             setLastPricesUpdate(Date.now());
-            console.log('✅ All prices refreshed in Context');
+            console.log('✅ All prices (including funds) refreshed in Context');
         } catch (e) {
             console.error('❌ Failed to refresh all prices:', e);
         }
     };
+
+    // Centralized Calculation for Total Value
+    useEffect(() => {
+        if (Object.keys(prices).length === 0 && portfolio.length > 0) return;
+
+        let calcTotalTry = 0;
+        let calcTotalUsd = 0;
+        let calcCostBasisTry = 0;
+        let calcDailyProfit = 0;
+
+        // Calculate Portfolio Items
+        portfolio.forEach(item => {
+            let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+            const changePercent = dailyChanges[item.instrumentId] || 0;
+
+            // CRITICAL FIX: If crypto is kept in TRY but price is fetched in USD (common for MarketDataService)
+            if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
+                price = price * (currentUsdRate || 1);
+            }
+
+            let value = item.amount * price;
+            if (item.type === 'bes') {
+                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
+            }
+
+            if (item.currency === 'USD') {
+                const valueTry = value * (currentUsdRate || 1);
+                calcTotalTry += valueTry;
+                calcTotalUsd += value;
+                calcCostBasisTry += item.amount * item.averageCost * (currentUsdRate || 1);
+                calcDailyProfit += valueTry * (changePercent / 100);
+            } else {
+                calcTotalTry += value;
+                calcTotalUsd += value / (currentUsdRate || 1);
+                calcCostBasisTry += item.amount * item.averageCost;
+                calcDailyProfit += value * (changePercent / 100);
+            }
+        });
+
+        // Calculate Cash Items (Nakit + PPF)
+        cashItems.forEach(item => {
+            let itemValue = item.amount;
+
+            // PPF Live Valuation
+            if (item.type === 'money_market_fund' && item.units && item.instrumentId) {
+                const livePrice = fundPrices[item.instrumentId];
+                if (livePrice) {
+                    itemValue = item.units * livePrice;
+                }
+            }
+
+            if (item.currency === 'USD') {
+                calcTotalTry += itemValue * (currentUsdRate || 1);
+                calcTotalUsd += itemValue;
+                calcCostBasisTry += item.amount * (currentUsdRate || 1);
+            } else {
+                calcTotalTry += itemValue;
+                calcTotalUsd += itemValue / (currentUsdRate || 1);
+                calcCostBasisTry += item.amount;
+            }
+        });
+
+        // Update Context States
+        setTotalValueTry(calcTotalTry);
+        setTotalValueUsd(calcTotalUsd);
+        setTotalCostBasisTry(calcCostBasisTry);
+        setDailyProfit(calcDailyProfit);
+
+        // Update History Tracking
+        updateTotalValue(calcTotalTry, calcTotalUsd);
+
+    }, [portfolio, cashItems, prices, fundPrices, currentUsdRate]);
 
     const updateTotalValue = async (valTry: number, valUsd: number) => {
         setTotalValueTry(valTry);
@@ -1010,8 +1104,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             let value = item.amount * livePrice;
 
-            // Convert to TRY if needed
-            if (item.currency === 'USD') {
+            // Convert to TRY if needed - apply same crypto TRY fix here
+            if (item.type === 'crypto' && item.currency === 'TRY' && livePrice > 0) {
+                value = value * (currentUsdRate || 1);
+            } else if (item.currency === 'USD') {
                 value = value * (currentUsdRate || 1);
             }
 
@@ -1043,9 +1139,29 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
         });
 
-        // Add cash
+        // Add cash items (includes PPF)
+        cashItems.forEach(item => {
+            let itemValue = item.amount;
+
+            // PPF Live Valuation
+            if (item.type === 'money_market_fund' && item.units && item.instrumentId) {
+                const livePrice = fundPrices[item.instrumentId];
+                if (livePrice) {
+                    itemValue = item.units * livePrice;
+                }
+            }
+
+            if (item.currency === 'USD') {
+                itemValue = itemValue * (currentUsdRate || 1);
+            }
+
+            const label = item.type === 'money_market_fund' ? 'Yatırım Fonu' : 'Nakit';
+            typeMap[label] = (typeMap[label] || 0) + itemValue;
+        });
+
+        // Add plain cash balance if any
         if (cashBalance > 0) {
-            typeMap['Nakit (TL)'] = cashBalance;
+            typeMap['Nakit'] = (typeMap['Nakit'] || 0) + cashBalance;
         }
 
         // Convert to array
@@ -1160,6 +1276,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             cashBalance,
             totalValueTry,
             totalValueUsd,
+            totalCostBasisTry,
+            dailyProfit,
             totalRealizedProfitTry,
             totalRealizedProfitUsd,
             dividends,

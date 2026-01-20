@@ -35,34 +35,35 @@ export const AssetRow: React.FC<AssetRowProps> = ({
     // ... rest of component logic ...
 
     // For custom assets, use customCurrentPrice if available
-    let effectivePrice = item.customCurrentPrice || currentPrice;
-    let displayPrice = effectivePrice;
-    let displayValue = item.amount * effectivePrice;
+    let currentBasePrice = item.customCurrentPrice || currentPrice;
+
+    // CRITICAL FIX: If crypto is kept in TRY but price is fetched in USD (common for MarketDataService)
+    if (item.type === 'crypto' && item.currency === 'TRY' && currentBasePrice > 0) {
+        currentBasePrice = currentBasePrice * usdRate;
+    }
+
+    let displayPrice = currentBasePrice;
+    let displayValue = item.amount * currentBasePrice;
     let displayCost = item.amount * item.averageCost;
 
-    // BES special handling - calculate value from BES fields
+    // BES special handling
     if (item.type === 'bes') {
         displayValue = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
         displayCost = item.besPrincipal || 0;
-        displayPrice = displayValue; // Show total value as "price"
+        displayPrice = displayValue;
     }
 
     // Get display name - use customName for custom assets
     const displayName = item.customName || item.instrumentId;
 
-    // For proper P/L calculation with different percentages:
-    // Use original cost in the target currency if available, otherwise convert
+    // Convert to display currency if different from item currency
     if (displayCurrency === 'USD' && item.currency === 'TRY') {
-        // Convert TRY price to USD
-        displayPrice = currentPrice / usdRate;
+        displayPrice = displayPrice / usdRate;
         displayValue = displayValue / usdRate;
-        // Use original USD cost if stored, else convert (this gives same %)
         displayCost = item.originalCostUsd || (displayCost / usdRate);
     } else if (displayCurrency === 'TRY' && item.currency === 'USD') {
-        // Convert USD price to TRY
-        displayPrice = currentPrice * usdRate;
+        displayPrice = displayPrice * usdRate;
         displayValue = displayValue * usdRate;
-        // Use original TRY cost if stored, else convert
         displayCost = item.originalCostTry || (displayCost * usdRate);
     }
 

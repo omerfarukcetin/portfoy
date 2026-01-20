@@ -239,7 +239,13 @@ export const PortfolioScreen = () => {
 
     portfolio.forEach(item => {
         // Use customCurrentPrice for custom assets, otherwise use fetched price
-        const price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+        let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+
+        // CRITICAL FIX: If crypto is kept in TRY but price is fetched in USD (common for MarketDataService)
+        if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
+            price = price * usdRate;
+        }
+
         let value = item.amount * price;
         let cost = item.amount * item.averageCost;
 

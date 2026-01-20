@@ -48,6 +48,8 @@ export const SummaryScreen = () => {
         history,
         totalValueTry,
         totalValueUsd,
+        totalCostBasisTry,
+        dailyProfit,
         cashBalance,
         updateTotalValue,
         totalRealizedProfitTry,
@@ -72,8 +74,8 @@ export const SummaryScreen = () => {
     // Persist portfolio values for UI
     const [totalPortfolioTry, setTotalPortfolioTry] = useState(0);
     const [totalPortfolioUsd, setTotalPortfolioUsd] = useState(0);
-    const [totalCostBasisTry, setTotalCostBasisTry] = useState(0);
-    const [dailyProfit, setDailyProfit] = useState(0);
+    const [totalCostBasisTryLocal, setTotalCostBasisTryLocal] = useState(0);
+    const [dailyProfitLocal, setDailyProfitLocal] = useState(0);
 
     const [goldPrice, setGoldPrice] = useState(0);
     const [silverPrice, setSilverPrice] = useState(0);
@@ -218,100 +220,13 @@ export const SummaryScreen = () => {
         fetchMarketData();
     }, []);
 
-    // Calculate Totals and update state
+    // Sync state for UI (retaining locally for backwards compatibility with some UI components)
     useEffect(() => {
-        console.log('📊 Calculating totals:', {
-            pricesCount: Object.keys(prices).length,
-            portfolioCount: portfolio.length,
-            cashBalance,
-            usdRate
-        });
-
-        // Don't calculate if prices haven't loaded yet (but allow if portfolio is empty)
-        if (Object.keys(prices).length === 0 && portfolio.length > 0) {
-            console.log('⏳ Waiting for prices to load...');
-            return;
-        }
-
-        let calcTotalTry = 0;
-        let calcTotalUsd = 0;
-        let calcCostBasisTry = 0;
-        let calcDailyProfit = 0;
-
-        portfolio.forEach(item => {
-            // Use customCurrentPrice for custom assets, otherwise use fetched price
-            let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
-            const changePercent = dailyChanges[item.instrumentId] || 0;
-
-            // If this is a crypto asset stored in TRY but price was fetched in USD, convert it
-            if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
-                price = price * (usdRate || 1);
-            }
-
-            let value = item.amount * price;
-
-            // BES Value Calculation
-            if (item.type === 'bes') {
-                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
-            }
-
-            let valueTry = 0;
-            let valueUsd = 0;
-            let costTry = 0;
-
-            if (item.currency === 'USD') {
-                valueUsd = value;
-                valueTry = value * (usdRate || 1);
-                costTry = item.amount * item.averageCost * (usdRate || 1);
-                calcDailyProfit += valueTry * (changePercent / 100);
-            } else {
-                valueTry = value;
-                valueUsd = value / (usdRate || 1);
-                costTry = item.amount * item.averageCost;
-                calcDailyProfit += valueTry * (changePercent / 100);
-            }
-
-            calcTotalTry += valueTry;
-            calcTotalUsd += valueUsd;
-            calcCostBasisTry += costTry;
-        });
-
-        // Add Cash (includes PPF at cost basis)
-        calcTotalTry += cashBalance;
-        calcTotalUsd += cashBalance / (usdRate || 1);
-
-        // Add PPF profit (difference between current value and cost)
-        let ppfProfit = 0;
-        cashItems.forEach(item => {
-            if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
-                const livePrice = fundPrices[item.instrumentId];
-                if (livePrice) {
-                    const currentValue = item.units * livePrice;
-                    const cost = item.units * item.averageCost;
-                    ppfProfit += currentValue - cost;
-                }
-            }
-        });
-        calcTotalTry += ppfProfit;
-        calcTotalUsd += ppfProfit / (usdRate || 1);
-
-        // Update state
-        setTotalPortfolioTry(calcTotalTry);
-        setTotalPortfolioUsd(calcTotalUsd);
-        setTotalCostBasisTry(calcCostBasisTry);
-        setDailyProfit(calcDailyProfit);
-    }, [portfolio, contextPrices, contextDailyChanges, contextUsdRate, cashBalance, cashItems, fundPrices]);
-
-    // Sync calculated totals with Context (for History Tracking)
-    useEffect(() => {
-        if (totalPortfolioTry > 0) {
-            // Debounce updates to prevent excessive storage writes/renders
-            const timer = setTimeout(() => {
-                updateTotalValue(totalPortfolioTry, totalPortfolioUsd);
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
-    }, [totalPortfolioTry, totalPortfolioUsd]);
+        setTotalPortfolioTry(totalValueTry);
+        setTotalPortfolioUsd(totalValueUsd);
+        setTotalCostBasisTryLocal(totalCostBasisTry);
+        setDailyProfitLocal(dailyProfit);
+    }, [totalValueTry, totalValueUsd, totalCostBasisTry, dailyProfit]);
 
     // Calculate Yedek Akçe totals (reusable for both mobile and web)
     const { totalCashValue, ppfProfit, ppfCost } = React.useMemo(() => {

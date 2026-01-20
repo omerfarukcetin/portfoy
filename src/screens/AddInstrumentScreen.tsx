@@ -705,6 +705,11 @@ export const AddInstrumentScreen = () => {
                                     </TouchableOpacity>
                                 </View>
                             </View>
+                            {category === 'KRIPTO' && currency === 'TRY' && (
+                                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: -8, marginBottom: 16, marginLeft: 4 }}>
+                                    * Piyasa fiyatı USD çekilip otomatik TL'ye çevrilecek
+                                </Text>
+                            )}
                         </>
                     )}
 

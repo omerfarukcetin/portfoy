@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio, Dividend } from '../types';
 import { MarketDataService } from '../services/marketData';
@@ -206,13 +206,43 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pendingSyncData = useRef<{ portfolios: Portfolio[], activeId: string } | null>(null);
+
+    const triggerImmediateSync = async () => {
+        if (!user?.id || !pendingSyncData.current) return;
+        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
+        const { portfolios, activeId } = pendingSyncData.current;
+        console.log('🚀 Triggering IMMEDIATE sync to Supabase (App moving to background)...');
+        try {
+            await saveUserPortfolios(user.id, portfolios, activeId);
+            console.log('✅ Immediate sync success');
+            pendingSyncData.current = null;
+        } catch (e) {
+            console.error('❌ Immediate sync failed:', e);
+        }
+    };
+
+    // Listen for app state changes to sync data when app goes to background
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'background' || nextAppState === 'inactive') {
+                triggerImmediateSync();
+            }
+        });
+        return () => subscription.remove();
+    }, [user?.id]);
 
     const savePortfolios = (newPortfolios: Portfolio[] | ((prev: Portfolio[]) => Portfolio[]), newActiveId?: string) => {
         const activeId = newActiveId || activePortfolioId;
 
         // 1. Update LOCAL state immediately
         setPortfolios(prev => {
-            const updated = typeof newPortfolios === 'function' ? newPortfolios(prev) : newPortfolios;
+            const now = Date.now();
+            const updatedRaw = typeof newPortfolios === 'function' ? newPortfolios(prev) : newPortfolios;
+
+            // CRITICAL: Always update updatedAt when data changes
+            const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
 
             // Background tasks for storage
             (async () => {
@@ -220,32 +250,35 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     await AsyncStorage.setItem('portfolios', JSON.stringify(updated));
                     if (newActiveId) await AsyncStorage.setItem('activePortfolioId', newActiveId);
 
-                    // Debounced sync to Supabase (Increased to 5s to reduce server load)
+                    // Debounced sync to Supabase
                     if (user?.id) {
+                        pendingSyncData.current = { portfolios: updated, activeId };
                         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
                         syncTimeoutRef.current = setTimeout(async () => {
                             let retryCount = 0;
                             const maxRetries = 2;
 
                             const attemptSync = async () => {
+                                if (!pendingSyncData.current) return;
                                 try {
                                     console.log(`🔷 Debounced background sync to Supabase (Attempt ${retryCount + 1})...`);
                                     await saveUserPortfolios(user.id, updated, activeId);
                                     console.log('✅ Supabase sync completed');
+                                    pendingSyncData.current = null; // Clear pending data on success
                                 } catch (e) {
                                     console.error(`❌ Supabase sync failed (Attempt ${retryCount + 1}):`, e);
                                     if (retryCount < maxRetries) {
                                         retryCount++;
-                                        setTimeout(attemptSync, 5000 * retryCount); // Backoff retry
+                                        setTimeout(attemptSync, 3000 * retryCount); // Faster backoff
                                     } else {
-                                        // Final failure: Log silently, don't interrupt the user with Alerts
-                                        console.warn('Final cloud sync attempt failed. Data is saved locally and will try again on next change.');
+                                        console.warn('Final cloud sync attempt failed. Data is saved locally.');
                                     }
                                 }
                             };
 
                             attemptSync();
-                        }, 5000);
+                        }, 1500); // Reduced to 1.5s for better responsiveness
                     }
                 } catch (e) {
                     console.error('❌ Failed to save to local storage:', e);
@@ -266,112 +299,80 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ));
     };
 
+    const createInitialPortfolio = () => {
+        const defaultPortfolio: Portfolio = {
+            id: 'default',
+            name: 'Ana Portföy',
+            color: '#007AFF',
+            icon: '💼',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            items: [],
+            cashBalance: 0,
+            cashItems: [],
+            realizedTrades: [],
+            dividends: [],
+            history: []
+        };
+        setPortfolios([defaultPortfolio]);
+        setActivePortfolioId('default');
+    };
+
     const loadData = async () => {
         try {
             setIsLoading(true);
-            console.log('📥 loadData: Starting...');
+            // Step 1: Load from both sources
+            const storedPortfolios = await AsyncStorage.getItem('portfolios');
+            const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
+            const localPortfolios: Portfolio[] = storedPortfolios ? JSON.parse(storedPortfolios) : [];
 
-            // If user is logged in, try to load from Supabase first
             if (user?.id) {
-                console.log('📥 loadData: User logged in, trying Supabase:', user.id);
+                console.log('📥 loadData: User logged in, fetching from Supabase...');
                 try {
                     const supabaseData = await loadUserPortfolios(user.id);
-                    console.log('📥 loadData: Supabase returned', supabaseData.portfolios.length, 'portfolios');
+                    const cloudPortfolios = supabaseData.portfolios;
 
-                    if (supabaseData.portfolios.length > 0) {
-                        // User has data in Supabase
-                        const portfolio = supabaseData.portfolios.find(p => p.id === (supabaseData.activePortfolioId || supabaseData.portfolios[0].id));
-                        console.log('📥 loadData: Active portfolio has', portfolio?.items?.length || 0, 'items');
+                    // Step 2: Smart Merge - Compare timestamps
+                    const localMaxTs = localPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
+                    const cloudMaxTs = cloudPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
 
-                        setPortfolios(supabaseData.portfolios);
-                        setActivePortfolioId(supabaseData.activePortfolioId || supabaseData.portfolios[0].id);
-                        console.log('✅ loadData: Loaded portfolios from Supabase');
-                        return;
+                    console.log(`📥 loadData: Comparison - Local TS: ${localMaxTs}, Cloud TS: ${cloudMaxTs}`);
+
+                    if (cloudPortfolios.length > 0 && cloudMaxTs >= localMaxTs) {
+                        // Cloud has newer (or same) data
+                        console.log('✅ loadData: Using Cloud data (newer or same)');
+                        setPortfolios(cloudPortfolios);
+                        setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
+                    } else if (localPortfolios.length > 0) {
+                        // Local is newer - use it AND trigger immediate sync to fix cloud
+                        console.log('⚠️ loadData: Local data is NEWER than cloud. Re-syncing to cloud...');
+                        setPortfolios(localPortfolios);
+                        setActivePortfolioId(storedActiveId || localPortfolios[0].id);
+
+                        // Force cloud update
+                        saveUserPortfolios(user.id, localPortfolios, storedActiveId || localPortfolios[0].id)
+                            .then(() => console.log('✅ loadData: Cloud force-synced with newer local data'))
+                            .catch(e => console.error('❌ loadData: Cloud force-sync failed:', e));
+                    } else if (cloudPortfolios.length > 0) {
+                        // Local is empty, Cloud has data
+                        setPortfolios(cloudPortfolios);
+                        setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
                     } else {
-                        // No data in Supabase - check if we should migrate local data
-                        // Only migrate if the previous local user matches current user
-                        const previousUserId = await AsyncStorage.getItem('lastLoggedInUserId');
-
-                        if (previousUserId === user.id) {
-                            // Same user - migrate their local data
-                            console.log('📥 loadData: Same user, checking AsyncStorage for migration...');
-                            const storedPortfolios = await AsyncStorage.getItem('portfolios');
-                            if (storedPortfolios) {
-                                const parsedPortfolios = JSON.parse(storedPortfolios);
-                                const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
-                                console.log('📥 loadData: Found AsyncStorage data with', parsedPortfolios.length, 'portfolios');
-
-                                // Migrate to Supabase
-                                await migrateToSupabase(user.id, parsedPortfolios, storedActiveId || 'default');
-                                setPortfolios(parsedPortfolios);
-                                setActivePortfolioId(storedActiveId || parsedPortfolios[0]?.id || 'default');
-                                console.log('✅ loadData: Migrated local data to Supabase');
-                                return;
-                            }
-                        } else {
-                            // Different user or first time - don't migrate, start fresh
-                            console.log('📥 loadData: New user, skipping local data migration');
-                        }
-
-                        // Save current user ID for future reference
-                        await AsyncStorage.setItem('lastLoggedInUserId', user.id);
+                        // Both empty
+                        createInitialPortfolio();
                     }
-
-                    // No data anywhere - create default portfolio
-                    console.log('📥 loadData: No data anywhere, creating default');
-                    const defaultPortfolio: Portfolio = {
-                        id: 'default',
-                        name: 'Ana Portföy',
-                        color: '#007AFF',
-                        icon: '💼',
-                        createdAt: Date.now(),
-                        items: [],
-                        cashBalance: 0,
-                        cashItems: [],
-                        realizedTrades: [],
-                        dividends: [],
-                        history: []
-                    };
-                    await savePortfolios([defaultPortfolio], 'default');
-                    setActivePortfolioId('default');
                     return;
                 } catch (supabaseError) {
                     console.error('❌ loadData: Supabase load error, falling back to local:', supabaseError);
                 }
-            } else {
-                console.log('📥 loadData: User NOT logged in, using AsyncStorage only');
             }
 
-            // Fallback: Load from AsyncStorage (for non-logged-in users or on error)
-            const storedPortfolios = await AsyncStorage.getItem('portfolios');
-            const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
-
-            if (storedPortfolios) {
-                const parsedPortfolios = JSON.parse(storedPortfolios);
-                setPortfolios(parsedPortfolios);
-
-                if (storedActiveId && parsedPortfolios.find((p: Portfolio) => p.id === storedActiveId)) {
-                    setActivePortfolioId(storedActiveId);
-                } else if (parsedPortfolios.length > 0) {
-                    setActivePortfolioId(parsedPortfolios[0].id);
-                }
+            // Fallback: Local only
+            if (localPortfolios.length > 0) {
+                setPortfolios(localPortfolios);
+                setActivePortfolioId(storedActiveId || localPortfolios[0].id);
             } else {
-                // No data - create default empty portfolio
-                const defaultPortfolio: Portfolio = {
-                    id: 'default',
-                    name: 'Ana Portföy',
-                    color: '#007AFF',
-                    icon: '💼',
-                    createdAt: Date.now(),
-                    items: [],
-                    cashBalance: 0,
-                    cashItems: [],
-                    realizedTrades: [],
-                    dividends: [],
-                    history: []
-                };
-                setPortfolios([defaultPortfolio]);
-                setActivePortfolioId('default');
+                createInitialPortfolio();
             }
         } catch (error) {
             console.error('Failed to load data', error);

@@ -89,6 +89,7 @@ export interface Portfolio {
   history: { date: string; valueTry: number; valueUsd: number }[];
   targetValueTry?: number;
   targetCurrency?: 'TRY' | 'USD';
+  updatedAt?: number; // Last modified epoch
 }
 
 export interface PriceAlert {

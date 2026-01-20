@@ -94,7 +94,7 @@ export const saveUserPortfolios = async (
             cash_balance: p.cashBalance || 0,
             target_value_try: p.targetValueTry,
             target_currency: p.targetCurrency,
-            updated_at: new Date().toISOString()
+            updated_at: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString()
         }));
         await supabase.from('portfolios').upsert(portfolioUpserts);
 
@@ -336,7 +336,8 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 dividends,
                 history,
                 targetValueTry: p.target_value_try ? Number(p.target_value_try) : undefined,
-                targetCurrency: p.target_currency
+                targetCurrency: p.target_currency,
+                updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : undefined
             });
         }
 

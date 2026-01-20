@@ -62,7 +62,8 @@ export const SummaryScreen = () => {
         activePortfolio,
         totalDividendsTry,
         isSyncing,
-        syncError
+        syncError,
+        priceCurrencies
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -276,10 +277,18 @@ export const SummaryScreen = () => {
     portfolio.forEach(item => {
         // Use customCurrentPrice for custom assets, otherwise use fetched price
         let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+        const priceCurrency = item.customCurrentPrice
+            ? item.currency
+            : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
         const changePercent = dailyChanges[item.instrumentId] || 0;
 
-        if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
-            price = price * (usdRate || 1);
+        // Normalize price to item's currency
+        if (priceCurrency !== item.currency && price > 0) {
+            if (priceCurrency === 'USD' && item.currency === 'TRY') {
+                price = price * (contextUsdRate || 1);
+            } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
+                price = price / (contextUsdRate || 1);
+            }
         }
 
         let value = item.amount * price;
@@ -292,7 +301,7 @@ export const SummaryScreen = () => {
 
         let valueTry = 0;
         if (item.currency === 'USD') {
-            valueTry = value * (usdRate || 1);
+            valueTry = value * (contextUsdRate || 1);
         } else {
             valueTry = value;
         }
@@ -343,14 +352,9 @@ export const SummaryScreen = () => {
     // Add Cash to categories
     categoryValues['Yedek Akçe'] = cashBalance;
 
-    const totalUnrealizedProfitTry = totalPortfolioTry - cashBalance - totalCostBasisTry;
-    const totalUnrealizedProfitPercent = totalCostBasisTry > 0 ? (totalUnrealizedProfitTry / totalCostBasisTry) * 100 : 0;
+    const totalUnrealizedProfitTry = totalPortfolioTry - totalCostBasisTryLocal;
+    const totalUnrealizedProfitPercent = totalCostBasisTryLocal > 0 ? (totalUnrealizedProfitTry / totalCostBasisTryLocal) * 100 : 0;
 
-    useEffect(() => {
-        if (totalPortfolioTry > 0) {
-            updateTotalValue(totalPortfolioTry, totalPortfolioUsd);
-        }
-    }, [totalPortfolioTry, totalPortfolioUsd]);
 
     const pieData = Object.keys(categoryValues).map((key, index) => ({
         name: key,

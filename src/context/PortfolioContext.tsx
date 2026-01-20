@@ -40,6 +40,7 @@ interface PortfolioContextType {
     // Real-time Pricing State
     prices: Record<string, number>;
     dailyChanges: Record<string, number>;
+    priceCurrencies: Record<string, string>;
     lastPricesUpdate: number;
     currentUsdRate: number;
 
@@ -112,6 +113,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Real-time Pricing State
     const [prices, setPrices] = useState<Record<string, number>>({});
+    const [priceCurrencies, setPriceCurrencies] = useState<Record<string, string>>({});
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
@@ -927,6 +929,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         console.log('🔄 Refreshing all prices from Context...');
         const newPrices: Record<string, number> = {};
+        const newPriceCurrencies: Record<string, string> = {};
         const newFundPrices: Record<string, number> = {};
         const newDailyChanges: Record<string, number> = {};
 
@@ -935,6 +938,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const rateData = await MarketDataService.getYahooPrice('TRY=X');
             if (rateData && rateData.currentPrice) {
                 setCurrentUsdRate(rateData.currentPrice);
+                newPrices['TRY=X'] = rateData.currentPrice;
+                newPriceCurrencies['TRY=X'] = 'TRY';
             }
 
             // Fetch regular prices in parallel
@@ -951,6 +956,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 const priceData = priceResults[item.instrumentId];
                 if (priceData && priceData.currentPrice) {
                     newPrices[item.instrumentId] = priceData.currentPrice;
+                    newPriceCurrencies[item.instrumentId] = priceData.currency || (item.type === 'crypto' ? 'USD' : 'TRY');
                     newDailyChanges[item.instrumentId] = (priceData as any).change24h || 0;
                 }
             }
@@ -971,6 +977,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             setPrices(prev => ({ ...prev, ...newPrices }));
+            setPriceCurrencies(prev => ({ ...prev, ...newPriceCurrencies }));
             setFundPrices(prev => ({ ...prev, ...newFundPrices }));
             setDailyChanges(prev => ({ ...prev, ...newDailyChanges }));
             setLastPricesUpdate(Date.now());
@@ -984,20 +991,28 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         if (Object.keys(prices).length === 0 && portfolio.length > 0) return;
 
-        let calcTotalTry = 0;
-        let calcTotalUsd = 0;
-        let calcCostBasisTry = 0;
+        let calcTotalTry = cashBalance;
+        let calcTotalUsd = cashBalance / (currentUsdRate || 1);
+        let calcCostBasisTry = cashBalance;
         let calcDailyProfit = 0;
 
         // Calculate Portfolio Items
         portfolio.forEach(item => {
             let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+            const priceCurrency = item.customCurrentPrice
+                ? item.currency
+                : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
             const changePercent = dailyChanges[item.instrumentId] || 0;
 
-            // CRITICAL FIX: If crypto is kept in TRY but price is fetched in USD (common for MarketDataService)
-            if (item.type === 'crypto' && item.currency === 'TRY' && price > 0) {
-                price = price * (currentUsdRate || 1);
+            // Normalize price to item's currency
+            if (priceCurrency !== item.currency && price > 0) {
+                if (priceCurrency === 'USD' && item.currency === 'TRY') {
+                    price = price * (currentUsdRate || 1);
+                } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
+                    price = price / (currentUsdRate || 1);
+                }
             }
+
 
             let value = item.amount * price;
             if (item.type === 'bes') {
@@ -1151,14 +1166,23 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Group by type
         portfolio.forEach(item => {
             const typeName = getTypeName(item.type);
-            const livePrice = prices[item.instrumentId] || item.customCurrentPrice || item.averageCost;
+            let livePrice = prices[item.instrumentId] || item.customCurrentPrice || item.averageCost;
+            const priceCurrency = item.customCurrentPrice
+                ? item.currency
+                : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
+
+            // Normalize price to item's currency
+            if (priceCurrency !== item.currency && livePrice > 0) {
+                if (priceCurrency === 'USD' && item.currency === 'TRY') {
+                    livePrice = livePrice * (currentUsdRate || 1);
+                } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
+                    livePrice = livePrice / (currentUsdRate || 1);
+                }
+            }
 
             let value = item.amount * livePrice;
 
-            // Convert to TRY if needed - apply same crypto TRY fix here
-            if (item.type === 'crypto' && item.currency === 'TRY' && livePrice > 0) {
-                value = value * (currentUsdRate || 1);
-            } else if (item.currency === 'USD') {
+            if (item.currency === 'USD') {
                 value = value * (currentUsdRate || 1);
             }
 
@@ -1210,10 +1234,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             typeMap[label] = (typeMap[label] || 0) + itemValue;
         });
 
-        // Add plain cash balance if any
-        if (cashBalance > 0) {
-            typeMap['Nakit'] = (typeMap['Nakit'] || 0) + cashBalance;
-        }
 
         // Convert to array
         Object.keys(typeMap).forEach(key => {
@@ -1362,6 +1382,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             refreshAllPrices,
             prices,
             dailyChanges,
+            priceCurrencies,
             lastPricesUpdate,
             currentUsdRate,
             addDividend,

@@ -16,7 +16,7 @@ const TABLET_WIDTH = 768;
 export const CashManagementScreen = () => {
     const { width } = useWindowDimensions();
     const isLargeScreen = width >= TABLET_WIDTH;
-    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund } = usePortfolio();
+    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund, fundPrices, currentUsdRate } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<CashItem | null>(null);
@@ -36,8 +36,6 @@ export const CashManagementScreen = () => {
     const [isSearchingFund, setIsSearchingFund] = useState(false);
     const [selectedFund, setSelectedFund] = useState<any | null>(null);
 
-    // Live prices for funds
-    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
     // Date and historical rate for funds
     const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
@@ -136,39 +134,6 @@ export const CashManagementScreen = () => {
     };
 
     // Current USD rate for live P/L calculation
-    const [currentUsdRate, setCurrentUsdRate] = useState<number>(0);
-
-    // Fetch live prices for funds in cashItems and current USD rate
-    useEffect(() => {
-        const fetchData = async () => {
-            // Fetch current USD rate
-            try {
-                const usdData = await MarketDataService.getYahooPrice('TRY=X');
-                if (usdData?.currentPrice) {
-                    setCurrentUsdRate(usdData.currentPrice);
-                }
-            } catch (error) {
-                console.error('Error fetching USD rate:', error);
-            }
-
-            // Fetch fund prices
-            const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
-            for (const item of fundItems) {
-                if (item.instrumentId) {
-                    try {
-                        const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
-                        console.log(`Fund price for ${item.instrumentId}:`, priceResult);
-                        if (priceResult && priceResult.currentPrice) {
-                            setFundPrices(prev => ({ ...prev, [item.instrumentId!]: priceResult.currentPrice! }));
-                        }
-                    } catch (error) {
-                        console.error('Error fetching fund price:', error);
-                    }
-                }
-            }
-        };
-        fetchData();
-    }, [cashItems]);
 
     const handleSave = async () => {
         if (isSaving) return;

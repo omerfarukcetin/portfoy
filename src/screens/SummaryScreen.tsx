@@ -63,7 +63,8 @@ export const SummaryScreen = () => {
         totalDividendsTry,
         isSyncing,
         syncError,
-        priceCurrencies
+        priceCurrencies,
+        getPortfolioDistribution
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -269,97 +270,30 @@ export const SummaryScreen = () => {
         return [...baseKeywords, ...topAssets];
     }, [portfolio]);
 
-    // Category calculations (still computed on render)
+    const distributionData = getPortfolioDistribution();
     const categoryValues: Record<string, number> = {};
+    distributionData.forEach((item: any) => {
+        categoryValues[item.name] = item.value;
+    });
+
+    // Calculate best/worst performer from portfolio
     let bestPerformer = { id: '', change: -Infinity };
     let worstPerformer = { id: '', change: Infinity };
 
     portfolio.forEach(item => {
-        // Use customCurrentPrice for custom assets, otherwise use fetched price
-        let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
-        const priceCurrency = item.customCurrentPrice
-            ? item.currency
-            : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
         const changePercent = dailyChanges[item.instrumentId] || 0;
-
-        // Normalize price to item's currency
-        if (priceCurrency !== item.currency && price > 0) {
-            if (priceCurrency === 'USD' && item.currency === 'TRY') {
-                price = price * (contextUsdRate || 1);
-            } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
-                price = price / (contextUsdRate || 1);
-            }
-        }
-
-        let value = item.amount * price;
-        if (item.type === 'bes') {
-            value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
-        }
-
         if (changePercent > bestPerformer.change) bestPerformer = { id: item.instrumentId, change: changePercent };
         if (changePercent < worstPerformer.change) worstPerformer = { id: item.instrumentId, change: changePercent };
-
-        let valueTry = 0;
-        if (item.currency === 'USD') {
-            valueTry = value * (contextUsdRate || 1);
-        } else {
-            valueTry = value;
-        }
-
-        let category = 'Diğer';
-        const id = item.instrumentId.toUpperCase();
-
-        // Custom category takes priority (for KFS, custom assets, etc.)
-        if (item.customCategory) {
-            category = item.customCategory;
-        }
-        // Crypto - check by type or known IDs
-        else if (item.type === 'crypto' || ['BTC', 'ETH', 'SOL', 'AVAX', 'USDT', 'USDC', 'BNB', 'WLD', 'WORLDCOIN-WLD'].includes(id)) {
-            category = 'Kripto';
-        }
-        // Gold
-        else if (id.includes('GOLD') || ['GRAM', 'CEYREK', 'YARIM', 'TAM', 'ONS'].includes(id)) {
-            category = 'Altın';
-        }
-        // Silver
-        else if (id.includes('SILVER') || id.includes('GUMUS')) {
-            category = 'Gümüş';
-        }
-        // BIST stocks
-        else if (id.endsWith('.IS')) {
-            category = 'Hisse (BIST)';
-        }
-        // BES
-        else if (id.startsWith('BES')) {
-            category = 'BES';
-        }
-        // Funds
-        else if (item.type === 'fund' || (id.length === 3 && !['BTC', 'ETH', 'SOL', 'XRP', 'USD', 'EUR', 'GBP'].includes(id))) {
-            category = 'Fon';
-        }
-        // Forex (USD, EUR, etc.)
-        else if (item.type === 'forex' || ['USD', 'EUR', 'GBP', 'RUB', 'JPY'].includes(id)) {
-            category = 'Döviz';
-        }
-        // US ETFs - check before generic USD
-        else if (item.currency === 'USD' && (item.type === 'stock' || ['VOO', 'QQQ', 'SPY', 'VTI', 'SCHD', 'JEPI', 'ARKK', 'SCHG', 'OPTGY', 'OPT25'].includes(id))) {
-            category = 'ABD ETF';
-        }
-
-        categoryValues[category] = (categoryValues[category] || 0) + valueTry;
     });
-
-    // Add Cash to categories
-    categoryValues['Yedek Akçe'] = cashBalance;
 
     const totalUnrealizedProfitTry = totalPortfolioTry - totalCostBasisTryLocal;
     const totalUnrealizedProfitPercent = totalCostBasisTryLocal > 0 ? (totalUnrealizedProfitTry / totalCostBasisTryLocal) * 100 : 0;
 
 
-    const pieData = Object.keys(categoryValues).map((key, index) => ({
-        name: key,
-        population: categoryValues[key],
-        color: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'][index % 7],
+    const pieData = distributionData.map((item: any) => ({
+        name: item.name,
+        population: item.value,
+        color: item.color,
         legendFontColor: colors.subText,
         legendFontSize: 12
     }));

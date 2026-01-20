@@ -5,6 +5,7 @@ import { PortfolioItem, Instrument, CashItem, RealizedTrade, Portfolio, Dividend
 import { MarketDataService } from '../services/marketData';
 import { useAuth } from './AuthContext';
 import { saveUserPortfolios, loadUserPortfolios, migrateToSupabase } from '../services/supabaseService';
+import { supabase } from '../services/supabaseClient';
 
 interface HistoryPoint {
     date: string;
@@ -40,6 +41,7 @@ interface PortfolioContextType {
     // Real-time Pricing State
     prices: Record<string, number>;
     dailyChanges: Record<string, number>;
+    fundPrices: Record<string, number>;
     priceCurrencies: Record<string, string>;
     lastPricesUpdate: number;
     currentUsdRate: number;
@@ -476,7 +478,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     }
                 }
             )
-            .subscribe((status) => {
+            .subscribe((status: string) => {
                 console.log('📡 Realtime status:', status);
             });
 
@@ -1045,9 +1047,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         if (Object.keys(prices).length === 0 && portfolio.length > 0) return;
 
-        let calcTotalTry = cashBalance;
-        let calcTotalUsd = cashBalance / (currentUsdRate || 1);
-        let calcCostBasisTry = cashBalance;
+        let calcTotalTry = 0;
+        let calcTotalUsd = 0;
+        let calcCostBasisTry = 0;
         let calcDailyProfit = 0;
 
         // Calculate Portfolio Items
@@ -1100,7 +1102,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             if (item.currency === 'USD') {
-                calcTotalTry += itemValue * (currentUsdRate || 1);
+                const itemValueTry = itemValue * (currentUsdRate || 1);
+                calcTotalTry += itemValueTry;
                 calcTotalUsd += itemValue;
                 calcCostBasisTry += item.amount * (currentUsdRate || 1);
             } else {
@@ -1219,7 +1222,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         // Group by type
         portfolio.forEach(item => {
-            const typeName = getTypeName(item.type);
             let livePrice = prices[item.instrumentId] || item.customCurrentPrice || item.averageCost;
             const priceCurrency = item.customCurrentPrice
                 ? item.currency
@@ -1243,29 +1245,32 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (item.type === 'bes') {
                 value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
             }
-            // For now, let's use the cost basis or better yet, let's rely on the fact that 
-            // the AI screen will fetch prices or we can pass prices to it.
-            // OR, we can just use the item's cost for now as an approximation if prices aren't available,
-            // but ideally we want current value.
 
-            // Let's look at how SummaryScreen does it. It fetches prices and calculates.
-            // Since AI Analysis is a separate screen, it might be better to calculate distribution THERE 
-            // by fetching prices, similar to SummaryScreen.
-            // BUT, the user asked for these methods to be in Context.
-            // Let's implement them here but note that they might need price data.
+            // Detailed Categorization Logic
+            let category = 'Diğer';
+            const id = item.instrumentId.toUpperCase();
 
-            // Actually, for the sake of the AI Assistant which runs on the context, 
-            // let's use the `totalValueTry` and `portfolio` items. 
-            // Since we don't have real-time prices in context (except total), 
-            // we will use the *cost* as a fallback or if we want to be accurate, 
-            // we should probably move this logic to the screen where prices are available.
-
-            // However, to satisfy the immediate lint error and provide *some* data:
-            if (typeMap[typeName]) {
-                typeMap[typeName] += value;
-            } else {
-                typeMap[typeName] = value;
+            if (item.customCategory) {
+                category = item.customCategory;
+            } else if (item.type === 'crypto' || ['BTC', 'ETH', 'SOL', 'AVAX', 'USDT', 'USDC', 'BNB', 'WLD', 'WORLDCOIN-WLD'].includes(id)) {
+                category = 'Kripto';
+            } else if (id.includes('GOLD') || ['GRAM', 'CEYREK', 'YARIM', 'TAM', 'ONS'].includes(id)) {
+                category = 'Altın';
+            } else if (id.includes('SILVER') || id.includes('GUMUS') || item.type === 'metal') {
+                category = 'Gümüş';
+            } else if (id.endsWith('.IS')) {
+                category = 'Hisse (BIST)';
+            } else if (id.startsWith('BES') || item.type === 'bes') {
+                category = 'BES';
+            } else if (item.currency === 'USD' && (item.type === 'stock' || ['VOO', 'QQQ', 'SPY', 'VTI', 'SCHD', 'JEPI', 'ARKK', 'SCHG', 'OPTGY', 'OPT25'].includes(id))) {
+                category = 'ABD ETF';
+            } else if (item.type === 'fund' || (id.length === 3 && !['BTC', 'ETH', 'SOL', 'XRP', 'USD', 'EUR', 'GBP'].includes(id))) {
+                category = 'Fon';
+            } else if (item.type === 'forex' || ['USD', 'EUR', 'GBP', 'RUB', 'JPY'].includes(id)) {
+                category = 'Döviz';
             }
+
+            typeMap[category] = (typeMap[category] || 0) + value;
         });
 
         // Add cash items (includes PPF)
@@ -1316,12 +1321,16 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const getColorForType = (type: string) => {
         switch (type) {
             case 'Hisse (BIST)': return '#007AFF';
+            case 'ABD ETF': return '#5856D6';
             case 'Kripto': return '#FF9500';
             case 'Altın': return '#FFD700';
+            case 'Gümüş': return '#C0C0C0';
             case 'Döviz': return '#34C759';
-            case 'Yatırım Fonu': return '#5856D6';
-            case 'BES': return '#FF2D55';
-            case 'Nakit (TL)': return '#8E8E93';
+            case 'Fon':
+            case 'Yatırım Fonu': return '#FF2D55';
+            case 'BES': return '#AF52DE';
+            case 'Nakit':
+            case 'Yedek Akçe': return '#8E8E93';
             default: return '#AF52DE';
         }
     };
@@ -1436,6 +1445,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             refreshAllPrices,
             prices,
             dailyChanges,
+            fundPrices,
             priceCurrencies,
             lastPricesUpdate,
             currentUsdRate,

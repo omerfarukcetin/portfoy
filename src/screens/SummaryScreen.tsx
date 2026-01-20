@@ -60,7 +60,9 @@ export const SummaryScreen = () => {
         lastPricesUpdate,
         refreshAllPrices,
         activePortfolio,
-        totalDividendsTry
+        totalDividendsTry,
+        isSyncing,
+        syncError
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -380,9 +382,22 @@ export const SummaryScreen = () => {
                                 <Text style={{ fontSize: 14, color: colors.subText, marginTop: 4 }}>
                                     {activePortfolio?.id === 'all-portfolios' ? 'Tüm portföylerinin birleşik özeti' : 'İşte bugünkü finansal özetin'}
                                 </Text>
-                                <Text style={{ fontSize: 11, color: colors.subText, marginTop: 4, opacity: 0.8 }}>
-                                    {lastPricesUpdate > 0 ? `Veriler Gerçek Zamanlıdır • Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Veriler Güncelleniyor...'}
-                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={{ fontSize: 11, color: colors.subText, opacity: 0.8 }}>
+                                        {lastPricesUpdate > 0 ? `Veriler Gerçek Zamanlıdır • Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Veriler Güncelleniyor...'}
+                                    </Text>
+                                    {isSyncing && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <ActivityIndicator size="small" color={colors.primary} style={{ transform: [{ scale: 0.7 }] }} />
+                                            <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>Buluta Kaydediliyor...</Text>
+                                        </View>
+                                    )}
+                                    {syncError && !isSyncing && (
+                                        <TouchableOpacity onPress={() => Alert.alert('Eşitleme Hatası', syncError)}>
+                                            <Text style={{ fontSize: 10, color: '#FF3B30', fontWeight: '600' }}>⚠️ Eşitleme Hatası</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                 <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />
@@ -899,9 +914,22 @@ export const SummaryScreen = () => {
                                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                                     {activePortfolio?.id === 'all-portfolios' ? 'Tüm Varlıklarım 🌍' : 'Selam! 👋'}
                                 </Text>
-                                <Text style={{ fontSize: 9, color: colors.subText, marginTop: 1 }}>
-                                    {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
-                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text style={{ fontSize: 9, color: colors.subText }}>
+                                        {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
+                                    </Text>
+                                    {isSyncing && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                            <ActivityIndicator size="small" color={colors.primary} style={{ transform: [{ scale: 0.5 }] }} />
+                                            <Text style={{ fontSize: 9, color: colors.primary, fontWeight: '600' }}>Eşitleniyor...</Text>
+                                        </View>
+                                    )}
+                                    {syncError && !isSyncing && (
+                                        <TouchableOpacity onPress={() => Alert.alert('Eşitleme Hatası', syncError)}>
+                                            <Text style={{ fontSize: 9, color: '#FF3B30', fontWeight: '600' }}>⚠️ Hata</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <PortfolioSwitcher prices={prices} dailyChanges={dailyChanges} usdRate={usdRate} goldPrice={goldPrice} />

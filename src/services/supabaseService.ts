@@ -96,7 +96,8 @@ export const saveUserPortfolios = async (
             target_currency: p.targetCurrency,
             updated_at: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString()
         }));
-        await supabase.from('portfolios').upsert(portfolioUpserts);
+        const { error: pError } = await supabase.from('portfolios').upsert(portfolioUpserts);
+        if (pError) throw pError;
 
         const allItems = portfolios.flatMap(p => (p.items || []).map(item => ({
             id: item.id,
@@ -118,7 +119,10 @@ export const saveUserPortfolios = async (
             custom_name: item.customName,
             custom_current_price: item.customCurrentPrice
         })));
-        if (allItems.length > 0) await supabase.from('portfolio_items').upsert(allItems);
+        if (allItems.length > 0) {
+            const { error: iError } = await supabase.from('portfolio_items').upsert(allItems);
+            if (iError) throw iError;
+        }
 
         const allCashItems = portfolios.flatMap(p => (p.cashItems || []).map(item => ({
             id: item.id,
@@ -135,7 +139,10 @@ export const saveUserPortfolios = async (
             average_cost: item.averageCost,
             historical_usd_rate: item.historicalUsdRate
         })));
-        if (allCashItems.length > 0) await supabase.from('cash_items').upsert(allCashItems);
+        if (allCashItems.length > 0) {
+            const { error: cError } = await supabase.from('cash_items').upsert(allCashItems);
+            if (cError) throw cError;
+        }
 
         const allTrades = portfolios.flatMap(p => (p.realizedTrades || []).map(trade => ({
             id: trade.id,
@@ -152,7 +159,10 @@ export const saveUserPortfolios = async (
             profit_try: trade.profitTry,
             type: trade.type
         })));
-        if (allTrades.length > 0) await supabase.from('realized_trades').upsert(allTrades);
+        if (allTrades.length > 0) {
+            const { error: tError } = await supabase.from('realized_trades').upsert(allTrades);
+            if (tError) throw tError;
+        }
 
         const allDividends = portfolios.flatMap(p => (p.dividends || []).map(div => ({
             id: div.id,
@@ -165,7 +175,10 @@ export const saveUserPortfolios = async (
             date: div.date,
             shares_at_date: div.sharesAtDate
         })));
-        if (allDividends.length > 0) await supabase.from('dividends').upsert(allDividends);
+        if (allDividends.length > 0) {
+            const { error: dError } = await supabase.from('dividends').upsert(allDividends);
+            if (dError) throw dError;
+        }
 
         const allHistory = portfolios.flatMap(p => (p.history || []).map(h => ({
             portfolio_id: p.id,
@@ -175,9 +188,10 @@ export const saveUserPortfolios = async (
             value_usd: h.valueUsd
         })));
         if (allHistory.length > 0) {
-            await supabase.from('portfolio_history').upsert(allHistory, {
+            const { error: hError } = await supabase.from('portfolio_history').upsert(allHistory, {
                 onConflict: 'portfolio_id,user_id,date'
             });
+            if (hError) throw hError;
         }
 
         console.log('✅ Portfolios successfully saved to Supabase');

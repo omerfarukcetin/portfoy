@@ -34,6 +34,8 @@ interface PortfolioContextType {
     totalDividendsTry: number;
     totalDividendsUsd: number;
     isLoading: boolean;
+    isSyncing: boolean;
+    syncError: string | null;
 
     // Real-time Pricing State
     prices: Record<string, number>;
@@ -113,6 +115,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
     const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncError, setSyncError] = useState<string | null>(null);
 
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -234,12 +238,24 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, [user?.id]);
 
     const savePortfolios = (newPortfolios: Portfolio[] | ((prev: Portfolio[]) => Portfolio[]), newActiveId?: string) => {
+        if (isLoading) {
+            console.warn('⚠️ Blocked savePortfolios call: Data is still loading');
+            return;
+        }
+
         const activeId = newActiveId || activePortfolioId;
 
         // 1. Update LOCAL state immediately
         setPortfolios(prev => {
             const now = Date.now();
             const updatedRaw = typeof newPortfolios === 'function' ? newPortfolios(prev) : newPortfolios;
+
+            // PREVENT WIPING: If we somehow got an empty array but we are supposed to have data, block it.
+            // This is a safety net for the race condition.
+            if (prev.length > 0 && updatedRaw.length === 0) {
+                console.error('❌ CRITICAL ERROR: Attempted to save empty portfolio list over non-empty list. Blocking.');
+                return prev;
+            }
 
             // CRITICAL: Always update updatedAt when data changes
             const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
@@ -258,14 +274,20 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         syncTimeoutRef.current = setTimeout(async () => {
                             let retryCount = 0;
                             const maxRetries = 2;
+                            setIsSyncing(true);
+                            setSyncError(null);
 
                             const attemptSync = async () => {
-                                if (!pendingSyncData.current) return;
+                                if (!pendingSyncData.current) {
+                                    setIsSyncing(false);
+                                    return;
+                                }
                                 try {
                                     console.log(`🔷 Debounced background sync to Supabase (Attempt ${retryCount + 1})...`);
                                     await saveUserPortfolios(user.id, updated, activeId);
                                     console.log('✅ Supabase sync completed');
                                     pendingSyncData.current = null; // Clear pending data on success
+                                    setIsSyncing(false);
                                 } catch (e) {
                                     console.error(`❌ Supabase sync failed (Attempt ${retryCount + 1}):`, e);
                                     if (retryCount < maxRetries) {
@@ -273,6 +295,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                                         setTimeout(attemptSync, 3000 * retryCount); // Faster backoff
                                     } else {
                                         console.warn('Final cloud sync attempt failed. Data is saved locally.');
+                                        setSyncError('Bulut senkronizasyonu başarısız oldu. Veriniz cihazda güvende ancak diğer cihazlarda görünmeyebilir.');
+                                        setIsSyncing(false);
                                     }
                                 }
                             };
@@ -317,6 +341,32 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setPortfolios([defaultPortfolio]);
         setActivePortfolioId('default');
     };
+
+    // Listen for Web visibility changes
+    useEffect(() => {
+        if (Platform.OS === 'web' && user?.id) {
+            const handleBeforeUnload = () => {
+                if (pendingSyncData.current) {
+                    // Trigger immediate sync on tab close
+                    triggerImmediateSync();
+                }
+            };
+
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'hidden') {
+                    triggerImmediateSync();
+                }
+            };
+
+            window.addEventListener('beforeunload', handleBeforeUnload);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
+            return () => {
+                window.removeEventListener('beforeunload', handleBeforeUnload);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
+        }
+    }, [user?.id]);
 
     const loadData = async () => {
         try {
@@ -1319,7 +1369,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             deleteDividend,
             updatePortfolioTarget,
             deleteRealizedTrade,
-            updatePortfolioCash
+            updatePortfolioCash,
+            isSyncing,
+            syncError
         }}>
             {children}
         </PortfolioContext.Provider>

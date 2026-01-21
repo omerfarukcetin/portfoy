@@ -64,7 +64,8 @@ export const SummaryScreen = () => {
         isSyncing,
         syncError,
         priceCurrencies,
-        getPortfolioDistribution
+        getPortfolioDistribution,
+        fundPrices
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -90,7 +91,6 @@ export const SummaryScreen = () => {
     const [marketReportVisible, setMarketReportVisible] = useState(false);
     const [marketReportData, setMarketReportData] = useState<any>(null);
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const distCardWebRef = useRef<any>(null);
@@ -214,7 +214,6 @@ export const SummaryScreen = () => {
                 }
             }
         }
-        setFundPrices(newFundPrices);
         setIsInitialLoading(false);
     };
 
@@ -281,7 +280,7 @@ export const SummaryScreen = () => {
     let worstPerformer = { id: '', change: Infinity };
 
     portfolio.forEach(item => {
-        const changePercent = dailyChanges[item.instrumentId] || 0;
+        const changePercent = contextDailyChanges[item.instrumentId] || 0;
         if (changePercent > bestPerformer.change) bestPerformer = { id: item.instrumentId, change: changePercent };
         if (changePercent < worstPerformer.change) worstPerformer = { id: item.instrumentId, change: changePercent };
     });

@@ -1301,7 +1301,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 itemValue = itemValue * (currentUsdRate || 1);
             }
 
-            const label = item.type === 'money_market_fund' ? 'Yatırım Fonu' : 'Nakit';
+            const label = 'Yedek Akçe';
             typeMap[label] = (typeMap[label] || 0) + itemValue;
         });
 
@@ -1338,11 +1338,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             case 'Altın': return '#FFD700';
             case 'Gümüş': return '#C0C0C0';
             case 'Döviz': return '#34C759';
-            case 'Fon':
-            case 'Yatırım Fonu': return '#FF2D55';
+            case 'Fon': return '#FF2D55';
             case 'BES': return '#AF52DE';
+            case 'Yedek Akçe':
             case 'Nakit':
-            case 'Yedek Akçe': return '#8E8E93';
+            case 'Yatırım Fonu': return '#8E8E93';
             default: return '#AF52DE';
         }
     };

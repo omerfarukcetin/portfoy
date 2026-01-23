@@ -124,6 +124,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
     const loadDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isInitialized = useRef<boolean>(false);
 
     // Derived active portfolio
     const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
@@ -246,6 +247,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, [user?.id]);
 
     const savePortfolios = (newPortfolios: Portfolio[] | ((prev: Portfolio[]) => Portfolio[]), newActiveId?: string) => {
+        if (!isInitialized.current) {
+            console.warn('⚠️ Blocked savePortfolios: App is not initialized yet');
+            return;
+        }
         if (isLoading) {
             console.warn('⚠️ Blocked savePortfolios call: Data is still loading');
             return;
@@ -402,29 +407,39 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
                     console.log(`📥 loadData: Comparison - Local TS: ${localMaxTs}, Cloud TS: ${cloudMaxTs}`);
 
+                    // DECISION CRITERIA:
+                    // 1. If Cloud has data and it's newer OR SAME as local, always use cloud
+                    // 2. If Cloud is empty but local has data, use local (and it will sync to cloud later)
+                    // 3. If Local is empty but cloud has data, use cloud
+
                     if (cloudPortfolios.length > 0 && cloudMaxTs >= localMaxTs) {
-                        // Cloud has newer (or same) data
                         console.log('✅ loadData: Using Cloud data (newer or same)');
                         setPortfolios(cloudPortfolios);
                         setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
-                    } else if (localPortfolios.length > 0) {
-                        // Local is newer - use it AND trigger immediate sync to fix cloud
+                    } else if (localPortfolios.length > 0 && localMaxTs > cloudMaxTs) {
+                        // Local is strictly newer - use it AND trigger immediate sync to fix cloud
                         console.log('⚠️ loadData: Local data is NEWER than cloud. Re-syncing to cloud...');
                         setPortfolios(localPortfolios);
                         setActivePortfolioId(storedActiveId || localPortfolios[0].id);
 
-                        // Force cloud update
-                        saveUserPortfolios(user.id, localPortfolios, storedActiveId || localPortfolios[0].id)
-                            .then(() => console.log('✅ loadData: Cloud force-synced with newer local data'))
-                            .catch(e => console.error('❌ loadData: Cloud force-sync failed:', e));
+                        // Force cloud update - but only after setting isInitialized
+                        setTimeout(() => {
+                            saveUserPortfolios(user.id, localPortfolios, storedActiveId || localPortfolios[0].id)
+                                .then(() => console.log('✅ loadData: Cloud force-synced with newer local data'))
+                                .catch(e => console.error('❌ loadData: Cloud force-sync failed:', e));
+                        }, 100);
                     } else if (cloudPortfolios.length > 0) {
-                        // Local is empty, Cloud has data
+                        // Edge case: cloud has data but timestamps are weird, trust cloud
                         setPortfolios(cloudPortfolios);
                         setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
+                    } else if (localPortfolios.length > 0) {
+                        // Cloud is empty, but local has data
+                        setPortfolios(localPortfolios);
+                        setActivePortfolioId(storedActiveId || localPortfolios[0].id);
                     } else {
-                        // Both empty
                         createInitialPortfolio();
                     }
+                    isInitialized.current = true;
                     return;
                 } catch (supabaseError) {
                     console.error('❌ loadData: Supabase load error, falling back to local:', supabaseError);
@@ -438,6 +453,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             } else {
                 createInitialPortfolio();
             }
+            isInitialized.current = true;
         } catch (error) {
             console.error('Failed to load data', error);
         } finally {
@@ -489,10 +505,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         };
     }, [user?.id]);
 
-    // Reload data when user changes
-    useEffect(() => {
-        loadData();
-    }, [user?.id]);
 
     // Multi-portfolio functions
     const createPortfolio = async (name: string, color: string, icon: string) => {

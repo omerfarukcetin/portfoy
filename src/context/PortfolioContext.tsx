@@ -574,15 +574,44 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             if (!targetId) return prev;
 
-            const newItem: CashItem = {
-                ...item,
-                id: Date.now().toString(),
-                dateAdded: Date.now()
-            };
+            return prev.map(p => {
+                if (p.id !== targetId) return p;
 
-            return prev.map(p =>
-                p.id === targetId ? { ...p, cashItems: [...(p.cashItems || []), newItem] } : p
-            );
+                const existingCashItems = p.cashItems || [];
+
+                // Merge logic for Money Market Funds
+                if (item.type === 'money_market_fund' && item.instrumentId) {
+                    const existingIndex = existingCashItems.findIndex(ci =>
+                        ci.type === 'money_market_fund' && ci.instrumentId === item.instrumentId
+                    );
+
+                    if (existingIndex !== -1) {
+                        const existingItem = existingCashItems[existingIndex];
+                        const totalUnits = (existingItem.units || 0) + (item.units || 0);
+                        const totalAmount = (existingItem.amount || 0) + (item.amount || 0);
+                        const avgCost = totalUnits > 0 ? totalAmount / totalUnits : 0;
+
+                        const updatedItem: CashItem = {
+                            ...existingItem,
+                            amount: totalAmount,
+                            units: totalUnits,
+                            averageCost: avgCost,
+                        };
+
+                        const updatedCashItems = [...existingCashItems];
+                        updatedCashItems[existingIndex] = updatedItem;
+                        return { ...p, cashItems: updatedCashItems };
+                    }
+                }
+
+                const newItem: CashItem = {
+                    ...item,
+                    id: Date.now().toString(),
+                    dateAdded: item.dateAdded || Date.now()
+                };
+
+                return { ...p, cashItems: [...existingCashItems, newItem] };
+            });
         });
     };
 

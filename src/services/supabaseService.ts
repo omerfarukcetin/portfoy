@@ -207,21 +207,28 @@ export const saveUserPortfolios = async (
 export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: Portfolio[], activePortfolioId: string }> => {
     try {
         console.log(`📥 Supabase: Loading portfolios for user ${userId}`);
+        const startTime = Date.now();
 
-        // 1. Get user metadata
-        const { data: metaData } = await supabase
-            .from('user_metadata')
-            .select('active_portfolio_id')
-            .eq('id', userId)
-            .single();
+        // 1. Fetch all data in parallel (6 queries instead of 1+5N)
+        const [
+            { data: metaData },
+            { data: portfoliosData, error: portfoliosError },
+            { data: allItemsData },
+            { data: allCashData },
+            { data: allTradesData },
+            { data: allDividendsData },
+            { data: allHistoryData }
+        ] = await Promise.all([
+            supabase.from('user_metadata').select('active_portfolio_id').eq('id', userId).single(),
+            supabase.from('portfolios').select('*').eq('user_id', userId),
+            supabase.from('portfolio_items').select('*').eq('user_id', userId),
+            supabase.from('cash_items').select('*').eq('user_id', userId),
+            supabase.from('realized_trades').select('*').eq('user_id', userId),
+            supabase.from('dividends').select('*').eq('user_id', userId),
+            supabase.from('portfolio_history').select('*').eq('user_id', userId).order('date', { ascending: true })
+        ]);
 
         const activePortfolioId = metaData?.active_portfolio_id || '';
-
-        // 2. Get all portfolios
-        const { data: portfoliosData, error: portfoliosError } = await supabase
-            .from('portfolios')
-            .select('*')
-            .eq('user_id', userId);
 
         if (portfoliosError) {
             console.error('❌ Error loading portfolios:', portfoliosError);
@@ -233,48 +240,52 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
             return { portfolios: [], activePortfolioId: '' };
         }
 
-        // 3. Load related data for each portfolio
-        const portfolios: Portfolio[] = [];
+        // 2. Group related data by portfolio_id in memory
+        const itemsByPortfolio = new Map<string, any[]>();
+        const cashByPortfolio = new Map<string, any[]>();
+        const tradesByPortfolio = new Map<string, any[]>();
+        const dividendsByPortfolio = new Map<string, any[]>();
+        const historyByPortfolio = new Map<string, any[]>();
 
-        for (const p of portfoliosData) {
-            // Load items
-            const { data: itemsData } = await supabase
-                .from('portfolio_items')
-                .select('*')
-                .eq('portfolio_id', p.id)
-                .eq('user_id', userId);
+        (allItemsData || []).forEach(item => {
+            const list = itemsByPortfolio.get(item.portfolio_id) || [];
+            list.push(item);
+            itemsByPortfolio.set(item.portfolio_id, list);
+        });
 
-            // Load cash items
-            const { data: cashData } = await supabase
-                .from('cash_items')
-                .select('*')
-                .eq('portfolio_id', p.id)
-                .eq('user_id', userId);
+        (allCashData || []).forEach(item => {
+            const list = cashByPortfolio.get(item.portfolio_id) || [];
+            list.push(item);
+            cashByPortfolio.set(item.portfolio_id, list);
+        });
 
-            // Load realized trades
-            const { data: tradesData } = await supabase
-                .from('realized_trades')
-                .select('*')
-                .eq('portfolio_id', p.id)
-                .eq('user_id', userId);
+        (allTradesData || []).forEach(trade => {
+            const list = tradesByPortfolio.get(trade.portfolio_id) || [];
+            list.push(trade);
+            tradesByPortfolio.set(trade.portfolio_id, list);
+        });
 
-            // Load dividends
-            const { data: dividendsData } = await supabase
-                .from('dividends')
-                .select('*')
-                .eq('portfolio_id', p.id)
-                .eq('user_id', userId);
+        (allDividendsData || []).forEach(div => {
+            const list = dividendsByPortfolio.get(div.portfolio_id) || [];
+            list.push(div);
+            dividendsByPortfolio.set(div.portfolio_id, list);
+        });
 
-            // Load history
-            const { data: historyData } = await supabase
-                .from('portfolio_history')
-                .select('*')
-                .eq('portfolio_id', p.id)
-                .eq('user_id', userId)
-                .order('date', { ascending: true });
+        (allHistoryData || []).forEach(h => {
+            const list = historyByPortfolio.get(h.portfolio_id) || [];
+            list.push(h);
+            historyByPortfolio.set(h.portfolio_id, list);
+        });
 
-            // Map database fields to TypeScript types
-            const items: PortfolioItem[] = (itemsData || []).map(item => ({
+        // 3. Map to Portfolio objects
+        const portfolios: Portfolio[] = portfoliosData.map(p => {
+            const itemsData = itemsByPortfolio.get(p.id) || [];
+            const cashData = cashByPortfolio.get(p.id) || [];
+            const tradesData = tradesByPortfolio.get(p.id) || [];
+            const dividendsData = dividendsByPortfolio.get(p.id) || [];
+            const historyData = historyByPortfolio.get(p.id) || [];
+
+            const items: PortfolioItem[] = itemsData.map(item => ({
                 id: item.id,
                 instrumentId: item.instrument_id,
                 amount: Number(item.amount),
@@ -293,7 +304,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 customCurrentPrice: item.custom_current_price ? Number(item.custom_current_price) : undefined
             }));
 
-            const cashItems: CashItem[] = (cashData || []).map(item => ({
+            const cashItems: CashItem[] = cashData.map(item => ({
                 id: item.id,
                 type: item.type,
                 name: item.name,
@@ -307,7 +318,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 historicalUsdRate: item.historical_usd_rate ? Number(item.historical_usd_rate) : undefined
             }));
 
-            const realizedTrades: RealizedTrade[] = (tradesData || []).map(trade => ({
+            const realizedTrades: RealizedTrade[] = tradesData.map(trade => ({
                 id: trade.id,
                 instrumentId: trade.instrument_id,
                 amount: Number(trade.amount),
@@ -321,7 +332,7 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 type: trade.type
             }));
 
-            const dividends: Dividend[] = (dividendsData || []).map(div => ({
+            const dividends: Dividend[] = dividendsData.map(div => ({
                 id: div.id,
                 instrumentId: div.instrument_id,
                 amount: Number(div.amount),
@@ -331,13 +342,13 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 sharesAtDate: div.shares_at_date ? Number(div.shares_at_date) : undefined
             }));
 
-            const history = (historyData || []).map(h => ({
+            const history = historyData.map(h => ({
                 date: h.date,
                 valueTry: Number(h.value_try),
                 valueUsd: Number(h.value_usd)
             }));
 
-            portfolios.push({
+            return {
                 id: p.id,
                 name: p.name || 'Portföy',
                 color: p.color || '#007AFF',
@@ -352,10 +363,11 @@ export const loadUserPortfolios = async (userId: string): Promise<{ portfolios: 
                 targetValueTry: p.target_value_try ? Number(p.target_value_try) : undefined,
                 targetCurrency: p.target_currency,
                 updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : undefined
-            });
-        }
+            };
+        });
 
-        console.log(`✅ Supabase: Loaded ${portfolios.length} portfolios`);
+        const elapsed = Date.now() - startTime;
+        console.log(`✅ Supabase: Loaded ${portfolios.length} portfolios in ${elapsed}ms`);
         return { portfolios, activePortfolioId };
     } catch (error) {
         console.error('❌ Error loading portfolios from Supabase:', error);

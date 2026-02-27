@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatCurrency } from '../utils/formatting';
 import { PortfolioItem } from '../types';
-import { Pencil, Trash2 } from 'lucide-react-native';
+import { Pencil, Trash2, Search } from 'lucide-react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { TickerIcon } from '../components/TickerIcon';
 import { MarketDataService } from '../services/marketData';
@@ -40,6 +40,20 @@ export const TransactionsScreen = () => {
     const { width } = useWindowDimensions();
     const isMobileLayout = Platform.OS !== 'web' || width < 768;
     const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Filter and Sort Closed Positions
+    const filteredAndSortedClosedTrades = React.useMemo(() => {
+        let filtered = realizedTrades;
+        if (searchQuery.trim()) {
+            const query = searchQuery.trim().toLowerCase();
+            filtered = realizedTrades.filter(trade =>
+                trade.instrumentId.toLowerCase().includes(query)
+            );
+        }
+        // Sort by date descending (newest first)
+        return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [realizedTrades, searchQuery]);
 
     // Edit Modal State
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -428,12 +442,24 @@ export const TransactionsScreen = () => {
                         <Text style={{ textAlign: 'center', color: colors.subText, marginTop: 20 }}>Henüz işlem yok.</Text>
                     ) : (
                         <>
+                            {/* Search Bar */}
+                            <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBackground, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border }}>
+                                <Search size={20} color={colors.subText} />
+                                <TextInput
+                                    style={{ flex: 1, height: 44, color: colors.text, marginLeft: 8 }}
+                                    placeholder="Hisse veya fon adına göre ara..."
+                                    placeholderTextColor={colors.subText}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+                            </View>
+
                             {/* Category Summary */}
                             {(() => {
                                 const categoryTotals: { [key: string]: { profitTry: number; count: number } } = {};
                                 let totalProfitTry = 0;
 
-                                realizedTrades.forEach(trade => {
+                                filteredAndSortedClosedTrades.forEach(trade => {
                                     const cat = trade.type || 'other';
                                     if (!categoryTotals[cat]) {
                                         categoryTotals[cat] = { profitTry: 0, count: 0 };
@@ -498,7 +524,7 @@ export const TransactionsScreen = () => {
                                     </View>
 
                                     {/* Table Rows */}
-                                    {realizedTrades.slice().reverse().map(trade => {
+                                    {filteredAndSortedClosedTrades.map(trade => {
                                         const cost = trade.buyPrice * trade.amount;
                                         const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
                                         const getIconColor = (type: string) => {
@@ -580,7 +606,7 @@ export const TransactionsScreen = () => {
                                 </View>
                             ) : (
                                 <SwipeListView
-                                    data={realizedTrades.slice().reverse()}
+                                    data={filteredAndSortedClosedTrades}
                                     renderItem={renderRealizedItem}
                                     renderHiddenItem={renderRealizedHiddenItem}
                                     keyExtractor={(item) => item.id}

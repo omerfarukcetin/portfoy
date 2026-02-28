@@ -50,6 +50,12 @@ export interface RealizedTrade {
   type?: InstrumentType; // Asset type for category grouping
 }
 
+// Assuming sellAsset is a function definition that needs to be added or modified.
+// Based on the provided snippet, it seems to be a standalone function or part of a larger service/utility.
+// Since the original document only contains interface definitions, I will add it as a placeholder function definition.
+// If this function is meant to be part of an interface, please provide the correct interface context.
+declare function sellAsset(id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number): Promise<void>;
+
 export interface Dividend {
   id: string;
   instrumentId: string; // The stock/asset symbol

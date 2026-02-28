@@ -58,7 +58,7 @@ interface PortfolioContextType {
     addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }, deductFromCash?: boolean) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
     updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number, besStateContrib: number, besStateContribYield: number }) => Promise<void>;
-    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string) => Promise<void>;
+    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
 
@@ -938,7 +938,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string) => {
+    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => p.items.some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -950,7 +950,20 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             const costBasis = item.averageCost * amountToSell;
             const saleProceeds = sellPrice * amountToSell;
-            const profit = saleProceeds - costBasis;
+
+            // Gross profit
+            let grossProfit = saleProceeds - costBasis;
+
+            // Apply Tax (Stopaj) if defined
+            let taxAmount = 0;
+            if (grossProfit > 0 && taxRate !== undefined) {
+                taxAmount = grossProfit * (taxRate / 100);
+            }
+
+            // Net profit and Proceeds
+            const netProfit = grossProfit - taxAmount;
+            const netProceeds = saleProceeds - taxAmount;
+
             const rateToUse = historicalRate || currentUsdRate;
 
             let profitUsd = 0;
@@ -959,15 +972,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             let proceedsUsd = 0;
 
             if (item.currency === 'USD') {
-                profitUsd = profit;
-                profitTry = profit * rateToUse;
-                proceedsTry = saleProceeds * rateToUse;
-                proceedsUsd = saleProceeds;
+                profitUsd = netProfit;
+                profitTry = netProfit * rateToUse;
+                proceedsTry = netProceeds * rateToUse;
+                proceedsUsd = netProceeds;
             } else {
-                profitTry = profit;
-                profitUsd = profit / rateToUse;
-                proceedsTry = saleProceeds;
-                proceedsUsd = saleProceeds / rateToUse;
+                profitTry = netProfit;
+                profitUsd = netProfit / rateToUse;
+                proceedsTry = netProceeds;
+                proceedsUsd = netProceeds / rateToUse;
             }
 
             const trade: RealizedTrade = {
@@ -978,7 +991,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 buyPrice: item.averageCost,
                 currency: item.currency,
                 date: sellDate || Date.now(),
-                profit,
+                profit: netProfit,
                 profitUsd,
                 profitTry,
                 type: item.type

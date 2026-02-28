@@ -163,7 +163,7 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                             <View style={[styles.infoCard, { backgroundColor: colors.background }]}>
                                 <Text style={[styles.infoText, { color: colors.text }]}>Mevcut Pay: {item.units.toLocaleString('tr-TR')}</Text>
                                 <Text style={[styles.infoText, { color: colors.text }]}>
@@ -307,13 +307,14 @@ const styles = StyleSheet.create({
     },
     keyboardView: {
         width: '100%',
-        maxHeight: '90%',
+        maxHeight: '92%',
     },
     container: {
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
         padding: 20,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+        maxHeight: '100%',
     },
     header: {
         flexDirection: 'row',

@@ -26,6 +26,8 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const [sellDate, setSellDate] = useState('');
     const [historicalRate, setHistoricalRate] = useState('');
     const [destinationCashId, setDestinationCashId] = useState('default');
+    const [isTaxEnabled, setIsTaxEnabled] = useState(false);
+    const [taxRate, setTaxRate] = useState('17.5');
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -41,6 +43,8 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
             setSellDate('');
             setHistoricalRate('');
             setDestinationCashId('default');
+            setIsTaxEnabled(false);
+            setTaxRate('17.5');
         }
     }, [visible, item]);
 
@@ -87,6 +91,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
         const priceNum = parseFloat(price.replace(',', '.'));
         const rateNum = historicalRate ? parseFloat(historicalRate.replace(',', '.')) : undefined;
         const dateNum = sellDate ? new Date(sellDate).getTime() : undefined;
+        const taxRateNum = isTaxEnabled ? (parseFloat(taxRate.replace(',', '.')) || 0) : undefined;
 
         if (amountNum > (item?.amount || 0)) {
             showAlert(t('common.error') || 'Hata', t('sellAsset.errorAmount') || 'Satılan miktar eldeki miktardan fazla olamaz.');
@@ -94,7 +99,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
         }
 
         try {
-            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum, destinationCashId);
+            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum, destinationCashId, taxRateNum);
             onClose(); // Close modal immediately
             // Brief timeout to ensure modal is gone before alert shows (improves UI feel)
             setTimeout(() => {
@@ -110,11 +115,18 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const priceNum = parseFloat(price.replace(',', '.')) || 0;
     const amountNum = parseFloat(amount.replace(',', '.')) || 0;
     const rateNum = parseFloat(historicalRate.replace(',', '.')) || 1;
+    const taxNum = isTaxEnabled ? (parseFloat(taxRate.replace(',', '.')) || 0) : 0;
 
     const sellValueTry = priceNum * amountNum;
     const costTry = item.averageCost * amountNum;
-    const profitTry = sellValueTry - costTry;
-    const profitPercentTry = costTry > 0 ? (profitTry / costTry) * 100 : 0;
+
+    // Profit and Tax Calculations
+    const grossProfitTry = sellValueTry - costTry;
+    const taxAmountTry = grossProfitTry > 0 ? grossProfitTry * (taxNum / 100) : 0;
+    const netProfitTry = grossProfitTry - taxAmountTry;
+
+    const profitPercentTry = costTry > 0 ? (grossProfitTry / costTry) * 100 : 0;
+    const netProfitPercentTry = costTry > 0 ? (netProfitTry / costTry) * 100 : 0;
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -130,7 +142,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                             <View style={[styles.infoCard, { backgroundColor: colors.background }]}>
                                 <Text style={[styles.infoText, { color: colors.text }]}>{t('sellAsset.currentAmount') || 'Mevcut Miktar'}: {item.amount}</Text>
                                 <Text style={[styles.infoText, { color: colors.text }]}>
@@ -215,6 +227,49 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                                 placeholderTextColor={colors.subText}
                             />
 
+                            {/* Global Stopaj Toggle */}
+                            <Text style={[styles.label, { color: colors.subText, marginTop: 8 }]}>Stopaj (Vergi) Kesintisi</Text>
+                            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.cashOption,
+                                        { flex: 1, borderColor: colors.border, backgroundColor: colors.background, marginRight: 8 },
+                                        !isTaxEnabled && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                    ]}
+                                    onPress={() => setIsTaxEnabled(false)}
+                                >
+                                    <Text style={[styles.cashOptionText, { color: colors.text, textAlign: 'center' }, !isTaxEnabled && { color: '#FFF' }]}>
+                                        Yok
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.cashOption,
+                                        { flex: 1, borderColor: colors.border, backgroundColor: colors.background, marginRight: 0 },
+                                        isTaxEnabled && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                    ]}
+                                    onPress={() => setIsTaxEnabled(true)}
+                                >
+                                    <Text style={[styles.cashOptionText, { color: colors.text, textAlign: 'center' }, isTaxEnabled && { color: '#FFF' }]}>
+                                        Var
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {isTaxEnabled && (
+                                <>
+                                    <Text style={[styles.label, { color: colors.subText }]}>Stopaj Oranı (%)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                        keyboardType="numeric"
+                                        value={taxRate}
+                                        onChangeText={setTaxRate}
+                                        placeholder="17.5"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </>
+                            )}
+
                             {/* Destination Cash Selector */}
                             <Text style={[styles.label, { color: colors.subText, marginTop: 8 }]}>Aktarılacak Kasa</Text>
                             <View style={{ marginBottom: 16 }}>
@@ -265,11 +320,25 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
 
                             {/* Profit Preview */}
                             {priceNum > 0 && amountNum > 0 && (
-                                <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
-                                    <View style={styles.previewRow}>
-                                        <Text style={{ color: colors.subText, fontSize: 13 }}>{t('sellAsset.tryProfitLoss') || 'TL Kar/Zarar'}</Text>
-                                        <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 13 }}>
-                                            {formatCurrency(profitTry, 'TRY')} ({profitTry >= 0 ? '+' : ''}{profitPercentTry.toFixed(2)}%)
+                                <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: grossProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                    <View style={[styles.previewRow, { marginBottom: 6 }]}>
+                                        <Text style={{ color: colors.subText, fontSize: 13 }}>Brüt Kâr/Zarar</Text>
+                                        <Text style={{ color: grossProfitTry >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 13 }}>
+                                            {grossProfitTry >= 0 ? '+' : ''}{formatCurrency(grossProfitTry, 'TRY')}
+                                        </Text>
+                                    </View>
+                                    {grossProfitTry > 0 && isTaxEnabled && taxNum > 0 && (
+                                        <View style={[styles.previewRow, { marginBottom: 6 }]}>
+                                            <Text style={{ color: colors.subText, fontSize: 13 }}>Stopaj Kesintisi (%{taxNum})</Text>
+                                            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>
+                                                -{formatCurrency(taxAmountTry, 'TRY')}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={[styles.previewRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6 }]}>
+                                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Net Kâr/Zarar</Text>
+                                        <Text style={{ color: netProfitTry >= 0 ? colors.success : colors.danger, fontWeight: '800', fontSize: 14 }}>
+                                            {netProfitTry >= 0 ? '+' : ''}{formatCurrency(netProfitTry, 'TRY')} ({netProfitTry >= 0 ? '+' : ''}{netProfitPercentTry.toFixed(2)}%)
                                         </Text>
                                     </View>
                                 </View>
@@ -294,13 +363,14 @@ const styles = StyleSheet.create({
     },
     keyboardView: {
         width: '100%',
-        maxHeight: '90%',
+        maxHeight: '92%',
     },
     container: {
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
         padding: 20,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+        maxHeight: '100%',
     },
     header: {
         flexDirection: 'row',

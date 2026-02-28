@@ -48,7 +48,11 @@ export const PortfolioChart = forwardRef<PortfolioChartHandle, PortfolioChartPro
     const [range, setRange] = useState<'1W' | '1M' | '3M'>('1W');
     const chartRef = useRef<any>(null);
     const screenWidth = Dimensions.get('window').width;
-    const chartWidth = isMobile ? screenWidth - 32 : screenWidth - 60;
+
+    // The container padding in SummaryScreen mobile is 16 on each side (32 total), 
+    // plus the chart container itself adds 8 horizontal padding (16 total).
+    // So we subtract ~48-50 from screenWidth to ensure it fits comfortably within bounds.
+    const chartWidth = isMobile ? screenWidth - 50 : screenWidth - 60;
 
     useImperativeHandle(ref, () => ({
         captureImage: handleCapture
@@ -171,7 +175,7 @@ export const PortfolioChart = forwardRef<PortfolioChartHandle, PortfolioChartPro
                 style={{
                     marginVertical: 8,
                     borderRadius: 16,
-                    marginLeft: isMobile ? -20 : -10
+                    alignItems: 'center',
                 }}
                 withInnerLines={true}
                 withOuterLines={false}

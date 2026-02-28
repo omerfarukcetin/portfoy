@@ -13,15 +13,33 @@ import { SmartInsightCard } from '../components/SmartInsightCard';
 import { generateAssetInsight } from '../services/advisorService';
 import { SellAssetModal } from '../components/SellAssetModal';
 
+import { PortfolioItem } from '../types';
+
 export const AssetDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const { id } = route.params as { id: string };
-    const { portfolio } = usePortfolio();
+    const { portfolio, cashItems } = usePortfolio();
     const { colors, fontScale, fonts } = useTheme();
     const { symbolCase } = useSettings();
 
-    const item = portfolio.find(p => p.id === id);
+    let item: PortfolioItem | undefined = portfolio.find(p => p.id === id);
+
+    if (!item) {
+        const cashItem = cashItems.find(c => c.id === id);
+        if (cashItem && cashItem.type === 'money_market_fund') {
+            item = {
+                id: cashItem.id,
+                instrumentId: cashItem.instrumentId || 'PPF',
+                type: 'fund',
+                currency: cashItem.currency,
+                amount: cashItem.units || cashItem.amount,
+                averageCost: cashItem.averageCost || 1,
+                customName: cashItem.name,
+                dateAdded: cashItem.dateAdded || Date.now(),
+            } as PortfolioItem;
+        }
+    }
 
     const [loading, setLoading] = useState(true);
     const [currentPrice, setCurrentPrice] = useState(0);

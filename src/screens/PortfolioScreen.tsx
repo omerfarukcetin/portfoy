@@ -543,8 +543,17 @@ export const PortfolioScreen = () => {
                                             const isPPF = cashItem.type === 'money_market_fund';
                                             const iconSymbol = cashItem.instrumentId ? cashItem.instrumentId.substring(0, 3) : 'TRY';
 
+                                            const RowWrapper = isPPF ? TouchableOpacity : View;
+
                                             return (
-                                                <View key={index} style={[styles.itemRow, { borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border + '30' }]}>
+                                                <RowWrapper
+                                                    key={index}
+                                                    style={[styles.itemRow, { borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border + '30' }]}
+                                                    {...(isPPF && {
+                                                        onPress: () => (navigation as any).navigate('AssetDetail', { id: cashItem.id }),
+                                                        activeOpacity: 0.7
+                                                    })}
+                                                >
                                                     <View style={styles.leftContainer}>
                                                         {isPPF ? (
                                                             <View style={{ backgroundColor: '#8E8E9320', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
@@ -572,7 +581,7 @@ export const PortfolioScreen = () => {
                                                             </View>
                                                         )}
                                                     </View>
-                                                </View>
+                                                </RowWrapper>
                                             );
                                         })}
                                         {cashItems.length === 0 && (

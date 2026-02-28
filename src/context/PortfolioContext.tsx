@@ -58,7 +58,7 @@ interface PortfolioContextType {
     addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }, deductFromCash?: boolean) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
     updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number, besStateContrib: number, besStateContribYield: number }) => Promise<void>;
-    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number) => Promise<void>;
+    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
 
@@ -926,7 +926,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number) => {
+    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => p.items.some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -944,15 +944,18 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             let profitUsd = 0;
             let profitTry = 0;
             let proceedsTry = 0;
+            let proceedsUsd = 0;
 
             if (item.currency === 'USD') {
                 profitUsd = profit;
                 profitTry = profit * rateToUse;
                 proceedsTry = saleProceeds * rateToUse;
+                proceedsUsd = saleProceeds;
             } else {
                 profitTry = profit;
                 profitUsd = profit / rateToUse;
                 proceedsTry = saleProceeds;
+                proceedsUsd = saleProceeds / rateToUse;
             }
 
             const trade: RealizedTrade = {
@@ -977,22 +980,64 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             let updatedCashItems = [...(ownerPortfolio.cashItems || [])];
-            const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
 
-            if (defaultCashIndex !== -1) {
-                updatedCashItems[defaultCashIndex] = {
-                    ...updatedCashItems[defaultCashIndex],
-                    amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
-                };
+            if (destinationCashId === 'none') {
+                // Do not add proceeds to any cash account
+            } else if (destinationCashId && destinationCashId !== 'default') {
+                const targetCashIndex = updatedCashItems.findIndex(i => i.id === destinationCashId);
+
+                if (targetCashIndex !== -1) {
+                    const targetCash = updatedCashItems[targetCashIndex];
+                    let amountToAdd = 0;
+
+                    if (targetCash.currency === 'USD') {
+                        amountToAdd = proceedsUsd;
+                    } else {
+                        amountToAdd = proceedsTry;
+                    }
+
+                    updatedCashItems[targetCashIndex] = {
+                        ...targetCash,
+                        amount: targetCash.amount + amountToAdd
+                    };
+                } else {
+                    // Fallback to default if somehow the ID wasn't found
+                    const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
+                    if (defaultCashIndex !== -1) {
+                        updatedCashItems[defaultCashIndex] = {
+                            ...updatedCashItems[defaultCashIndex],
+                            amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
+                        };
+                    } else {
+                        updatedCashItems.push({
+                            id: Date.now().toString(),
+                            type: 'cash',
+                            name: 'Nakit (TL)',
+                            amount: proceedsTry,
+                            currency: 'TRY',
+                            dateAdded: Date.now()
+                        });
+                    }
+                }
             } else {
-                updatedCashItems.push({
-                    id: Date.now().toString(),
-                    type: 'cash',
-                    name: 'Nakit (TL)',
-                    amount: proceedsTry,
-                    currency: 'TRY',
-                    dateAdded: Date.now()
-                });
+                // Default behavior: Auto-deposit to TRY cash
+                const defaultCashIndex = updatedCashItems.findIndex(i => i.type === 'cash' && i.currency === 'TRY');
+
+                if (defaultCashIndex !== -1) {
+                    updatedCashItems[defaultCashIndex] = {
+                        ...updatedCashItems[defaultCashIndex],
+                        amount: updatedCashItems[defaultCashIndex].amount + proceedsTry
+                    };
+                } else {
+                    updatedCashItems.push({
+                        id: Date.now().toString(),
+                        type: 'cash',
+                        name: 'Nakit (TL)',
+                        amount: proceedsTry,
+                        currency: 'TRY',
+                        dateAdded: Date.now()
+                    });
+                }
             }
 
             return prev.map(p =>

@@ -17,7 +17,7 @@ interface SellAssetModalProps {
 }
 
 export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose, item }) => {
-    const { sellAsset } = usePortfolio();
+    const { sellAsset, cashItems } = usePortfolio();
     const { colors } = useTheme();
     const { t } = useLanguage();
 
@@ -25,6 +25,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const [price, setPrice] = useState('');
     const [sellDate, setSellDate] = useState('');
     const [historicalRate, setHistoricalRate] = useState('');
+    const [destinationCashId, setDestinationCashId] = useState('default');
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -36,11 +37,10 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
             setSellDate(today.toISOString().split('T')[0]);
             fetchCurrentPrice();
         } else {
-            // Reset state when closing
-            setAmount('');
             setPrice('');
             setSellDate('');
             setHistoricalRate('');
+            setDestinationCashId('default');
         }
     }, [visible, item]);
 
@@ -94,7 +94,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
         }
 
         try {
-            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum);
+            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum, destinationCashId);
             onClose(); // Close modal immediately
             // Brief timeout to ensure modal is gone before alert shows (improves UI feel)
             setTimeout(() => {
@@ -215,6 +215,54 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                                 placeholderTextColor={colors.subText}
                             />
 
+                            {/* Destination Cash Selector */}
+                            <Text style={[styles.label, { color: colors.subText, marginTop: 8 }]}>Aktarılacak Kasa</Text>
+                            <View style={{ marginBottom: 16 }}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingRight: 16 }}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.cashOption,
+                                            { borderColor: colors.border, backgroundColor: colors.background },
+                                            destinationCashId === 'default' && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                        ]}
+                                        onPress={() => setDestinationCashId('default')}
+                                    >
+                                        <Text style={[styles.cashOptionText, { color: colors.text }, destinationCashId === 'default' && { color: '#FFF' }]}>
+                                            Otomatik Nakit (TL)
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.cashOption,
+                                            { borderColor: colors.border, backgroundColor: colors.background },
+                                            destinationCashId === 'none' && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                        ]}
+                                        onPress={() => setDestinationCashId('none')}
+                                    >
+                                        <Text style={[styles.cashOptionText, { color: colors.text }, destinationCashId === 'none' && { color: '#FFF' }]}>
+                                            Kasaya Aktarma
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {cashItems.filter(c => c.type === 'cash').map(cash => (
+                                        <TouchableOpacity
+                                            key={cash.id}
+                                            style={[
+                                                styles.cashOption,
+                                                { borderColor: colors.border, backgroundColor: colors.background },
+                                                destinationCashId === cash.id && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                            ]}
+                                            onPress={() => setDestinationCashId(cash.id)}
+                                        >
+                                            <Text style={[styles.cashOptionText, { color: colors.text }, destinationCashId === cash.id && { color: '#FFF' }]}>
+                                                {cash.name} ({formatCurrency(cash.amount, cash.currency)})
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+
                             {/* Profit Preview */}
                             {priceNum > 0 && amountNum > 0 && (
                                 <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
@@ -328,5 +376,16 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 15,
         fontWeight: '700',
+    },
+    cashOption: {
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginRight: 8,
+    },
+    cashOptionText: {
+        fontSize: 13,
+        fontWeight: '600',
     },
 });

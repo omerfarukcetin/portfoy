@@ -24,6 +24,7 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
     const [price, setPrice] = useState('');
     const [sellDate, setSellDate] = useState('');
     const [historicalRate, setHistoricalRate] = useState('');
+    const [taxRate, setTaxRate] = useState('17.5');
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [currentUsdRate, setCurrentUsdRate] = useState(0);
@@ -46,10 +47,10 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
             fetchCurrentUsdRate();
         } else {
             // Reset state when closing
-            setAmount('');
             setPrice('');
             setSellDate('');
             setHistoricalRate('');
+            setTaxRate('17.5');
         }
     }, [visible, item, propCurrentPrice]);
 
@@ -105,6 +106,7 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
         const amountNum = parseFloat(amount.replace(',', '.'));
         const priceNum = parseFloat(price.replace(',', '.'));
         const rateNum = historicalRate ? parseFloat(historicalRate.replace(',', '.')) : currentUsdRate;
+        const taxNum = parseFloat(taxRate.replace(',', '.')) || 0;
 
         if (amountNum > (item?.units || 0)) {
             showAlert('Hata', 'Satılan miktar eldeki miktardan fazla olamaz.');
@@ -112,8 +114,8 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
         }
 
         try {
-            // Use the sellCashFund function with the sell price and USD rate
-            await sellCashFund(item.id, amountNum, priceNum, rateNum || 1);
+            // Use the sellCashFund function with the sell price, USD rate, and tax rate
+            await sellCashFund(item.id, amountNum, priceNum, rateNum || 1, taxNum);
             onClose();
             setTimeout(() => {
                 showAlert('Başarılı', 'Fon satış işlemi başarıyla kaydedildi.');
@@ -128,17 +130,24 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
     const priceNum = parseFloat(price.replace(',', '.')) || 0;
     const amountNum = parseFloat(amount.replace(',', '.')) || 0;
     const rateNum = parseFloat(historicalRate.replace(',', '.')) || currentUsdRate || 1;
+    const taxNum = parseFloat(taxRate.replace(',', '.')) || 0;
 
     const sellValueTry = priceNum * amountNum;
     const costTry = item.averageCost * amountNum;
-    const profitTry = sellValueTry - costTry;
-    const profitPercentTry = costTry > 0 ? (profitTry / costTry) * 100 : 0;
+
+    // Profit and Tax Calculations
+    const grossProfitTry = sellValueTry - costTry;
+    const taxAmountTry = grossProfitTry > 0 ? grossProfitTry * (taxNum / 100) : 0;
+    const netProfitTry = grossProfitTry - taxAmountTry;
+
+    const profitPercentTry = costTry > 0 ? (grossProfitTry / costTry) * 100 : 0;
+    const netProfitPercentTry = costTry > 0 ? (netProfitTry / costTry) * 100 : 0;
 
     // USD calculations
     const costUsd = item.historicalUsdRate ? costTry / item.historicalUsdRate : costTry / rateNum;
     const valueUsd = sellValueTry / rateNum;
-    const profitUsd = valueUsd - costUsd;
-    const profitPercentUsd = costUsd > 0 ? (profitUsd / costUsd) * 100 : 0;
+    const grossProfitUsd = valueUsd - costUsd;
+    const netProfitUsd = grossProfitUsd - (taxAmountTry / rateNum);
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -243,13 +252,37 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
                                 placeholderTextColor={colors.subText}
                             />
 
+                            <Text style={[styles.label, { color: colors.subText }]}>Stopaj Oranı (%)</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                keyboardType="numeric"
+                                value={taxRate}
+                                onChangeText={setTaxRate}
+                                placeholder="17.5"
+                                placeholderTextColor={colors.subText}
+                            />
+
                             {/* Profit Preview */}
                             {priceNum > 0 && amountNum > 0 && (
-                                <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: profitTry >= 0 ? colors.success : colors.danger }]}>
-                                    <View style={styles.previewRow}>
-                                        <Text style={{ color: colors.subText, fontSize: 13 }}>TL Kâr/Zarar</Text>
-                                        <Text style={{ color: profitTry >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 13 }}>
-                                            {profitTry >= 0 ? '+' : ''}{formatCurrency(profitTry, 'TRY')} ({profitTry >= 0 ? '+' : ''}{profitPercentTry.toFixed(2)}%)
+                                <View style={[styles.previewCard, { backgroundColor: colors.background, borderColor: grossProfitTry >= 0 ? colors.success : colors.danger }]}>
+                                    <View style={[styles.previewRow, { marginBottom: 6 }]}>
+                                        <Text style={{ color: colors.subText, fontSize: 13 }}>Brüt Kâr/Zarar</Text>
+                                        <Text style={{ color: grossProfitTry >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 13 }}>
+                                            {grossProfitTry >= 0 ? '+' : ''}{formatCurrency(grossProfitTry, 'TRY')}
+                                        </Text>
+                                    </View>
+                                    {grossProfitTry > 0 && taxNum > 0 && (
+                                        <View style={[styles.previewRow, { marginBottom: 6 }]}>
+                                            <Text style={{ color: colors.subText, fontSize: 13 }}>Stopaj Kesintisi (%{taxNum})</Text>
+                                            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>
+                                                -{formatCurrency(taxAmountTry, 'TRY')}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={[styles.previewRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6 }]}>
+                                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Net Kâr/Zarar</Text>
+                                        <Text style={{ color: netProfitTry >= 0 ? colors.success : colors.danger, fontWeight: '800', fontSize: 14 }}>
+                                            {netProfitTry >= 0 ? '+' : ''}{formatCurrency(netProfitTry, 'TRY')} ({netProfitTry >= 0 ? '+' : ''}{netProfitPercentTry.toFixed(2)}%)
                                         </Text>
                                     </View>
                                 </View>

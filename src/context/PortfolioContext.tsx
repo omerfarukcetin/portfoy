@@ -67,7 +67,7 @@ interface PortfolioContextType {
     updateCashItem: (id: string, amount: number) => Promise<void>;
     deleteCashItem: (id: string) => Promise<void>;
     updateCash: (amount: number) => Promise<void>;
-    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number) => Promise<void>;
+    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => Promise<void>;
 
     // Dividend functions
     addDividend: (dividend: Omit<Dividend, 'id'>) => Promise<void>;
@@ -665,7 +665,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number) => {
+    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => (p.cashItems || []).some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -674,25 +674,37 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (!fundItem || fundItem.type !== 'money_market_fund' || !fundItem.units || !fundItem.averageCost) return prev;
 
             const actualUnitsToSell = Math.min(unitsToSell, fundItem.units);
-            const currentValue = actualUnitsToSell * sellPrice;
+            const grossValue = actualUnitsToSell * sellPrice;
             const costBasis = actualUnitsToSell * fundItem.averageCost;
-            const profitTry = currentValue - costBasis;
 
+            // Calculate gross profit
+            let grossProfitTry = grossValue - costBasis;
+
+            // Apply tax (stopaj) if there is a profit and a tax rate is provided
+            let taxAmountTry = 0;
+            if (grossProfitTry > 0 && taxRate !== undefined) {
+                taxAmountTry = grossProfitTry * (taxRate / 100);
+            }
+
+            const netProfitTry = grossProfitTry - taxAmountTry;
+            const netValue = costBasis + netProfitTry; // Total money returned to cash
+
+            // USD Equivalents (approximate using current rate)
             const costUsd = fundItem.historicalUsdRate ? costBasis / fundItem.historicalUsdRate : costBasis / currentUsdRate;
-            const valueUsd = currentValue / currentUsdRate;
-            const profitUsd = valueUsd - costUsd;
+            const netValueUsd = netValue / currentUsdRate;
+            const netProfitUsd = netValueUsd - costUsd;
 
             const trade: RealizedTrade = {
                 id: Date.now().toString(),
                 instrumentId: fundItem.instrumentId || fundItem.name,
                 amount: actualUnitsToSell,
-                sellPrice: sellPrice,
+                sellPrice: sellPrice, // Per unit sell price doesn't reflect tax technically, but we keep it simple
                 buyPrice: fundItem.averageCost,
                 currency: 'TRY',
                 date: Date.now(),
-                profit: profitTry,
-                profitUsd: profitUsd,
-                profitTry: profitTry,
+                profit: netProfitTry, // Log NET profit for accuracy
+                profitUsd: netProfitUsd,
+                profitTry: netProfitTry,
                 type: 'fund'
             };
 
@@ -717,14 +729,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (defaultCashIndex !== -1) {
                 updatedCashItems[defaultCashIndex] = {
                     ...updatedCashItems[defaultCashIndex],
-                    amount: updatedCashItems[defaultCashIndex].amount + currentValue
+                    amount: updatedCashItems[defaultCashIndex].amount + netValue
                 };
             } else {
                 updatedCashItems.push({
                     id: Date.now().toString() + '_cash',
                     type: 'cash',
                     name: 'Nakit (TL)',
-                    amount: currentValue,
+                    amount: netValue,
                     currency: 'TRY',
                     dateAdded: Date.now()
                 });

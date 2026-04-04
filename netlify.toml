@@ -3,6 +3,13 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Redirect Yahoo Finance API for CORS
+[[redirects]]
+  from = "/api/yahoo/*"
+  to = "https://query2.finance.yahoo.com/v8/finance/chart/:splat"
+  status = 200
+  force = true
+
 # Redirect all routes to index.html for client-side routing
 [[redirects]]
   from = "/*"

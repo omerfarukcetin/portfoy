@@ -2,8 +2,21 @@ import axios from 'axios';
 import { Instrument, InstrumentType } from '../types';
 import { Platform } from 'react-native';
 
-const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
+const YAHOO_BASE_URL = 'https://query2.finance.yahoo.com/v8/finance/chart';
 const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
+
+const getYahooUrl = (symbolOrPath: string, params: string) => {
+    const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+    const isLocalhost = isWeb && window.location && window.location.hostname === 'localhost';
+
+    if (!isWeb) return `${YAHOO_BASE_URL}/${symbolOrPath}?${params}`;
+
+    // For web on Netlify (production proxy provided by netlify.toml)
+    if (!isLocalhost) return `/api/yahoo/${symbolOrPath}?${params}`;
+
+    // Fallback for local web development
+    return `https://thingproxy.freeboard.io/fetch/${YAHOO_BASE_URL}/${symbolOrPath}?${params}`;
+};
 const COINCAP_BASE_URL = 'https://api.coincap.io/v2';
 const CRYPTOCOMPARE_BASE_URL = 'https://min-api.cryptocompare.com/data';
 
@@ -378,16 +391,8 @@ export const MarketDataService = {
      */
     getYahooPrice: async (symbol: string): Promise<Partial<Instrument> | null> => {
         try {
-            // Detect web platform for CORS proxy
             const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-
-            let url = `${YAHOO_BASE_URL}/${symbol}?interval=1d&range=1d`;
-
-            // Use CORS proxy for web - try multiple proxies
-            if (isWeb) {
-                // Try cors.eu.org first
-                url = `https://cors.eu.org/${url}`;
-            }
+            const url = getYahooUrl(symbol, 'interval=1d&range=1d');
 
             const response = await fetch(url, {
                 headers: isWeb ? {} : {
@@ -757,8 +762,8 @@ export const MarketDataService = {
         try {
             const period1 = Math.floor(date / 1000);
             const period2 = period1 + 86400; // +1 day
-            // Note: Yahoo symbol might need adjustment (e.g. .IS)
-            const response = await axios.get(`${YAHOO_BASE_URL}/${symbol}?period1=${period1}&period2=${period2}&interval=1d`);
+            const url = getYahooUrl(symbol, `period1=${period1}&period2=${period2}&interval=1d`);
+            const response = await axios.get(url);
 
             if (response.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0]) {
                 return response.data.chart.result[0].indicators.quote[0].close[0];
@@ -790,13 +795,8 @@ export const MarketDataService = {
             const period1 = timestamp - 86400; // -1 day buffer
             const period2 = timestamp + 86400; // +1 day buffer
 
-            // Use CORS proxy on web (similar to getYahooPrice)
-            const isWeb = Platform.OS === 'web';
-            let url = `${YAHOO_BASE_URL}/TRY=X?period1=${period1}&period2=${period2}&interval=1d&events=history`;
-
-            if (isWeb) {
-                url = `https://cors.eu.org/${url}`;
-            }
+            const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+            const url = getYahooUrl('TRY=X', `period1=${period1}&period2=${period2}&interval=1d&events=history`);
 
             const response = await fetch(url, {
                 headers: isWeb ? {} : {

@@ -28,6 +28,8 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const [destinationCashId, setDestinationCashId] = useState('default');
     const [isTaxEnabled, setIsTaxEnabled] = useState(false);
     const [taxRate, setTaxRate] = useState('17.5');
+    const [isCommissionEnabled, setIsCommissionEnabled] = useState(false);
+    const [commissionRate, setCommissionRate] = useState('0.2');
     const [loading, setLoading] = useState(false);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -45,6 +47,8 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
             setDestinationCashId('default');
             setIsTaxEnabled(false);
             setTaxRate('17.5');
+            setIsCommissionEnabled(false);
+            setCommissionRate('0.2');
         }
     }, [visible, item]);
 
@@ -92,6 +96,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
         const rateNum = historicalRate ? parseFloat(historicalRate.replace(',', '.')) : undefined;
         const dateNum = sellDate ? new Date(sellDate).getTime() : undefined;
         const taxRateNum = isTaxEnabled ? (parseFloat(taxRate.replace(',', '.')) || 0) : undefined;
+        const commissionRateNum = isCommissionEnabled ? (parseFloat(commissionRate.replace(',', '.')) || 0) : undefined;
 
         if (amountNum > (item?.amount || 0)) {
             showAlert(t('common.error') || 'Hata', t('sellAsset.errorAmount') || 'Satılan miktar eldeki miktardan fazla olamaz.');
@@ -99,7 +104,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
         }
 
         try {
-            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum, destinationCashId, taxRateNum);
+            await sellAsset(item.id, amountNum, priceNum, dateNum, rateNum, destinationCashId, taxRateNum, commissionRateNum);
             onClose(); // Close modal immediately
             // Brief timeout to ensure modal is gone before alert shows (improves UI feel)
             setTimeout(() => {
@@ -116,12 +121,16 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
     const amountNum = parseFloat(amount.replace(',', '.')) || 0;
     const rateNum = parseFloat(historicalRate.replace(',', '.')) || 1;
     const taxNum = isTaxEnabled ? (parseFloat(taxRate.replace(',', '.')) || 0) : 0;
+    const commNum = isCommissionEnabled ? (parseFloat(commissionRate.replace(',', '.')) || 0) : 0;
 
     const sellValueTry = priceNum * amountNum;
     const costTry = item.averageCost * amountNum;
 
-    // Profit and Tax Calculations
-    const grossProfitTry = sellValueTry - costTry;
+    // Profit, Commission, and Tax Calculations
+    const commissionAmountTry = commNum > 0 ? sellValueTry * (commNum / 100) : 0;
+    const netSellValueTry = sellValueTry - commissionAmountTry;
+
+    const grossProfitTry = netSellValueTry - costTry;
     const taxAmountTry = grossProfitTry > 0 ? grossProfitTry * (taxNum / 100) : 0;
     const netProfitTry = grossProfitTry - taxAmountTry;
 
@@ -269,6 +278,49 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                                     />
                                 </>
                             )}
+                            
+                            {/* Commission Toggle */}
+                            <Text style={[styles.label, { color: colors.subText, marginTop: 8 }]}>Komisyon Kesintisi</Text>
+                            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.cashOption,
+                                        { flex: 1, borderColor: colors.border, backgroundColor: colors.background, marginRight: 8 },
+                                        !isCommissionEnabled && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                    ]}
+                                    onPress={() => setIsCommissionEnabled(false)}
+                                >
+                                    <Text style={[styles.cashOptionText, { color: colors.text, textAlign: 'center' }, !isCommissionEnabled && { color: '#FFF' }]}>
+                                        Yok
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.cashOption,
+                                        { flex: 1, borderColor: colors.border, backgroundColor: colors.background, marginRight: 0 },
+                                        isCommissionEnabled && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                    ]}
+                                    onPress={() => setIsCommissionEnabled(true)}
+                                >
+                                    <Text style={[styles.cashOptionText, { color: colors.text, textAlign: 'center' }, isCommissionEnabled && { color: '#FFF' }]}>
+                                        Var
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {isCommissionEnabled && (
+                                <>
+                                    <Text style={[styles.label, { color: colors.subText }]}>Komisyon Oranı (%)</Text>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                                        keyboardType="numeric"
+                                        value={commissionRate}
+                                        onChangeText={setCommissionRate}
+                                        placeholder="0.2"
+                                        placeholderTextColor={colors.subText}
+                                    />
+                                </>
+                            )}
 
                             {/* Destination Cash Selector */}
                             <Text style={[styles.label, { color: colors.subText, marginTop: 8 }]}>Aktarılacak Kasa</Text>
@@ -327,6 +379,14 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                                             {grossProfitTry >= 0 ? '+' : ''}{formatCurrency(grossProfitTry, 'TRY')}
                                         </Text>
                                     </View>
+                                    {isCommissionEnabled && commNum > 0 && (
+                                        <View style={[styles.previewRow, { marginBottom: 6 }]}>
+                                            <Text style={{ color: colors.subText, fontSize: 13 }}>Komisyon Kesintisi (%{commNum})</Text>
+                                            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>
+                                                -{formatCurrency(commissionAmountTry, 'TRY')}
+                                            </Text>
+                                        </View>
+                                    )}
                                     {grossProfitTry > 0 && isTaxEnabled && taxNum > 0 && (
                                         <View style={[styles.previewRow, { marginBottom: 6 }]}>
                                             <Text style={{ color: colors.subText, fontSize: 13 }}>Stopaj Kesintisi (%{taxNum})</Text>

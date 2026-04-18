@@ -185,7 +185,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchCurrentUsdRate();
     }, [user?.id]);
 
-    // Setup periodic price refresh
+    // Setup periodic price refresh — also trigger on portfolio content change
     useEffect(() => {
         if (portfolio.length > 0) {
             refreshAllPrices();
@@ -202,7 +202,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return () => {
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
-    }, [portfolio.length]);
+    }, [portfolio]); // FIX: Watch full portfolio array, not just length, so price refresh triggers on content changes too
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -251,10 +251,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             console.warn('⚠️ Blocked savePortfolios: App is not initialized yet');
             return;
         }
-        if (isLoading) {
-            console.warn('⚠️ Blocked savePortfolios call: Data is still loading');
-            return;
-        }
+        // FIX: Removed isLoading check — it was blocking legitimate writes from mobile
+        // while data was being fetched on first load.
 
         const activeId = newActiveId || activePortfolioId;
 
@@ -270,8 +268,16 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return prev;
             }
 
-            // CRITICAL: Always update updatedAt when data changes
-            const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
+            // CRITICAL: Only update updatedAt for portfolios whose content actually changed.
+            // Updating all portfolios' timestamps on every save was causing false "newer local" detections.
+            const updated = updatedRaw.map(p => {
+                const prevP = prev.find(pp => pp.id === p.id);
+                const hasChanged = !prevP || JSON.stringify(prevP.items) !== JSON.stringify(p.items) ||
+                    JSON.stringify(prevP.cashItems) !== JSON.stringify(p.cashItems) ||
+                    JSON.stringify(prevP.realizedTrades) !== JSON.stringify(p.realizedTrades) ||
+                    prevP.name !== p.name || prevP.color !== p.color || prevP.icon !== p.icon;
+                return hasChanged ? { ...p, updatedAt: now } : p;
+            });
 
             // Background tasks for storage
             (async () => {
@@ -401,22 +407,38 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     const supabaseData = await loadUserPortfolios(user.id);
                     const cloudPortfolios = supabaseData.portfolios;
 
-                    // Step 2: Smart Merge - Compare timestamps
+                    // Step 2: Smart Merge - Compare timestamps per-portfolio
+                    // Build maps for O(1) lookup
+                    const localById = new Map(localPortfolios.map(p => [p.id, p]));
+                    const cloudById = new Map(cloudPortfolios.map(p => [p.id, p]));
+
                     const localMaxTs = localPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
                     const cloudMaxTs = cloudPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
 
                     console.log(`📥 loadData: Comparison - Local TS: ${localMaxTs}, Cloud TS: ${cloudMaxTs}`);
 
-                    // DECISION CRITERIA:
-                    // 1. If Cloud has data and it's newer OR SAME as local, always use cloud
-                    // 2. If Cloud is empty but local has data, use local (and it will sync to cloud later)
-                    // 3. If Local is empty but cloud has data, use cloud
+                    // FIX: Per-portfolio merge — detect if any LOCAL portfolio is strictly newer than its
+                    // cloud counterpart. This handles the case where mobile has NEW data not yet synced.
+                    let hasLocalNewer = false;
+                    if (localPortfolios.length > 0 && cloudPortfolios.length > 0) {
+                        for (const localP of localPortfolios) {
+                            const cloudP = cloudById.get(localP.id);
+                            const localTs = localP.updatedAt || 0;
+                            const cloudTs = cloudP?.updatedAt ? new Date(cloudP.updatedAt as any).getTime() : 0;
+                            if (localTs > cloudTs + 2000) { // 2 second grace period for clock skew
+                                hasLocalNewer = true;
+                                console.log(`⚠️ loadData: Portfolio "${localP.name}" is newer locally (${localTs} > ${cloudTs})`);
+                                break;
+                            }
+                        }
+                    }
 
-                    if (cloudPortfolios.length > 0 && cloudMaxTs >= localMaxTs) {
+                    if (cloudPortfolios.length > 0 && !hasLocalNewer) {
+                        // Cloud is same or newer — use cloud
                         console.log('✅ loadData: Using Cloud data (newer or same)');
                         setPortfolios(cloudPortfolios);
                         setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
-                    } else if (localPortfolios.length > 0 && localMaxTs > cloudMaxTs) {
+                    } else if (localPortfolios.length > 0 && (hasLocalNewer || localMaxTs > cloudMaxTs)) {
                         // Local is strictly newer - use it AND trigger immediate sync to fix cloud
                         console.log('⚠️ loadData: Local data is NEWER than cloud. Re-syncing to cloud...');
                         setPortfolios(localPortfolios);
@@ -472,6 +494,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         if (!user?.id) return;
 
+        // Track if a cloud update arrived while we were syncing our own data
+        let missedUpdateWhileSyncing = false;
+
         console.log('🔷 Realtime: Subscribing to portfolio_changes...');
         const channel = supabase
             .channel('portfolio_changes')
@@ -484,13 +509,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     filter: `user_id=eq.${user.id}`
                 },
                 (payload: any) => {
-                    // Only reload if the change didn't come from THIS instance 
-                    // (we determine this by presence of pendingSyncData)
                     if (!pendingSyncData.current) {
+                        // No local sync in progress — reload immediately
                         console.log('🔄 Realtime: Change detected in Supabase, reloading...', payload.eventType);
                         debouncedLoadData();
                     } else {
-                        console.log('⏭️ Realtime: Change ignored because local sync is in progress');
+                        // FIX: Local sync is in progress. Mark that a cloud update was missed.
+                        // After our own sync completes, we must check if cloud is newer and reload.
+                        console.log('⏭️ Realtime: Change arrived during local sync — will reload after sync completes');
+                        missedUpdateWhileSyncing = true;
                     }
                 }
             )
@@ -498,9 +525,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 console.log('📡 Realtime status:', status);
             });
 
+        // Poll for missed updates every 5 seconds when a missed update is flagged
+        const missedCheckInterval = setInterval(() => {
+            if (missedUpdateWhileSyncing && !pendingSyncData.current) {
+                missedUpdateWhileSyncing = false;
+                console.log('🔄 Realtime: Reloading after missed update during sync...');
+                debouncedLoadData();
+            }
+        }, 5000);
+
         return () => {
             console.log('🔷 Realtime: Unsubscribing...');
             supabase.removeChannel(channel);
+            clearInterval(missedCheckInterval);
             if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current);
         };
     }, [user?.id]);

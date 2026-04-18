@@ -392,11 +392,13 @@ export const MarketDataService = {
     getYahooPrice: async (symbol: string): Promise<Partial<Instrument> | null> => {
         try {
             const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-            const url = getYahooUrl(symbol, 'interval=1d&range=1d');
+            const url = getYahooUrl(symbol, 'interval=1d&range=5d');
 
             const response = await fetch(url, {
                 headers: isWeb ? {} : {
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
                 }
             });
 
@@ -406,14 +408,47 @@ export const MarketDataService = {
             }
 
             const data = await response.json();
-            const result = data.chart.result[0];
+            const result = data?.chart?.result?.[0];
 
             if (!result) return null;
 
             const meta = result.meta;
-            const price = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose;
-            const change = ((price - prevClose) / prevClose) * 100;
+
+            // FIX: regularMarketPrice can be 0 or undefined when market is closed.
+            // Use multiple price sources with fallback priority.
+            let price = meta.regularMarketPrice;
+
+            // Fallback 1: Use latest close from quote indicators (most reliable)
+            if (!price || price === 0) {
+                const closes = result?.indicators?.quote?.[0]?.close;
+                if (closes && closes.length > 0) {
+                    // Find last non-null close
+                    for (let i = closes.length - 1; i >= 0; i--) {
+                        if (closes[i] != null && closes[i] > 0) {
+                            price = closes[i];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Fallback 2: chartPreviousClose
+            if (!price || price === 0) {
+                price = meta.chartPreviousClose || meta.previousClose;
+            }
+
+            // Fallback 3: preMarket / postMarket price
+            if (!price || price === 0) {
+                price = meta.preMarketPrice || meta.postMarketPrice;
+            }
+
+            if (!price || price === 0) {
+                console.warn(`Yahoo: ${symbol} price is still 0 after all fallbacks`);
+                return null;
+            }
+
+            const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+            const change = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
 
             return {
                 currentPrice: price,
@@ -656,7 +691,7 @@ export const MarketDataService = {
     getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
         const upperCode = code.toUpperCase();
 
-        // 1. Try Firebase Cloud Data first (Fast & Automated)
+        // 1. Try Cloud Data first (GitHub > Supabase)
         const cloudData = await fetchTefasSnapshot();
 
         if (cloudData && cloudData.data && cloudData.data[upperCode]) {
@@ -664,10 +699,10 @@ export const MarketDataService = {
             const price = Number(fund.price);
             const change = fund.dailyChange || fund.daily_change || 0;
 
-            // If we have price and non-zero change, return immediately
-            // If change is 0, it might be due to holiday issue, so we might want to fall back 
-            // BUT only if the fetchedAt is old. For now, let's just use it if it's non-zero.
-            if (price > 0 && change !== 0) {
+            // FIX: Return cloud data as long as price > 0.
+            // Previously, change===0 was causing a spurious fallback to Direct API.
+            // change=0 is valid on holidays or when the fund didn't move.
+            if (price > 0) {
                 return {
                     symbol: upperCode,
                     name: fund.name || upperCode,
@@ -676,7 +711,6 @@ export const MarketDataService = {
                     lastUpdated: new Date(fund.date).getTime()
                 };
             }
-            // If change is 0, we'll fall back to direct API to verify if there's a real change
         }
 
         // 2. Fallback to Local JSON (Backup if Cloud fails)

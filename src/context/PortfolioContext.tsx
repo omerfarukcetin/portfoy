@@ -160,11 +160,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         } else {
             const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
             if (currentPortfolio) {
-                console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items.length);
-                setPortfolio(currentPortfolio.items);
-                setRealizedTrades(currentPortfolio.realizedTrades);
+                console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items?.length || 0);
+                setPortfolio(currentPortfolio.items || []);
+                setRealizedTrades(currentPortfolio.realizedTrades || []);
                 setHistory(currentPortfolio.history || []);
-                setCashItems(currentPortfolio.cashItems);
+                setCashItems(currentPortfolio.cashItems || []);
                 setDividends(currentPortfolio.dividends || []);
             }
         }
@@ -278,7 +278,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 `${(p.cashItems || []).map(i => `${i.id}:${i.amount}`).join(',')}|` +
                 `${(p.realizedTrades || []).length}`;
 
-            const updated = updatedRaw.map(p => {
+            const updated: Portfolio[] = updatedRaw.map((p: Portfolio): Portfolio => {
                 const prevP = prev.find(pp => pp.id === p.id);
                 const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
                 return hasChanged ? { ...p, updatedAt: now } : p;

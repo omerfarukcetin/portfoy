@@ -33,7 +33,7 @@ const AssetInitials = ({ name, color, size = 32 }: { name: string, color: string
 };
 
 export const TransactionsScreen = () => {
-    const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade } = usePortfolio();
+    const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade, currentUsdRate } = usePortfolio();
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();
     const navigation = useNavigation();
@@ -205,8 +205,14 @@ export const TransactionsScreen = () => {
 
     const renderRealizedItem = (data: { item: any }) => {
         const trade = data.item;
-        const cost = trade.buyPrice * trade.amount;
-        const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
+
+        // Correctly calculate cost basis in TRY regardless of original currency
+        // For USD trades: buyPrice is in USD, convert to TRY using historical or current rate
+        const usdRateForTrade = trade.historicalRate || currentUsdRate || 35;
+        const costInTry = trade.currency === 'USD'
+            ? trade.buyPrice * trade.amount * usdRateForTrade
+            : trade.buyPrice * trade.amount;
+        const profitPercent = costInTry > 0 ? (trade.profitTry / costInTry) * 100 : 0;
         const isProfit = trade.profitTry >= 0;
 
         return (
@@ -525,7 +531,10 @@ export const TransactionsScreen = () => {
 
                                     {/* Table Rows */}
                                     {filteredAndSortedClosedTrades.map(trade => {
-                                        const cost = trade.buyPrice * trade.amount;
+                                        const usdRateForTrade = trade.historicalRate || currentUsdRate || 35;
+                                        const cost = trade.currency === 'USD'
+                                            ? trade.buyPrice * trade.amount * usdRateForTrade
+                                            : trade.buyPrice * trade.amount;
                                         const profitPercent = cost > 0 ? (trade.profitTry / cost) * 100 : 0;
                                         const getIconColor = (type: string) => {
                                             switch (type) {

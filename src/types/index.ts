@@ -47,14 +47,20 @@ export interface RealizedTrade {
   profit: number; // In original currency
   profitUsd: number;
   profitTry: number;
+  historicalRate?: number; // USD/TRY rate at time of sale (used for accurate % calc)
   type?: InstrumentType; // Asset type for category grouping
+  // BES-specific fields
+  isBesUpdate?: boolean; // True if this entry is a BES update record, not a sale
+  besSnapshot?: {
+    principal: number;
+    principalYield: number;
+    stateContrib: number;
+    stateContribYield: number;
+    totalValue: number;
+  };
 }
 
-// Assuming sellAsset is a function definition that needs to be added or modified.
-// Based on the provided snippet, it seems to be a standalone function or part of a larger service/utility.
-// Since the original document only contains interface definitions, I will add it as a placeholder function definition.
-// If this function is meant to be part of an interface, please provide the correct interface context.
-declare function sellAsset(id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number): Promise<void>;
+
 
 export interface Dividend {
   id: string;

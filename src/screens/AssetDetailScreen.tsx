@@ -19,7 +19,7 @@ export const AssetDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const { id } = route.params as { id: string };
-    const { portfolio, cashItems } = usePortfolio();
+    const { portfolio, cashItems, currentUsdRate: contextUsdRate } = usePortfolio();
     const { colors, fontScale, fonts } = useTheme();
     const { symbolCase } = useSettings();
 
@@ -77,9 +77,13 @@ export const AssetDetailScreen = () => {
         if (!item) return;
         setLoading(true);
         try {
-            // Fetch USD rate
+            // Fetch USD rate — fallback to context rate (live/last-known) if fetch fails
             const usdData = await MarketDataService.getYahooPrice('TRY=X');
-            const rate = usdData?.currentPrice || 35; // Default fallback
+            // Prefer fetched rate, fall back to context (last-known live rate).
+            // Do NOT use a hardcoded value — a stale rate is better than a wrong constant.
+            const rate = (usdData?.currentPrice && usdData.currentPrice > 0)
+                ? usdData.currentPrice
+                : (contextUsdRate > 0 ? contextUsdRate : 0);
             setUsdRate(rate);
 
             // Fetch asset price

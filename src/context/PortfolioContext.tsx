@@ -819,6 +819,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         savePortfolios(prev => prev.map(ownerPortfolio => {
             if (!ownerPortfolio.items.some(item => item.id === id)) return ownerPortfolio;
 
+            let besHistoryEntry: any = null;
+
             const updatedItems = ownerPortfolio.items.map(item => {
                 if (item.id === id) {
                     const updates: Partial<PortfolioItem> = {
@@ -832,6 +834,33 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         updates.besStateContrib = besData.besStateContrib;
                         updates.besStateContribYield = besData.besStateContribYield;
                         updates.averageCost = besData.besPrincipal;
+
+                        // Record BES update as history entry for tracking
+                        const prevTotal = (item.besPrincipal || 0) + (item.besPrincipalYield || 0);
+                        const newTotal = besData.besPrincipal + besData.besPrincipalYield;
+                        const profitChange = newTotal - prevTotal;
+
+                        besHistoryEntry = {
+                            id: `bes_update_${Date.now()}`,
+                            instrumentId: item.instrumentId,
+                            type: 'bes' as const, // BES type for correct category grouping
+                            amount: 1,
+                            buyPrice: item.besPrincipal || 0,
+                            sellPrice: besData.besPrincipal,
+                            profit: profitChange, // Required field in RealizedTrade
+                            profitTry: profitChange,
+                            profitUsd: 0,
+                            currency: 'TRY' as const,
+                            date: newDate || Date.now(),
+                            isBesUpdate: true,
+                            besSnapshot: {
+                                principal: besData.besPrincipal,
+                                principalYield: besData.besPrincipalYield,
+                                stateContrib: besData.besStateContrib,
+                                stateContribYield: besData.besStateContribYield,
+                                totalValue: newTotal
+                            }
+                        };
                     }
 
                     if (newDate) {
@@ -853,7 +882,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return item;
             });
 
-            return { ...ownerPortfolio, items: updatedItems };
+            const updatedTrades = besHistoryEntry
+                ? [...(ownerPortfolio.realizedTrades || []), besHistoryEntry]
+                : ownerPortfolio.realizedTrades;
+
+            return { ...ownerPortfolio, items: updatedItems, realizedTrades: updatedTrades };
         }));
     };
 
@@ -1035,8 +1068,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 profit: netProfit,
                 profitUsd,
                 profitTry,
+                historicalRate: rateToUse, // Store rate at time of sale for accurate % calc
                 type: item.type
             };
+
 
             const newItems = [...ownerPortfolio.items];
             if (item.amount === amountToSell) {

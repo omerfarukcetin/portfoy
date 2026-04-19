@@ -301,6 +301,23 @@ export const SummaryScreen = () => {
     const portfolioInGramGold = goldPrice > 0 ? totalPortfolioTry / goldPrice : 0;
     const portfolioInUsd = usdRate > 0 ? totalPortfolioTry / usdRate : 0;
 
+    // --- REAL RISK ANALYSIS CALCULATIONS ---
+    // Risk oranı: Toplam maliyet üzerinden kâr/zarar etkisine göre hesaplanır
+    // Yüksek risk = realized profit düşük, unrealized kayıp yüksek
+    const realizedProfitRatio = totalCostBasisTryLocal > 0
+        ? (totalRealizedProfitTry / totalCostBasisTryLocal) * 100
+        : 0;
+    // Korunmaklık oranı: Gerçekleşmiş kâr ile toplam maliyetin yüzdesi (ne kadar kazanılmış)
+    // 0-100 arası sınırlandırılır; negatif olabilir (zarar durumunda)
+    const safeRatio = Math.min(100, Math.max(0, 50 + realizedProfitRatio));
+    // Kalan kısım risk
+    const riskRatio = 100 - safeRatio;
+    const riskLabel = riskRatio > 70 ? 'Yüksek Risk' : riskRatio > 40 ? 'Orta Risk' : 'Düşük Risk';
+    const riskColor = riskRatio > 70 ? '#FF3B30' : riskRatio > 40 ? '#FF9800' : '#34C759';
+    const riskBgColor = riskRatio > 70 ? '#FFEBEE' : riskRatio > 40 ? '#FFF3E0' : '#E8F5E9';
+    // Riskteki anapara: toplam maliyet + cari K/Z negatifse ek kayıp
+    const moneyAtRisk = Math.max(0, totalCostBasisTryLocal + Math.min(0, totalUnrealizedProfitTry));
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView
@@ -654,12 +671,12 @@ export const SummaryScreen = () => {
                                             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Risk Analizi</Text>
                                         </View>
                                         <View style={{
-                                            backgroundColor: '#FFF3E0',
+                                            backgroundColor: riskBgColor,
                                             paddingHorizontal: 12,
                                             paddingVertical: 6,
                                             borderRadius: 8
                                         }}>
-                                            <Text style={{ color: '#FF9800', fontSize: 12, fontWeight: '700' }}>Orta Risk</Text>
+                                            <Text style={{ color: riskColor, fontSize: 12, fontWeight: '700' }}>{riskLabel}</Text>
                                         </View>
                                     </View>
 
@@ -667,25 +684,26 @@ export const SummaryScreen = () => {
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                             <Text style={{ color: colors.subText, fontSize: 13 }}>Riskteki Para</Text>
                                             <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
-                                                {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
+                                                {isHidden ? '•••' : formatCurrency(moneyAtRisk, 'TRY')}
                                             </Text>
                                         </View>
 
-                                        {/* Progress Bar */}
+                                        {/* Progress Bar - green segment = safe ratio, rest = risk */}
                                         <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
-                                            <View style={{ width: '66%', height: '100%', backgroundColor: colors.success, borderRadius: 4 }} />
+                                            <View style={{ width: `${safeRatio}%`, height: '100%', backgroundColor: colors.success, borderRadius: 4 }} />
+                                            <View style={{ width: `${riskRatio}%`, height: '100%', backgroundColor: riskColor, borderRadius: 0 }} />
                                         </View>
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                             <View>
                                                 <Text style={{ color: colors.subText, fontSize: 11 }}>Anapara</Text>
                                                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
-                                                    {isHidden ? '•••' : formatCurrency(totalCostBasisTry, 'TRY')}
+                                                    {isHidden ? '•••' : formatCurrency(totalCostBasisTryLocal, 'TRY')}
                                                 </Text>
                                             </View>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={{ color: colors.subText, fontSize: 11 }}>Risk Oranı</Text>
-                                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>%66</Text>
+                                                <Text style={{ color: riskColor, fontSize: 13, fontWeight: '700' }}>%{riskRatio.toFixed(1)}</Text>
                                             </View>
                                         </View>
                                     </View>
@@ -1004,8 +1022,11 @@ export const SummaryScreen = () => {
                                         </View>
                                         <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
                                     </View>
-                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                                        {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
+                                    <Text style={{ color: riskColor, fontSize: 13, fontWeight: '800' }}>
+                                        {isHidden ? '•••' : `%${riskRatio.toFixed(0)}`}
+                                    </Text>
+                                    <Text style={{ color: riskColor, fontSize: 9, fontWeight: '600', marginTop: 1 }}>
+                                        {riskLabel}
                                     </Text>
                                 </Card>
                             )}

@@ -38,8 +38,6 @@ export const AddInstrumentScreen = () => {
 
     const [useFromCash, setUseFromCash] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
-    const [isCommissionEnabled, setIsCommissionEnabled] = useState(false);
-    const [commissionRate, setCommissionRate] = useState('0.2');
 
     const { addToPortfolio, updateCash, cashBalance } = usePortfolio();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -229,17 +227,7 @@ export const AddInstrumentScreen = () => {
                     { name: customAssetName, currentPrice: currentPriceVal }
                 );
             } else {
-                const amountVal = parseFloat(amount.replace(',', '.'));
-                const costVal = parseFloat(cost.replace(',', '.'));
-                let totalCost = amountVal * costVal;
-                
-                if (isCommissionEnabled && category !== 'FON') {
-                    const rateVal = parseFloat(commissionRate.replace(',', '.')) || 0;
-                    const commissionAmount = totalCost * (rateVal / 100);
-                    totalCost += commissionAmount;
-                }
-                const actualCost = totalCost / amountVal;
-
+                const totalCost = parseFloat(amount.replace(',', '.')) * parseFloat(cost.replace(',', '.'));
                 const deduct = useFromCash && currency === 'TRY';
 
                 if (deduct && totalCost > cashBalance) {
@@ -250,8 +238,8 @@ export const AddInstrumentScreen = () => {
 
                 await addToPortfolio(
                     selectedInstrument,
-                    amountVal,
-                    actualCost,
+                    parseFloat(amount.replace(',', '.')),
+                    parseFloat(cost.replace(',', '.')),
                     currency,
                     dateTs,
                     isNaN(rate) ? undefined : rate,
@@ -721,40 +709,6 @@ export const AddInstrumentScreen = () => {
                                 <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: -8, marginBottom: 16, marginLeft: 4 }}>
                                     * Piyasa fiyatı USD çekilip otomatik TL'ye çevrilecek
                                 </Text>
-                            )}
-
-                            {category !== 'FON' && (
-                                <View style={[styles.cashToggleContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, marginBottom: 12 }]}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.label, { color: colors.text, marginBottom: 2 }]}>Komisyon Ekle</Text>
-                                        <Text style={{ color: colors.subText, fontSize: 12 }}>Maliyete otomatik yansıtılır</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={[styles.toggleButton, { backgroundColor: isCommissionEnabled ? colors.primary : colors.background, borderColor: colors.border }]}
-                                        onPress={() => setIsCommissionEnabled(!isCommissionEnabled)}
-                                    >
-                                        <Text style={{ color: isCommissionEnabled ? '#fff' : colors.text, fontWeight: '600' }}>{isCommissionEnabled ? 'Var' : 'Yok'}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                            
-                            {isCommissionEnabled && category !== 'FON' && (
-                                <View style={{ marginBottom: 20 }}>
-                                    <Text style={[styles.label, { color: colors.subText }]}>Komisyon Oranı (%)</Text>
-                                    <TextInput
-                                        style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                        keyboardType="numeric"
-                                        value={commissionRate}
-                                        onChangeText={setCommissionRate}
-                                        placeholder="0.2"
-                                        placeholderTextColor={colors.subText}
-                                    />
-                                    {amount && cost && (
-                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: -8, marginLeft: 4 }}>
-                                            * Yeni Birim Maliyet: {((parseFloat(amount.replace(',', '.')) * parseFloat(cost.replace(',', '.')) * (1 + (parseFloat(commissionRate.replace(',', '.')) || 0) / 100)) / parseFloat(amount.replace(',', '.')) || 0).toFixed(4)} {currency}
-                                        </Text>
-                                    )}
-                                </View>
                             )}
                         </>
                     )}

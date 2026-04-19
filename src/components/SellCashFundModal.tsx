@@ -114,9 +114,8 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
         }
 
         try {
-            const dateNum = sellDate ? new Date(sellDate).getTime() : undefined;
             // Use the sellCashFund function with the sell price, USD rate, and tax rate
-            await sellCashFund(item.id, amountNum, priceNum, rateNum || 1, taxNum, dateNum);
+            await sellCashFund(item.id, amountNum, priceNum, rateNum || 1, taxNum);
             onClose();
             setTimeout(() => {
                 showAlert('Başarılı', 'Fon satış işlemi başarıyla kaydedildi.');

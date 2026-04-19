@@ -58,7 +58,7 @@ interface PortfolioContextType {
     addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }, deductFromCash?: boolean) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
     updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number, besStateContrib: number, besStateContribYield: number }) => Promise<void>;
-    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number, commissionRate?: number) => Promise<void>;
+    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
 
@@ -67,7 +67,7 @@ interface PortfolioContextType {
     updateCashItem: (id: string, amount: number) => Promise<void>;
     deleteCashItem: (id: string) => Promise<void>;
     updateCash: (amount: number) => Promise<void>;
-    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number, sellDate?: number) => Promise<void>;
+    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => Promise<void>;
 
     // Dividend functions
     addDividend: (dividend: Omit<Dividend, 'id'>) => Promise<void>;
@@ -705,7 +705,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number, sellDate?: number) => {
+    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => (p.cashItems || []).some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -741,7 +741,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 sellPrice: sellPrice, // Per unit sell price doesn't reflect tax technically, but we keep it simple
                 buyPrice: fundItem.averageCost,
                 currency: 'TRY',
-                date: sellDate || Date.now(),
+                date: Date.now(),
                 profit: netProfitTry, // Log NET profit for accuracy
                 profitUsd: netProfitUsd,
                 profitTry: netProfitTry,
@@ -1011,7 +1011,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number, commissionRate?: number) => {
+    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => p.items.some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -1024,12 +1024,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const costBasis = item.averageCost * amountToSell;
             const saleProceeds = sellPrice * amountToSell;
 
-            // Apply Commission
-            const commissionAmount = commissionRate ? saleProceeds * (commissionRate / 100) : 0;
-            const netSaleProceedsAfterCommission = saleProceeds - commissionAmount;
-
-            // Gross profit after commission
-            let grossProfit = netSaleProceedsAfterCommission - costBasis;
+            // Gross profit
+            let grossProfit = saleProceeds - costBasis;
 
             // Apply Tax (Stopaj) if defined
             let taxAmount = 0;
@@ -1039,7 +1035,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             // Net profit and Proceeds
             const netProfit = grossProfit - taxAmount;
-            const netProceeds = netSaleProceedsAfterCommission - taxAmount;
+            const netProceeds = saleProceeds - taxAmount;
 
             const rateToUse = historicalRate || currentUsdRate;
 

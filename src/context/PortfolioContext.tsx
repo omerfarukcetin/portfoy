@@ -185,7 +185,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchCurrentUsdRate();
     }, [user?.id]);
 
+<<<<<<< HEAD
     // Initial price fetch when portfolio becomes non-empty
+=======
+    // Setup periodic price refresh
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
     useEffect(() => {
         if (portfolio.length > 0) {
             refreshAllPrices();
@@ -204,7 +208,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return () => {
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
+<<<<<<< HEAD
     }, [hasPortfolio]); // Only rebuild timer when portfolio empty/non-empty flips
+=======
+    }, [portfolio.length]);
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -272,6 +280,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return prev;
             }
 
+<<<<<<< HEAD
             // Lightweight fingerprint to detect real changes (avoids expensive JSON.stringify on large portfolios)
             const fingerprint = (p: Portfolio) =>
                 `${p.name}|${p.color}|${p.icon}|${p.items.map(i => `${i.id}:${i.amount}:${i.averageCost}`).join(',')}|` +
@@ -283,6 +292,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
                 return hasChanged ? { ...p, updatedAt: now } : p;
             });
+=======
+            // CRITICAL: Always update updatedAt when data changes
+            const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
             // Background tasks for storage
             (async () => {

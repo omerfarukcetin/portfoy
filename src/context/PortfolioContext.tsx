@@ -186,7 +186,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, [user?.id]);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Initial price fetch when portfolio becomes non-empty
+=======
+    // Setup periodic price refresh
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 =======
     // Setup periodic price refresh
 >>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
@@ -209,7 +213,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
 <<<<<<< HEAD
+<<<<<<< HEAD
     }, [hasPortfolio]); // Only rebuild timer when portfolio empty/non-empty flips
+=======
+    }, [portfolio.length]);
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 =======
     }, [portfolio.length]);
 >>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
@@ -281,6 +289,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             // Lightweight fingerprint to detect real changes (avoids expensive JSON.stringify on large portfolios)
             const fingerprint = (p: Portfolio) =>
                 `${p.name}|${p.color}|${p.icon}|${p.items.map(i => `${i.id}:${i.amount}:${i.averageCost}`).join(',')}|` +
@@ -292,6 +301,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
                 return hasChanged ? { ...p, updatedAt: now } : p;
             });
+=======
+            // CRITICAL: Always update updatedAt when data changes
+            const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 =======
             // CRITICAL: Always update updatedAt when data changes
             const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));

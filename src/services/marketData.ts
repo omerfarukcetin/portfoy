@@ -420,6 +420,7 @@ export const MarketDataService = {
 
             const meta = result.meta;
 <<<<<<< HEAD
+<<<<<<< HEAD
             let price = meta.regularMarketPrice;
 
             // Fallbacks for zero/closed market price
@@ -444,6 +445,11 @@ export const MarketDataService = {
 
             const prevClose = meta.chartPreviousClose || meta.previousClose || price;
             const change = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+=======
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.chartPreviousClose;
+            const change = ((price - prevClose) / prevClose) * 100;
+>>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 =======
             const price = meta.regularMarketPrice;
             const prevClose = meta.chartPreviousClose;

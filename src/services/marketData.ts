@@ -414,14 +414,35 @@ export const MarketDataService = {
             }
 
             const data = await response.json();
-            const result = data.chart.result[0];
+            const result = data?.chart?.result?.[0];
 
             if (!result) return null;
 
             const meta = result.meta;
-            const price = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose;
-            const change = ((price - prevClose) / prevClose) * 100;
+            let price = meta.regularMarketPrice;
+
+            // Fallbacks for zero/closed market price
+            if (!price || price === 0) {
+                const closes = result?.indicators?.quote?.[0]?.close;
+                if (closes && closes.length > 0) {
+                    for (let i = closes.length - 1; i >= 0; i--) {
+                        if (closes[i] != null && closes[i] > 0) {
+                            price = closes[i];
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!price || price === 0) price = meta.chartPreviousClose || meta.previousClose;
+            if (!price || price === 0) price = meta.preMarketPrice || meta.postMarketPrice;
+            
+            if (!price || price === 0) {
+                console.warn(`Yahoo: ${symbol} price is still 0 after all fallbacks`);
+                return null;
+            }
+
+            const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+            const change = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
 
             return {
                 currentPrice: price,

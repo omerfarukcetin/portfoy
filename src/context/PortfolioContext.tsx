@@ -185,24 +185,26 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchCurrentUsdRate();
     }, [user?.id]);
 
-    // Setup periodic price refresh — also trigger on portfolio content change
+    // Initial price fetch when portfolio becomes non-empty
     useEffect(() => {
         if (portfolio.length > 0) {
             refreshAllPrices();
-
-            // Clear existing timer if any
-            if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
-
-            // Refresh every 60 seconds
-            priceRefreshTimer.current = setInterval(() => {
-                refreshAllPrices();
-            }, 60 * 1000);
         }
+    }, [portfolio]); // Trigger on content change (new asset added, etc.)
+
+    // Separate timer effect — only restarts when portfolio goes from empty to non-empty (not on every item change)
+    const hasPortfolio = portfolio.length > 0;
+    useEffect(() => {
+        if (!hasPortfolio) return;
+
+        priceRefreshTimer.current = setInterval(() => {
+            refreshAllPrices();
+        }, 60 * 1000);
 
         return () => {
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
-    }, [portfolio]); // FIX: Watch full portfolio array, not just length, so price refresh triggers on content changes too
+    }, [hasPortfolio]); // Only rebuild timer when portfolio empty/non-empty flips
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -268,14 +270,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return prev;
             }
 
-            // CRITICAL: Only update updatedAt for portfolios whose content actually changed.
-            // Updating all portfolios' timestamps on every save was causing false "newer local" detections.
+            // Lightweight fingerprint to detect real changes (avoids expensive JSON.stringify on large portfolios)
+            const fingerprint = (p: Portfolio) =>
+                `${p.name}|${p.color}|${p.icon}|${p.items.map(i => `${i.id}:${i.amount}:${i.averageCost}`).join(',')}|` +
+                `${(p.cashItems || []).map(i => `${i.id}:${i.amount}`).join(',')}|` +
+                `${(p.realizedTrades || []).length}`;
+
             const updated = updatedRaw.map(p => {
                 const prevP = prev.find(pp => pp.id === p.id);
-                const hasChanged = !prevP || JSON.stringify(prevP.items) !== JSON.stringify(p.items) ||
-                    JSON.stringify(prevP.cashItems) !== JSON.stringify(p.cashItems) ||
-                    JSON.stringify(prevP.realizedTrades) !== JSON.stringify(p.realizedTrades) ||
-                    prevP.name !== p.name || prevP.color !== p.color || prevP.icon !== p.icon;
+                const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
                 return hasChanged ? { ...p, updatedAt: now } : p;
             });
 

@@ -33,7 +33,7 @@ const AssetInitials = ({ name, color, size = 32 }: { name: string, color: string
 };
 
 export const TransactionsScreen = () => {
-    const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade, currentUsdRate } = usePortfolio();
+    const { realizedTrades, portfolio, updateAsset, deleteAsset, deleteRealizedTrade, currentUsdRate, prices: contextPrices, priceCurrencies } = usePortfolio();
     const { colors, fonts } = useTheme();
     const { t } = useLanguage();
     const navigation = useNavigation();
@@ -365,7 +365,8 @@ export const TransactionsScreen = () => {
                                 <Text style={[styles.columnHeader, { flex: 2 }]}>VARLIK ADI ↑</Text>
                                 <Text style={[styles.columnHeader, { flex: 1.5 }]}>ADET ↑↓</Text>
                                 <Text style={[styles.columnHeader, { flex: 1.5 }]}>MALİYET ↑↓</Text>
-                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>TOPLAM DEĞER ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1.5 }]}>CANLI DEĞER ↑↓</Text>
+                                <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>SAT</Text>
                                 <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>DÜZENLE</Text>
                                 <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>SİL</Text>
                             </View>
@@ -400,10 +401,31 @@ export const TransactionsScreen = () => {
                                             {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
                                         </Text>
 
-                                        {/* Total Value */}
-                                        <Text style={[styles.tableText, { flex: 1.5, color: colors.text, fontWeight: '600' }]}>
-                                            {formatCurrency(item.amount * item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                                        </Text>
+                                        {/* Live Total Value */}
+                                        {(() => {
+                                            let livePrice = contextPrices[item.instrumentId] || item.customCurrentPrice || item.averageCost;
+                                            const priceCur = priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : item.currency);
+                                            // Normalize to item's native currency
+                                            if (priceCur === 'USD' && item.currency === 'TRY') livePrice = livePrice * (currentUsdRate || 1);
+                                            else if (priceCur === 'TRY' && item.currency === 'USD') livePrice = livePrice / (currentUsdRate || 1);
+                                            const liveValue = item.amount * livePrice;
+                                            const displayCurrency = item.currency === 'USD' ? 'USD' : 'TRY';
+                                            return (
+                                                <Text style={[styles.tableText, { flex: 1.5, color: colors.text, fontWeight: '600' }]}>
+                                                    {formatCurrency(liveValue, displayCurrency)}
+                                                </Text>
+                                            );
+                                        })()}
+
+                                        {/* Sell Action */}
+                                        <View style={[styles.tableCell, { flex: 1, alignItems: 'center' }]}>
+                                            <TouchableOpacity
+                                                style={[styles.actionBtn, { backgroundColor: colors.danger }]}
+                                                onPress={() => (navigation as any).navigate('AssetDetail', { id: item.id, openSell: true })}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Sat</Text>
+                                            </TouchableOpacity>
+                                        </View>
 
                                         {/* Edit Action */}
                                         <View style={[styles.tableCell, { flex: 1, alignItems: 'center' }]}>
@@ -418,10 +440,10 @@ export const TransactionsScreen = () => {
                                         {/* Delete Action */}
                                         <View style={[styles.tableCell, { flex: 1, alignItems: 'center' }]}>
                                             <TouchableOpacity
-                                                style={[styles.actionBtn, { backgroundColor: colors.danger }]}
+                                                style={[styles.actionBtn, { backgroundColor: colors.danger + '20' }]}
                                                 onPress={() => handleDelete(item)}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Sil</Text>
+                                                <Text style={{ color: colors.danger, fontSize: 12, fontWeight: '600' }}>Sil</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>

@@ -19,7 +19,7 @@ export const AssetDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const { id } = route.params as { id: string };
-    const { portfolio, cashItems, currentUsdRate: contextUsdRate } = usePortfolio();
+    const { portfolio, cashItems, currentUsdRate: contextUsdRate, prices: contextPrices, priceCurrencies: contextPriceCurrencies, dailyChanges: contextDailyChanges } = usePortfolio();
     const { colors, fontScale, fonts } = useTheme();
     const { symbolCase } = useSettings();
 
@@ -77,37 +77,32 @@ export const AssetDetailScreen = () => {
         if (!item) return;
         setLoading(true);
         try {
-            // Fetch USD rate — fallback to context rate (live/last-known) if fetch fails
-            const usdData = await MarketDataService.getYahooPrice('TRY=X');
-            // Prefer fetched rate, fall back to context (last-known live rate).
-            // Do NOT use a hardcoded value — a stale rate is better than a wrong constant.
-            const rate = (usdData?.currentPrice && usdData.currentPrice > 0)
-                ? usdData.currentPrice
-                : (contextUsdRate > 0 ? contextUsdRate : 0);
+            // Use context USD rate (already live, refreshed every 60s)
+            const rate = contextUsdRate > 0 ? contextUsdRate : 0;
             setUsdRate(rate);
 
-            // Fetch asset price
-            let price = 0;
-            let change = 0;
+            // 1. Check context for already-loaded live price (fastest path)
+            const ctxPrice = contextPrices[item.instrumentId];
+            const ctxChange = contextDailyChanges[item.instrumentId];
 
-            const priceResults = await MarketDataService.fetchMultiplePrices([item]);
-            const result = priceResults[item.instrumentId];
-
-            if (result) {
-                price = result.currentPrice || 0;
-                change = result.change24h || 0;
+            if (ctxPrice && ctxPrice > 0) {
+                // Use context price — no extra API call needed
+                const ctxPriceCur = contextPriceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : item.currency);
+                let normalizedPrice = ctxPrice;
+                // Normalize to item's currency if needed
+                if (ctxPriceCur === 'USD' && item.currency === 'TRY') normalizedPrice = ctxPrice * (rate || 1);
+                else if (ctxPriceCur === 'TRY' && item.currency === 'USD') normalizedPrice = ctxPrice / (rate || 1);
+                setCurrentPrice(normalizedPrice);
+                setChange24h(ctxChange || 0);
+            } else {
+                // 2. Fallback: fetch from network (e.g. newly added asset not yet in context)
+                const priceResults = await MarketDataService.fetchMultiplePrices([item]);
+                const result = priceResults[item.instrumentId];
+                if (result) {
+                    setCurrentPrice(result.currentPrice || 0);
+                    setChange24h(result.change24h || 0);
+                }
             }
-
-            // Convert crypto price to TRY if needed for consistency, OR handle currency logic below
-            // For logic simplicity, we keep raw fetched price and convert during display
-            if (item.type === 'crypto' && item.currency === 'TRY') {
-                // Crypto usually fetched in USD, but item says TRY.
-                // MarketDataService.fetchMultiplePrices usually returns USD for crypto.
-                // We will handle conversions in render.
-            }
-
-            setCurrentPrice(price);
-            setChange24h(change);
         } catch (error) {
             console.error('Error fetching detail data:', error);
         } finally {

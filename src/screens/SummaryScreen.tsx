@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react-native';
 
@@ -20,8 +20,7 @@ import html2canvas from 'html2canvas';
 import ViewShot from 'react-native-view-shot';
 
 
-const screenWidth = Dimensions.get('window').width;
-const insightCardWidth = (screenWidth - 58) / 3;
+// screenWidth is now derived from useWindowDimensions inside the component for rotation support
 
 // Responsive breakpoints
 const TABLET_WIDTH = 768;
@@ -40,6 +39,7 @@ export const SummaryScreen = () => {
     const navigation = useNavigation();
     const { width } = useWindowDimensions();
     const isLargeScreen = width >= TABLET_WIDTH;
+    const insightCardWidth = (width - 58) / 3;
 
     const { colors, fontScale, fonts, heroFontSize, theme } = useTheme();
     const {
@@ -108,23 +108,6 @@ export const SummaryScreen = () => {
             Alert.alert('Hata', 'Görsel oluşturulamadı.');
         }
     };
-
-    // Render UI first, then load data progressively
-    useEffect(() => {
-        // Defer market summary data to load after UI renders
-        const marketDataTimer = setTimeout(() => {
-            fetchMarketData();
-        }, 100);
-
-        const mInterval = setInterval(() => {
-            fetchMarketData();
-        }, 5 * 60 * 1000); // Auto-refresh market data every 5 minutes
-
-        return () => {
-            clearTimeout(marketDataTimer);
-            clearInterval(mInterval);
-        };
-    }, []);
 
     const prices = contextPrices;
     const dailyChanges = contextDailyChanges;
@@ -217,10 +200,16 @@ export const SummaryScreen = () => {
         setIsInitialLoading(false);
     };
 
-    // Immediate load on mount
+    // Single mount effect: fetch fund prices + market data, then auto-refresh every 5 min
     useEffect(() => {
-        fetchPrices(); // Fund prices
-        fetchMarketData();
+        fetchPrices(); // Fund prices (sets isInitialLoading=false)
+        fetchMarketData(); // Market summary (gold, silver, BIST, BTC, ETH)
+
+        const mInterval = setInterval(() => {
+            fetchMarketData();
+        }, 5 * 60 * 1000); // Auto-refresh every 5 minutes
+
+        return () => clearInterval(mInterval);
     }, []);
 
     // Sync state for UI (retaining locally for backwards compatibility with some UI components)
@@ -269,11 +258,13 @@ export const SummaryScreen = () => {
         return [...baseKeywords, ...topAssets];
     }, [portfolio]);
 
-    const distributionData = getPortfolioDistribution();
-    const categoryValues: Record<string, number> = {};
-    distributionData.forEach((item: any) => {
-        categoryValues[item.name] = item.value;
-    });
+    // Memoized so it only recalculates when portfolio, prices, or rate changes
+    const distributionData = React.useMemo(() => getPortfolioDistribution(), [portfolio, prices, currentUsdRate, cashItems, fundPrices]);
+    const categoryValues: Record<string, number> = React.useMemo(() => {
+        const map: Record<string, number> = {};
+        distributionData.forEach((item: any) => { map[item.name] = item.value; });
+        return map;
+    }, [distributionData]);
 
     // Calculate best/worst performer from portfolio
     let bestPerformer = { id: '', change: -Infinity };
@@ -809,7 +800,7 @@ export const SummaryScreen = () => {
                                                 <Activity size={16} color={colors.text} />
                                                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Piyasa Özeti</Text>
                                             </View>
-                                            <TouchableOpacity>
+                                            <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
                                                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Tümünü Gör</Text>
                                             </TouchableOpacity>
                                         </View>

@@ -96,10 +96,16 @@ let tefasDataCache: {
         name?: string;
     }>
 } | null = null;
+let tefasDataCacheTimestamp: number = 0; // Timestamp when cache was last populated
+const TEFAS_MEMORY_CACHE_TTL = 60 * 60 * 1000; // 1 hour — refresh in-memory cache after this
 
 // Fetch full snapshot - Priority: GitHub > Supabase > Local file
 const fetchTefasSnapshot = async () => {
-    if (tefasDataCache) return tefasDataCache; // Return memory cache if available
+    const now = Date.now();
+    // Return in-memory cache if it's still fresh (within 1 hour)
+    if (tefasDataCache && (now - tefasDataCacheTimestamp) < TEFAS_MEMORY_CACHE_TTL) {
+        return tefasDataCache;
+    }
 
     // 1. Try GitHub first (most up-to-date via GitHub Actions)
     try {
@@ -117,6 +123,7 @@ const fetchTefasSnapshot = async () => {
                     count: data.count || Object.keys(data.data).length,
                     data: data.data
                 };
+                tefasDataCacheTimestamp = now;
                 console.log(`✅ GitHub TEFAS Data Loaded: ${tefasDataCache.count} funds (${data.lastUpdated})`);
                 return tefasDataCache;
             }
@@ -155,6 +162,7 @@ const fetchTefasSnapshot = async () => {
                 count: data.length,
                 data: fundRecord
             };
+            tefasDataCacheTimestamp = now;
             console.log(`🔷 Supabase TEFAS Data Loaded: ${data.length} funds`);
             return tefasDataCache;
         }

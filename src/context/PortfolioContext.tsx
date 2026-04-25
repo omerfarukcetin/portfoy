@@ -291,7 +291,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     JSON.stringify(prevP.realizedTrades) !== JSON.stringify(p.realizedTrades) ||
                     JSON.stringify(prevP.dividends) !== JSON.stringify(p.dividends) ||
                     JSON.stringify(prevP.history) !== JSON.stringify(p.history) ||
-                    prevP.name !== p.name || prevP.color !== p.color || prevP.icon !== p.icon;
+                    prevP.name !== p.name || 
+                    prevP.color !== p.color || 
+                    prevP.icon !== p.icon ||
+                    prevP.cashBalance !== p.cashBalance ||
+                    prevP.totalUnits !== p.totalUnits ||
+                    prevP.trackingMode !== p.trackingMode ||
+                    prevP.initialUnitPrice !== p.initialUnitPrice;
                 
                 if (hasChanged) {
                     pendingSyncIds.current.add(p.id);

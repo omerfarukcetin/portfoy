@@ -57,8 +57,8 @@ export const saveUserPortfolios = async (
                 supabase.from('realized_trades').delete().in('portfolio_id', portfolioIdsToDelete).eq('user_id', userId),
                 supabase.from('dividends').delete().in('portfolio_id', portfolioIdsToDelete).eq('user_id', userId),
                 supabase.from('portfolio_history').delete().in('portfolio_id', portfolioIdsToDelete).eq('user_id', userId),
+                supabase.from('portfolios').delete().in('id', portfolioIdsToDelete).eq('user_id', userId),
             ]);
-            await supabase.from('portfolios').delete().in('id', portfolioIdsToDelete).eq('user_id', userId);
         }
 
         // 4. Component-level pruning (items, cash, etc. within existing portfolios)

@@ -15,7 +15,7 @@ const getYahooUrl = (symbolOrPath: string, params: string) => {
     if (!isLocalhost) return `/api/yahoo/${symbolOrPath}?${params}`;
 
     // Fallback for local web development
-    return `https://thingproxy.freeboard.io/fetch/${YAHOO_BASE_URL}/${symbolOrPath}?${params}`;
+    return `https://corsproxy.io/?${encodeURIComponent(`${YAHOO_BASE_URL}/${symbolOrPath}?${params}`)}`;
 };
 const COINCAP_BASE_URL = 'https://api.coincap.io/v2';
 const CRYPTOCOMPARE_BASE_URL = 'https://min-api.cryptocompare.com/data';
@@ -414,15 +414,19 @@ export const MarketDataService = {
             }
 
             const data = await response.json();
+            if (!data?.chart?.result?.[0]) {
+                console.warn(`Yahoo Finance: No result found for ${symbol}`);
+                return null;
+            }
+
             const result = data.chart.result[0];
-
-            if (!result) return null;
-
             const meta = result.meta;
+            if (!meta) return null;
+
             let price = meta.regularMarketPrice;
 
             // Fallbacks for zero/closed market price
-            if (!price || price === 0) {
+            if (price === undefined || price === null || price === 0) {
                 const closes = result?.indicators?.quote?.[0]?.close;
                 if (closes && closes.length > 0) {
                     for (let i = closes.length - 1; i >= 0; i--) {

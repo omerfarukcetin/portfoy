@@ -253,10 +253,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             console.warn('⚠️ Blocked savePortfolios: App is not initialized yet');
             return;
         }
-        if (isLoading) {
-            console.warn('⚠️ Blocked savePortfolios call: Data is still loading');
-            return;
-        }
+        // isLoading guard removed to allow initial data load to sync if needed
+
 
         const activeId = newActiveId || activePortfolioId;
 
@@ -281,6 +279,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const updated: Portfolio[] = updatedRaw.map((p: Portfolio): Portfolio => {
                 const prevP = prev.find(pp => pp.id === p.id);
                 const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
+                
+                if (!hasChanged && prevP) {
+                    // Check if other fields (like history or dividends) changed that are not in fingerprint
+                    // but for history updates specifically we want to skip updatedAt inflation
+                    const isExactlySame = JSON.stringify(p) === JSON.stringify(prevP);
+                    return isExactlySame ? prevP : p;
+                }
+                
                 return hasChanged ? { ...p, updatedAt: now } : p;
             });
 

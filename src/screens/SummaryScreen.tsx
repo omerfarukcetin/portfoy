@@ -109,6 +109,17 @@ export const SummaryScreen = () => {
         }
     };
 
+    // Emergency loading clear
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            if (isInitialLoading) {
+                console.warn('SummaryScreen: Emergency loading clear triggered');
+                setIsInitialLoading(false);
+            }
+        }, 12000);
+        return () => clearTimeout(timeout);
+    }, [isInitialLoading]);
+
     const prices = contextPrices;
     const dailyChanges = contextDailyChanges;
     const usdRate = contextUsdRate;
@@ -181,23 +192,28 @@ export const SummaryScreen = () => {
     };
 
     const fetchPrices = async () => {
-        // This is now handled by Context.refreshAllPrices()
-        // But we still need to fetch fund prices for PPF if not moved to context yet.
-        const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
-        const newFundPrices: Record<string, number> = {};
-        for (const item of fundItems) {
-            if (item.instrumentId) {
-                try {
-                    const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
-                    if (priceResult && priceResult.currentPrice) {
-                        newFundPrices[item.instrumentId] = priceResult.currentPrice;
+        try {
+            // This is now handled by Context.refreshAllPrices()
+            // But we still need to fetch fund prices for PPF if not moved to context yet.
+            const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+            const newFundPrices: Record<string, number> = {};
+            for (const item of fundItems) {
+                if (item.instrumentId) {
+                    try {
+                        const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
+                        if (priceResult && priceResult.currentPrice) {
+                            newFundPrices[item.instrumentId] = priceResult.currentPrice;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching fund price:', error);
                     }
-                } catch (error) {
-                    console.error('Error fetching fund price:', error);
                 }
             }
+        } catch (e) {
+            console.error('fetchPrices error:', e);
+        } finally {
+            setIsInitialLoading(false);
         }
-        setIsInitialLoading(false);
     };
 
     // Single mount effect: fetch fund prices + market data, then auto-refresh every 5 min

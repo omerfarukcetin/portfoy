@@ -20,7 +20,10 @@ const puppeteer = require('puppeteer');
 
     try {
         await page.goto('http://localhost:8081', { waitUntil: 'networkidle2', timeout: 30000 });
-        console.log('Page loaded. HTML Snippet (first 1000 chars):');
+        console.log('Page loaded. Waiting for 10s to detect potential loops...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+        console.log('HTML Snippet (first 1000 chars):');
         const html = await page.content();
         console.log(html.substring(0, 1000));
         

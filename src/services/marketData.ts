@@ -3,6 +3,23 @@ import { Instrument, InstrumentType } from '../types';
 import { Platform } from 'react-native';
 
 const YAHOO_BASE_URL = 'https://query2.finance.yahoo.com/v8/finance/chart';
+
+const fetchWithTimeout = async (url: string, options: any = {}, timeout = 8000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    } catch (e) {
+        clearTimeout(id);
+        throw e;
+    }
+};
+
 const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
 
 const getYahooUrl = (symbolOrPath: string, params: string) => {
@@ -402,7 +419,7 @@ export const MarketDataService = {
             const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
             const url = getYahooUrl(symbol, 'interval=1d&range=1d');
 
-            const response = await fetch(url, {
+            const response = await fetchWithTimeout(url, {
                 headers: isWeb ? {} : {
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
                 }
@@ -796,10 +813,16 @@ export const MarketDataService = {
             const period1 = Math.floor(date / 1000);
             const period2 = period1 + 86400; // +1 day
             const url = getYahooUrl(symbol, `period1=${period1}&period2=${period2}&interval=1d`);
-            const response = await axios.get(url);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-            if (response.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0]) {
-                return response.data.chart.result[0].indicators.quote[0].close[0];
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            if (data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0]) {
+                return data.chart.result[0].indicators.quote[0].close[0];
             }
 
             return 0;

@@ -415,8 +415,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (user?.id) {
                 console.log('📥 loadData: User logged in, fetching from Supabase...');
                 try {
-                    const supabaseData = await loadUserPortfolios(user.id);
-                    const cloudPortfolios = supabaseData.portfolios;
+                    const supabaseData = await Promise.race([
+                        loadUserPortfolios(user.id),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 10000))
+                    ]) as any;
+                    const cloudPortfolios = supabaseData.portfolios || [];
 
                     // Step 2: Smart Merge - Compare timestamps
                     const localMaxTs = localPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);

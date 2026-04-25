@@ -58,7 +58,7 @@ interface PortfolioContextType {
     addToPortfolio: (instrument: Instrument, amount: number, cost: number, currency: 'USD' | 'TRY', date: number, historicalUsdRate?: number, besData?: { principal: number, stateContrib: number, stateContribYield: number, principalYield: number }, customCategory?: string, customData?: { name?: string, currentPrice?: number }, deductFromCash?: boolean) => Promise<void>;
     addAsset: (asset: Omit<PortfolioItem, 'id'>) => Promise<void>;
     updateAsset: (id: string, newAmount: number, newAverageCost: number, newDate?: number, historicalUsdRate?: number, besData?: { besPrincipal: number, besPrincipalYield: number, besStateContrib: number, besStateContribYield: number }) => Promise<void>;
-    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => Promise<void>;
+    sellAsset: (id: string, amount: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number, commissionRate?: number) => Promise<void>;
     deleteAsset: (id: string) => Promise<void>;
     removeFromPortfolio: (id: string) => Promise<void>;
 
@@ -67,7 +67,7 @@ interface PortfolioContextType {
     updateCashItem: (id: string, amount: number) => Promise<void>;
     deleteCashItem: (id: string) => Promise<void>;
     updateCash: (amount: number) => Promise<void>;
-    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => Promise<void>;
+    sellCashFund: (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number, sellDate?: number) => Promise<void>;
 
     // Dividend functions
     addDividend: (dividend: Omit<Dividend, 'id'>) => Promise<void>;
@@ -160,11 +160,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         } else {
             const currentPortfolio = portfolios.find(p => p.id === activePortfolioId);
             if (currentPortfolio) {
-                console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items?.length || 0);
-                setPortfolio(currentPortfolio.items || []);
-                setRealizedTrades(currentPortfolio.realizedTrades || []);
+                console.log('🔄 Portfolio sync - updating state for:', activePortfolioId, 'items:', currentPortfolio.items.length);
+                setPortfolio(currentPortfolio.items);
+                setRealizedTrades(currentPortfolio.realizedTrades);
                 setHistory(currentPortfolio.history || []);
-                setCashItems(currentPortfolio.cashItems || []);
+                setCashItems(currentPortfolio.cashItems);
                 setDividends(currentPortfolio.dividends || []);
             }
         }
@@ -185,34 +185,24 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchCurrentUsdRate();
     }, [user?.id]);
 
-<<<<<<< HEAD
-    // Initial price fetch when portfolio becomes non-empty
-=======
-    // Setup periodic price refresh
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
+    // Setup periodic price refresh — also trigger on portfolio content change
     useEffect(() => {
         if (portfolio.length > 0) {
             refreshAllPrices();
+
+            // Clear existing timer if any
+            if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
+
+            // Refresh every 60 seconds
+            priceRefreshTimer.current = setInterval(() => {
+                refreshAllPrices();
+            }, 60 * 1000);
         }
-    }, [portfolio]); // Trigger on content change (new asset added, etc.)
-
-    // Separate timer effect — only restarts when portfolio goes from empty to non-empty (not on every item change)
-    const hasPortfolio = portfolio.length > 0;
-    useEffect(() => {
-        if (!hasPortfolio) return;
-
-        priceRefreshTimer.current = setInterval(() => {
-            refreshAllPrices();
-        }, 60 * 1000);
 
         return () => {
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
-<<<<<<< HEAD
-    }, [hasPortfolio]); // Only rebuild timer when portfolio empty/non-empty flips
-=======
-    }, [portfolio.length]);
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
+    }, [portfolio]); // FIX: Watch full portfolio array, not just length, so price refresh triggers on content changes too
 
     const fetchCurrentUsdRate = async () => {
         try {
@@ -261,15 +251,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             console.warn('⚠️ Blocked savePortfolios: App is not initialized yet');
             return;
         }
-<<<<<<< HEAD
-        // isLoading guard removed to allow initial data load to sync if needed
-
-=======
-        if (isLoading) {
-            console.warn('⚠️ Blocked savePortfolios call: Data is still loading');
-            return;
-        }
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
+        // FIX: Removed isLoading check — it was blocking legitimate writes from mobile
+        // while data was being fetched on first load.
 
         const activeId = newActiveId || activePortfolioId;
 
@@ -285,30 +268,16 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return prev;
             }
 
-<<<<<<< HEAD
-            // Lightweight fingerprint to detect real changes (avoids expensive JSON.stringify on large portfolios)
-            const fingerprint = (p: Portfolio) =>
-                `${p.name}|${p.color}|${p.icon}|${p.items.map(i => `${i.id}:${i.amount}:${i.averageCost}`).join(',')}|` +
-                `${(p.cashItems || []).map(i => `${i.id}:${i.amount}`).join(',')}|` +
-                `${(p.realizedTrades || []).length}`;
-
-            const updated: Portfolio[] = updatedRaw.map((p: Portfolio): Portfolio => {
+            // CRITICAL: Only update updatedAt for portfolios whose content actually changed.
+            // Updating all portfolios' timestamps on every save was causing false "newer local" detections.
+            const updated = updatedRaw.map(p => {
                 const prevP = prev.find(pp => pp.id === p.id);
-                const hasChanged = !prevP || fingerprint(prevP) !== fingerprint(p);
-                
-                if (!hasChanged && prevP) {
-                    // Check if other fields (like history or dividends) changed that are not in fingerprint
-                    // but for history updates specifically we want to skip updatedAt inflation
-                    const isExactlySame = JSON.stringify(p) === JSON.stringify(prevP);
-                    return isExactlySame ? prevP : p;
-                }
-                
+                const hasChanged = !prevP || JSON.stringify(prevP.items) !== JSON.stringify(p.items) ||
+                    JSON.stringify(prevP.cashItems) !== JSON.stringify(p.cashItems) ||
+                    JSON.stringify(prevP.realizedTrades) !== JSON.stringify(p.realizedTrades) ||
+                    prevP.name !== p.name || prevP.color !== p.color || prevP.icon !== p.icon;
                 return hasChanged ? { ...p, updatedAt: now } : p;
             });
-=======
-            // CRITICAL: Always update updatedAt when data changes
-            const updated = updatedRaw.map(p => ({ ...p, updatedAt: now }));
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
             // Background tasks for storage
             (async () => {
@@ -435,33 +404,41 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (user?.id) {
                 console.log('📥 loadData: User logged in, fetching from Supabase...');
                 try {
-<<<<<<< HEAD
-                    const supabaseData = await Promise.race([
-                        loadUserPortfolios(user.id),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 10000))
-                    ]) as any;
-                    const cloudPortfolios = supabaseData.portfolios || [];
-=======
                     const supabaseData = await loadUserPortfolios(user.id);
                     const cloudPortfolios = supabaseData.portfolios;
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
-                    // Step 2: Smart Merge - Compare timestamps
+                    // Step 2: Smart Merge - Compare timestamps per-portfolio
+                    // Build maps for O(1) lookup
+                    const localById = new Map(localPortfolios.map(p => [p.id, p]));
+                    const cloudById = new Map(cloudPortfolios.map(p => [p.id, p]));
+
                     const localMaxTs = localPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
                     const cloudMaxTs = cloudPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
 
                     console.log(`📥 loadData: Comparison - Local TS: ${localMaxTs}, Cloud TS: ${cloudMaxTs}`);
 
-                    // DECISION CRITERIA:
-                    // 1. If Cloud has data and it's newer OR SAME as local, always use cloud
-                    // 2. If Cloud is empty but local has data, use local (and it will sync to cloud later)
-                    // 3. If Local is empty but cloud has data, use cloud
+                    // FIX: Per-portfolio merge — detect if any LOCAL portfolio is strictly newer than its
+                    // cloud counterpart. This handles the case where mobile has NEW data not yet synced.
+                    let hasLocalNewer = false;
+                    if (localPortfolios.length > 0 && cloudPortfolios.length > 0) {
+                        for (const localP of localPortfolios) {
+                            const cloudP = cloudById.get(localP.id);
+                            const localTs = localP.updatedAt || 0;
+                            const cloudTs = cloudP?.updatedAt ? new Date(cloudP.updatedAt as any).getTime() : 0;
+                            if (localTs > cloudTs + 2000) { // 2 second grace period for clock skew
+                                hasLocalNewer = true;
+                                console.log(`⚠️ loadData: Portfolio "${localP.name}" is newer locally (${localTs} > ${cloudTs})`);
+                                break;
+                            }
+                        }
+                    }
 
-                    if (cloudPortfolios.length > 0 && cloudMaxTs >= localMaxTs) {
+                    if (cloudPortfolios.length > 0 && !hasLocalNewer) {
+                        // Cloud is same or newer — use cloud
                         console.log('✅ loadData: Using Cloud data (newer or same)');
                         setPortfolios(cloudPortfolios);
                         setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
-                    } else if (localPortfolios.length > 0 && localMaxTs > cloudMaxTs) {
+                    } else if (localPortfolios.length > 0 && (hasLocalNewer || localMaxTs > cloudMaxTs)) {
                         // Local is strictly newer - use it AND trigger immediate sync to fix cloud
                         console.log('⚠️ loadData: Local data is NEWER than cloud. Re-syncing to cloud...');
                         setPortfolios(localPortfolios);
@@ -517,6 +494,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         if (!user?.id) return;
 
+        // Track if a cloud update arrived while we were syncing our own data
+        let missedUpdateWhileSyncing = false;
+
         console.log('🔷 Realtime: Subscribing to portfolio_changes...');
         const channel = supabase
             .channel('portfolio_changes')
@@ -529,13 +509,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     filter: `user_id=eq.${user.id}`
                 },
                 (payload: any) => {
-                    // Only reload if the change didn't come from THIS instance 
-                    // (we determine this by presence of pendingSyncData)
                     if (!pendingSyncData.current) {
+                        // No local sync in progress — reload immediately
                         console.log('🔄 Realtime: Change detected in Supabase, reloading...', payload.eventType);
                         debouncedLoadData();
                     } else {
-                        console.log('⏭️ Realtime: Change ignored because local sync is in progress');
+                        // FIX: Local sync is in progress. Mark that a cloud update was missed.
+                        // After our own sync completes, we must check if cloud is newer and reload.
+                        console.log('⏭️ Realtime: Change arrived during local sync — will reload after sync completes');
+                        missedUpdateWhileSyncing = true;
                     }
                 }
             )
@@ -543,9 +525,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 console.log('📡 Realtime status:', status);
             });
 
+        // Poll for missed updates every 5 seconds when a missed update is flagged
+        const missedCheckInterval = setInterval(() => {
+            if (missedUpdateWhileSyncing && !pendingSyncData.current) {
+                missedUpdateWhileSyncing = false;
+                console.log('🔄 Realtime: Reloading after missed update during sync...');
+                debouncedLoadData();
+            }
+        }, 5000);
+
         return () => {
             console.log('🔷 Realtime: Unsubscribing...');
             supabase.removeChannel(channel);
+            clearInterval(missedCheckInterval);
             if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current);
         };
     }, [user?.id]);
@@ -710,7 +702,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number) => {
+    const sellCashFund = async (id: string, unitsToSell: number, sellPrice: number, currentUsdRate: number, taxRate?: number, sellDate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => (p.cashItems || []).some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -746,7 +738,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 sellPrice: sellPrice, // Per unit sell price doesn't reflect tax technically, but we keep it simple
                 buyPrice: fundItem.averageCost,
                 currency: 'TRY',
-                date: Date.now(),
+                date: sellDate || Date.now(),
                 profit: netProfitTry, // Log NET profit for accuracy
                 profitUsd: netProfitUsd,
                 profitTry: netProfitTry,
@@ -827,8 +819,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         savePortfolios(prev => prev.map(ownerPortfolio => {
             if (!ownerPortfolio.items.some(item => item.id === id)) return ownerPortfolio;
 
-            let besHistoryEntry: any = null;
-
             const updatedItems = ownerPortfolio.items.map(item => {
                 if (item.id === id) {
                     const updates: Partial<PortfolioItem> = {
@@ -842,33 +832,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         updates.besStateContrib = besData.besStateContrib;
                         updates.besStateContribYield = besData.besStateContribYield;
                         updates.averageCost = besData.besPrincipal;
-
-                        // Record BES update as history entry for tracking
-                        const prevTotal = (item.besPrincipal || 0) + (item.besPrincipalYield || 0);
-                        const newTotal = besData.besPrincipal + besData.besPrincipalYield;
-                        const profitChange = newTotal - prevTotal;
-
-                        besHistoryEntry = {
-                            id: `bes_update_${Date.now()}`,
-                            instrumentId: item.instrumentId,
-                            type: 'bes' as const, // BES type for correct category grouping
-                            amount: 1,
-                            buyPrice: item.besPrincipal || 0,
-                            sellPrice: besData.besPrincipal,
-                            profit: profitChange, // Required field in RealizedTrade
-                            profitTry: profitChange,
-                            profitUsd: 0,
-                            currency: 'TRY' as const,
-                            date: newDate || Date.now(),
-                            isBesUpdate: true,
-                            besSnapshot: {
-                                principal: besData.besPrincipal,
-                                principalYield: besData.besPrincipalYield,
-                                stateContrib: besData.besStateContrib,
-                                stateContribYield: besData.besStateContribYield,
-                                totalValue: newTotal
-                            }
-                        };
                     }
 
                     if (newDate) {
@@ -890,11 +853,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return item;
             });
 
-            const updatedTrades = besHistoryEntry
-                ? [...(ownerPortfolio.realizedTrades || []), besHistoryEntry]
-                : ownerPortfolio.realizedTrades;
-
-            return { ...ownerPortfolio, items: updatedItems, realizedTrades: updatedTrades };
+            return { ...ownerPortfolio, items: updatedItems };
         }));
     };
 
@@ -1016,7 +975,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
-    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number) => {
+    const sellAsset = async (id: string, amountToSell: number, sellPrice: number, sellDate?: number, historicalRate?: number, destinationCashId?: string, taxRate?: number, commissionRate?: number) => {
         savePortfolios(prev => {
             const ownerPortfolio = prev.find(p => p.items.some(item => item.id === id));
             if (!ownerPortfolio) return prev;
@@ -1029,8 +988,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const costBasis = item.averageCost * amountToSell;
             const saleProceeds = sellPrice * amountToSell;
 
-            // Gross profit
-            let grossProfit = saleProceeds - costBasis;
+            // Apply Commission
+            const commissionAmount = commissionRate ? saleProceeds * (commissionRate / 100) : 0;
+            const netSaleProceedsAfterCommission = saleProceeds - commissionAmount;
+
+            // Gross profit after commission
+            let grossProfit = netSaleProceedsAfterCommission - costBasis;
 
             // Apply Tax (Stopaj) if defined
             let taxAmount = 0;
@@ -1040,7 +1003,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
             // Net profit and Proceeds
             const netProfit = grossProfit - taxAmount;
-            const netProceeds = saleProceeds - taxAmount;
+            const netProceeds = netSaleProceedsAfterCommission - taxAmount;
 
             const rateToUse = historicalRate || currentUsdRate;
 
@@ -1072,10 +1035,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 profit: netProfit,
                 profitUsd,
                 profitTry,
-                historicalRate: rateToUse, // Store rate at time of sale for accurate % calc
                 type: item.type
             };
-
 
             const newItems = [...ownerPortfolio.items];
             if (item.amount === amountToSell) {

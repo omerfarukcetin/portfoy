@@ -8,28 +8,25 @@ import { FavoritesProvider } from './src/context/FavoritesContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { BudgetProvider } from './src/context/BudgetContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <LanguageProvider>
-          <ThemeProvider>
-            <AuthProvider>
-              <SettingsProvider>
-                <FavoritesProvider>
-                  <PortfolioProvider>
-                    <BudgetProvider>
-                      <AppNavigator />
-                    </BudgetProvider>
-                  </PortfolioProvider>
-                </FavoritesProvider>
-              </SettingsProvider>
-            </AuthProvider>
-          </ThemeProvider>
-        </LanguageProvider>
-      </ErrorBoundary>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <FavoritesProvider>
+                <PortfolioProvider>
+                  <BudgetProvider>
+                    <AppNavigator />
+                  </BudgetProvider>
+                </PortfolioProvider>
+              </FavoritesProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

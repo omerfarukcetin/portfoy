@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react-native';
 
@@ -20,7 +20,8 @@ import html2canvas from 'html2canvas';
 import ViewShot from 'react-native-view-shot';
 
 
-// screenWidth is now derived from useWindowDimensions inside the component for rotation support
+const screenWidth = Dimensions.get('window').width;
+const insightCardWidth = (screenWidth - 58) / 3;
 
 // Responsive breakpoints
 const TABLET_WIDTH = 768;
@@ -39,7 +40,6 @@ export const SummaryScreen = () => {
     const navigation = useNavigation();
     const { width } = useWindowDimensions();
     const isLargeScreen = width >= TABLET_WIDTH;
-    const insightCardWidth = (width - 58) / 3;
 
     const { colors, fontScale, fonts, heroFontSize, theme } = useTheme();
     const {
@@ -109,16 +109,22 @@ export const SummaryScreen = () => {
         }
     };
 
-    // Emergency loading clear
+    // Render UI first, then load data progressively
     useEffect(() => {
-        const timeout = setTimeout(() => {
-            if (isInitialLoading) {
-                console.warn('SummaryScreen: Emergency loading clear triggered');
-                setIsInitialLoading(false);
-            }
-        }, 12000);
-        return () => clearTimeout(timeout);
-    }, [isInitialLoading]);
+        // Defer market summary data to load after UI renders
+        const marketDataTimer = setTimeout(() => {
+            fetchMarketData();
+        }, 100);
+
+        const mInterval = setInterval(() => {
+            fetchMarketData();
+        }, 5 * 60 * 1000); // Auto-refresh market data every 5 minutes
+
+        return () => {
+            clearTimeout(marketDataTimer);
+            clearInterval(mInterval);
+        };
+    }, []);
 
     const prices = contextPrices;
     const dailyChanges = contextDailyChanges;
@@ -192,40 +198,29 @@ export const SummaryScreen = () => {
     };
 
     const fetchPrices = async () => {
-        try {
-            // This is now handled by Context.refreshAllPrices()
-            // But we still need to fetch fund prices for PPF if not moved to context yet.
-            const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
-            const newFundPrices: Record<string, number> = {};
-            for (const item of fundItems) {
-                if (item.instrumentId) {
-                    try {
-                        const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
-                        if (priceResult && priceResult.currentPrice) {
-                            newFundPrices[item.instrumentId] = priceResult.currentPrice;
-                        }
-                    } catch (error) {
-                        console.error('Error fetching fund price:', error);
+        // This is now handled by Context.refreshAllPrices()
+        // But we still need to fetch fund prices for PPF if not moved to context yet.
+        const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
+        const newFundPrices: Record<string, number> = {};
+        for (const item of fundItems) {
+            if (item.instrumentId) {
+                try {
+                    const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
+                    if (priceResult && priceResult.currentPrice) {
+                        newFundPrices[item.instrumentId] = priceResult.currentPrice;
                     }
+                } catch (error) {
+                    console.error('Error fetching fund price:', error);
                 }
             }
-        } catch (e) {
-            console.error('fetchPrices error:', e);
-        } finally {
-            setIsInitialLoading(false);
         }
+        setIsInitialLoading(false);
     };
 
-    // Single mount effect: fetch fund prices + market data, then auto-refresh every 5 min
+    // Immediate load on mount
     useEffect(() => {
-        fetchPrices(); // Fund prices (sets isInitialLoading=false)
-        fetchMarketData(); // Market summary (gold, silver, BIST, BTC, ETH)
-
-        const mInterval = setInterval(() => {
-            fetchMarketData();
-        }, 5 * 60 * 1000); // Auto-refresh every 5 minutes
-
-        return () => clearInterval(mInterval);
+        fetchPrices(); // Fund prices
+        fetchMarketData();
     }, []);
 
     // Sync state for UI (retaining locally for backwards compatibility with some UI components)
@@ -274,13 +269,11 @@ export const SummaryScreen = () => {
         return [...baseKeywords, ...topAssets];
     }, [portfolio]);
 
-    // Memoized so it only recalculates when portfolio, prices, or rate changes
-    const distributionData = React.useMemo(() => getPortfolioDistribution(), [portfolio, prices, currentUsdRate, cashItems, fundPrices]);
-    const categoryValues: Record<string, number> = React.useMemo(() => {
-        const map: Record<string, number> = {};
-        distributionData.forEach((item: any) => { map[item.name] = item.value; });
-        return map;
-    }, [distributionData]);
+    const distributionData = getPortfolioDistribution();
+    const categoryValues: Record<string, number> = {};
+    distributionData.forEach((item: any) => {
+        categoryValues[item.name] = item.value;
+    });
 
     // Calculate best/worst performer from portfolio
     let bestPerformer = { id: '', change: -Infinity };
@@ -307,23 +300,6 @@ export const SummaryScreen = () => {
     const dailyProfitPercent = totalPortfolioTry > 0 ? (dailyProfit / totalPortfolioTry) * 100 : 0;
     const portfolioInGramGold = goldPrice > 0 ? totalPortfolioTry / goldPrice : 0;
     const portfolioInUsd = usdRate > 0 ? totalPortfolioTry / usdRate : 0;
-
-    // --- REAL RISK ANALYSIS CALCULATIONS ---
-    // Risk oranı: Toplam maliyet üzerinden kâr/zarar etkisine göre hesaplanır
-    // Yüksek risk = realized profit düşük, unrealized kayıp yüksek
-    const realizedProfitRatio = totalCostBasisTryLocal > 0
-        ? (totalRealizedProfitTry / totalCostBasisTryLocal) * 100
-        : 0;
-    // Korunmaklık oranı: Gerçekleşmiş kâr ile toplam maliyetin yüzdesi (ne kadar kazanılmış)
-    // 0-100 arası sınırlandırılır; negatif olabilir (zarar durumunda)
-    const safeRatio = Math.min(100, Math.max(0, 50 + realizedProfitRatio));
-    // Kalan kısım risk
-    const riskRatio = 100 - safeRatio;
-    const riskLabel = riskRatio > 70 ? 'Yüksek Risk' : riskRatio > 40 ? 'Orta Risk' : 'Düşük Risk';
-    const riskColor = riskRatio > 70 ? '#FF3B30' : riskRatio > 40 ? '#FF9800' : '#34C759';
-    const riskBgColor = riskRatio > 70 ? '#FFEBEE' : riskRatio > 40 ? '#FFF3E0' : '#E8F5E9';
-    // Riskteki anapara: toplam maliyet + cari K/Z negatifse ek kayıp
-    const moneyAtRisk = Math.max(0, totalCostBasisTryLocal + Math.min(0, totalUnrealizedProfitTry));
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -678,12 +654,12 @@ export const SummaryScreen = () => {
                                             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Risk Analizi</Text>
                                         </View>
                                         <View style={{
-                                            backgroundColor: riskBgColor,
+                                            backgroundColor: '#FFF3E0',
                                             paddingHorizontal: 12,
                                             paddingVertical: 6,
                                             borderRadius: 8
                                         }}>
-                                            <Text style={{ color: riskColor, fontSize: 12, fontWeight: '700' }}>{riskLabel}</Text>
+                                            <Text style={{ color: '#FF9800', fontSize: 12, fontWeight: '700' }}>Orta Risk</Text>
                                         </View>
                                     </View>
 
@@ -691,26 +667,25 @@ export const SummaryScreen = () => {
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                             <Text style={{ color: colors.subText, fontSize: 13 }}>Riskteki Para</Text>
                                             <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
-                                                {isHidden ? '•••' : formatCurrency(moneyAtRisk, 'TRY')}
+                                                {isHidden ? '•••' : formatCurrency(Math.max(0, totalCostBasisTry - totalRealizedProfitTry), 'TRY')}
                                             </Text>
                                         </View>
 
-                                        {/* Progress Bar - green segment = safe ratio, rest = risk */}
+                                        {/* Progress Bar */}
                                         <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
-                                            <View style={{ width: `${safeRatio}%`, height: '100%', backgroundColor: colors.success, borderRadius: 4 }} />
-                                            <View style={{ width: `${riskRatio}%`, height: '100%', backgroundColor: riskColor, borderRadius: 0 }} />
+                                            <View style={{ width: '66%', height: '100%', backgroundColor: colors.success, borderRadius: 4 }} />
                                         </View>
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                             <View>
                                                 <Text style={{ color: colors.subText, fontSize: 11 }}>Anapara</Text>
                                                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
-                                                    {isHidden ? '•••' : formatCurrency(totalCostBasisTryLocal, 'TRY')}
+                                                    {isHidden ? '•••' : formatCurrency(totalCostBasisTry, 'TRY')}
                                                 </Text>
                                             </View>
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={{ color: colors.subText, fontSize: 11 }}>Risk Oranı</Text>
-                                                <Text style={{ color: riskColor, fontSize: 13, fontWeight: '700' }}>%{riskRatio.toFixed(1)}</Text>
+                                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>%66</Text>
                                             </View>
                                         </View>
                                     </View>
@@ -816,7 +791,7 @@ export const SummaryScreen = () => {
                                                 <Activity size={16} color={colors.text} />
                                                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Piyasa Özeti</Text>
                                             </View>
-                                            <TouchableOpacity onPress={() => (navigation as any).navigate('Analytics')}>
+                                            <TouchableOpacity>
                                                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Tümünü Gör</Text>
                                             </TouchableOpacity>
                                         </View>
@@ -1029,11 +1004,8 @@ export const SummaryScreen = () => {
                                         </View>
                                         <Text style={{ fontSize: 9, color: colors.subText, fontWeight: '700', letterSpacing: 0.5 }}>RİSK</Text>
                                     </View>
-                                    <Text style={{ color: riskColor, fontSize: 13, fontWeight: '800' }}>
-                                        {isHidden ? '•••' : `%${riskRatio.toFixed(0)}`}
-                                    </Text>
-                                    <Text style={{ color: riskColor, fontSize: 9, fontWeight: '600', marginTop: 1 }}>
-                                        {riskLabel}
+                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                                        {isHidden ? '•••' : `%${((totalCostBasisTry / (totalPortfolioTry || 1)) * 100).toFixed(0)}`}
                                     </Text>
                                 </Card>
                             )}

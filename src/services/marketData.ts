@@ -3,23 +3,6 @@ import { Instrument, InstrumentType } from '../types';
 import { Platform } from 'react-native';
 
 const YAHOO_BASE_URL = 'https://query2.finance.yahoo.com/v8/finance/chart';
-
-const fetchWithTimeout = async (url: string, options: any = {}, timeout = 8000) => {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
-    } catch (e) {
-        clearTimeout(id);
-        throw e;
-    }
-};
-
 const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
 
 const getYahooUrl = (symbolOrPath: string, params: string) => {
@@ -32,7 +15,7 @@ const getYahooUrl = (symbolOrPath: string, params: string) => {
     if (!isLocalhost) return `/api/yahoo/${symbolOrPath}?${params}`;
 
     // Fallback for local web development
-    return `https://corsproxy.io/?${encodeURIComponent(`${YAHOO_BASE_URL}/${symbolOrPath}?${params}`)}`;
+    return `https://thingproxy.freeboard.io/fetch/${YAHOO_BASE_URL}/${symbolOrPath}?${params}`;
 };
 const COINCAP_BASE_URL = 'https://api.coincap.io/v2';
 const CRYPTOCOMPARE_BASE_URL = 'https://min-api.cryptocompare.com/data';
@@ -113,16 +96,10 @@ let tefasDataCache: {
         name?: string;
     }>
 } | null = null;
-let tefasDataCacheTimestamp: number = 0; // Timestamp when cache was last populated
-const TEFAS_MEMORY_CACHE_TTL = 60 * 60 * 1000; // 1 hour — refresh in-memory cache after this
 
 // Fetch full snapshot - Priority: GitHub > Supabase > Local file
 const fetchTefasSnapshot = async () => {
-    const now = Date.now();
-    // Return in-memory cache if it's still fresh (within 1 hour)
-    if (tefasDataCache && (now - tefasDataCacheTimestamp) < TEFAS_MEMORY_CACHE_TTL) {
-        return tefasDataCache;
-    }
+    if (tefasDataCache) return tefasDataCache; // Return memory cache if available
 
     // 1. Try GitHub first (most up-to-date via GitHub Actions)
     try {
@@ -140,7 +117,6 @@ const fetchTefasSnapshot = async () => {
                     count: data.count || Object.keys(data.data).length,
                     data: data.data
                 };
-                tefasDataCacheTimestamp = now;
                 console.log(`✅ GitHub TEFAS Data Loaded: ${tefasDataCache.count} funds (${data.lastUpdated})`);
                 return tefasDataCache;
             }
@@ -179,7 +155,6 @@ const fetchTefasSnapshot = async () => {
                 count: data.length,
                 data: fundRecord
             };
-            tefasDataCacheTimestamp = now;
             console.log(`🔷 Supabase TEFAS Data Loaded: ${data.length} funds`);
             return tefasDataCache;
         }
@@ -417,11 +392,13 @@ export const MarketDataService = {
     getYahooPrice: async (symbol: string): Promise<Partial<Instrument> | null> => {
         try {
             const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-            const url = getYahooUrl(symbol, 'interval=1d&range=1d');
+            const url = getYahooUrl(symbol, 'interval=1d&range=5d');
 
-            const response = await fetchWithTimeout(url, {
+            const response = await fetch(url, {
                 headers: isWeb ? {} : {
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
                 }
             });
 
@@ -431,28 +408,21 @@ export const MarketDataService = {
             }
 
             const data = await response.json();
-<<<<<<< HEAD
-            if (!data?.chart?.result?.[0]) {
-                console.warn(`Yahoo Finance: No result found for ${symbol}`);
-                return null;
-            }
-=======
-            const result = data.chart.result[0];
+            const result = data?.chart?.result?.[0];
 
             if (!result) return null;
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
-            const result = data.chart.result[0];
             const meta = result.meta;
-<<<<<<< HEAD
-            if (!meta) return null;
 
+            // FIX: regularMarketPrice can be 0 or undefined when market is closed.
+            // Use multiple price sources with fallback priority.
             let price = meta.regularMarketPrice;
 
-            // Fallbacks for zero/closed market price
-            if (price === undefined || price === null || price === 0) {
+            // Fallback 1: Use latest close from quote indicators (most reliable)
+            if (!price || price === 0) {
                 const closes = result?.indicators?.quote?.[0]?.close;
                 if (closes && closes.length > 0) {
+                    // Find last non-null close
                     for (let i = closes.length - 1; i >= 0; i--) {
                         if (closes[i] != null && closes[i] > 0) {
                             price = closes[i];
@@ -461,9 +431,17 @@ export const MarketDataService = {
                     }
                 }
             }
-            if (!price || price === 0) price = meta.chartPreviousClose || meta.previousClose;
-            if (!price || price === 0) price = meta.preMarketPrice || meta.postMarketPrice;
-            
+
+            // Fallback 2: chartPreviousClose
+            if (!price || price === 0) {
+                price = meta.chartPreviousClose || meta.previousClose;
+            }
+
+            // Fallback 3: preMarket / postMarket price
+            if (!price || price === 0) {
+                price = meta.preMarketPrice || meta.postMarketPrice;
+            }
+
             if (!price || price === 0) {
                 console.warn(`Yahoo: ${symbol} price is still 0 after all fallbacks`);
                 return null;
@@ -471,11 +449,6 @@ export const MarketDataService = {
 
             const prevClose = meta.chartPreviousClose || meta.previousClose || price;
             const change = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
-=======
-            const price = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose;
-            const change = ((price - prevClose) / prevClose) * 100;
->>>>>>> parent of 1c29ae5 (fix: price fetching zeros & cross-device sync issues)
 
             return {
                 currentPrice: price,
@@ -718,7 +691,7 @@ export const MarketDataService = {
     getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
         const upperCode = code.toUpperCase();
 
-        // 1. Try Firebase Cloud Data first (Fast & Automated)
+        // 1. Try Cloud Data first (GitHub > Supabase)
         const cloudData = await fetchTefasSnapshot();
 
         if (cloudData && cloudData.data && cloudData.data[upperCode]) {
@@ -726,10 +699,10 @@ export const MarketDataService = {
             const price = Number(fund.price);
             const change = fund.dailyChange || fund.daily_change || 0;
 
-            // If we have price and non-zero change, return immediately
-            // If change is 0, it might be due to holiday issue, so we might want to fall back 
-            // BUT only if the fetchedAt is old. For now, let's just use it if it's non-zero.
-            if (price > 0 && change !== 0) {
+            // FIX: Return cloud data as long as price > 0.
+            // Previously, change===0 was causing a spurious fallback to Direct API.
+            // change=0 is valid on holidays or when the fund didn't move.
+            if (price > 0) {
                 return {
                     symbol: upperCode,
                     name: fund.name || upperCode,
@@ -738,7 +711,6 @@ export const MarketDataService = {
                     lastUpdated: new Date(fund.date).getTime()
                 };
             }
-            // If change is 0, we'll fall back to direct API to verify if there's a real change
         }
 
         // 2. Fallback to Local JSON (Backup if Cloud fails)
@@ -825,16 +797,10 @@ export const MarketDataService = {
             const period1 = Math.floor(date / 1000);
             const period2 = period1 + 86400; // +1 day
             const url = getYahooUrl(symbol, `period1=${period1}&period2=${period2}&interval=1d`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const response = await axios.get(url);
 
-            const response = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            const data = await response.json();
-            if (data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0]) {
-                return data.chart.result[0].indicators.quote[0].close[0];
+            if (response.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0]) {
+                return response.data.chart.result[0].indicators.quote[0].close[0];
             }
 
             return 0;

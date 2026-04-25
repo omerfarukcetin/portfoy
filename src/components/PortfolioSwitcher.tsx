@@ -78,6 +78,8 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
     const [isCreating, setIsCreating] = useState(false);
     const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
     const [portfolioNameInput, setPortfolioNameInput] = useState('');
+    const [trackingMode, setTrackingMode] = useState<'standard' | 'unitized'>('standard');
+    const [initialPrice, setInitialPrice] = useState('1.0');
 
     const handleCreate = async () => {
         if (!portfolioNameInput.trim()) {
@@ -85,8 +87,11 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
             return;
         }
 
-        await createPortfolio(portfolioNameInput, '#007AFF', '💼');
+        const price = parseFloat(initialPrice.replace(',', '.')) || 1.0;
+        await createPortfolio(portfolioNameInput, '#007AFF', '💼', trackingMode, price);
         setPortfolioNameInput('');
+        setTrackingMode('standard');
+        setInitialPrice('1.0');
         setIsCreating(false);
         setModalVisible(false);
     };
@@ -138,6 +143,11 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                             <Text style={{ color: colors.text, fontSize: 14 * fontScale, fontWeight: '700' }}>
                                 {formatCurrency(stats.totalValue, 'TRY')}
                             </Text>
+                            {item.trackingMode === 'unitized' && (
+                                <Text style={{ color: colors.primary, fontSize: 13 * fontScale, fontWeight: '600', marginTop: 2 }}>
+                                    Birim Fiyat: {formatCurrency(stats.totalValue / (item.totalUnits || 1), 'TRY')}
+                                </Text>
+                            )}
                             <Text style={{ color: colors.subText, fontSize: 11 * fontScale, marginTop: 2 }}>
                                 ${(stats.totalValue / usdRate).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} · {goldPrice > 0 ? (stats.totalValue / goldPrice).toFixed(1) : '?'} gr altın
                             </Text>
@@ -262,6 +272,48 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                     placeholderTextColor={colors.subText}
                                     autoFocus
                                 />
+
+                                {isCreating && (
+                                    <>
+                                        <Text style={[styles.label, { color: colors.subText }]}>Takip Tipi</Text>
+                                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.modeOption,
+                                                    { borderColor: colors.border, backgroundColor: trackingMode === 'standard' ? colors.primary : 'transparent' }
+                                                ]}
+                                                onPress={() => setTrackingMode('standard')}
+                                            >
+                                                <Text style={{ color: trackingMode === 'standard' ? '#fff' : colors.text, fontSize: 12 }}>Standart</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.modeOption,
+                                                    { borderColor: colors.border, backgroundColor: trackingMode === 'unitized' ? colors.primary : 'transparent' }
+                                                ]}
+                                                onPress={() => setTrackingMode('unitized')}
+                                            >
+                                                <Text style={{ color: trackingMode === 'unitized' ? '#fff' : colors.text, fontSize: 12 }}>Fon Tipi (Birim Fiyat)</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {trackingMode === 'unitized' && (
+                                            <>
+                                                <Text style={[styles.label, { color: colors.subText }]}>Başlangıç Birim Fiyatı</Text>
+                                                <TextInput
+                                                    style={[styles.input, {
+                                                        color: colors.text,
+                                                        borderColor: colors.border,
+                                                        backgroundColor: colors.background
+                                                    }]}
+                                                    value={initialPrice}
+                                                    onChangeText={setInitialPrice}
+                                                    keyboardType="numeric"
+                                                />
+                                            </>
+                                        )}
+                                    </>
+                                )}
                                 <View style={styles.createActions}>
                                     <TouchableOpacity
                                         style={[styles.cancelButton, { borderColor: colors.border }]}
@@ -428,5 +480,12 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,
+    },
+    modeOption: {
+        flex: 1,
+        padding: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
     }
 });

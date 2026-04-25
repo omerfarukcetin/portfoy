@@ -47,7 +47,8 @@ interface PortfolioContextType {
     currentUsdRate: number;
 
     // Multi-portfolio functions
-    createPortfolio: (name: string, color: string, icon: string) => Promise<void>;
+    createPortfolio: (name: string, color: string, icon: string, mode?: 'standard' | 'unitized', initialPrice?: number) => Promise<void>;
+    addCapital: (portfolioId: string, amount: number) => Promise<void>;
     deletePortfolio: (id: string) => Promise<void>;
     switchPortfolio: (id: string) => Promise<void>;
     renamePortfolio: (id: string, newName: string) => Promise<void>;
@@ -604,7 +605,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
     // Multi-portfolio functions
-    const createPortfolio = async (name: string, color: string, icon: string) => {
+    const createPortfolio = async (name: string, color: string, icon: string, mode: 'standard' | 'unitized' = 'standard', initialPrice: number = 1.0) => {
         const id = Date.now().toString();
         const newPortfolio: Portfolio = {
             id,
@@ -617,10 +618,54 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             cashItems: [],
             realizedTrades: [],
             dividends: [],
-            history: []
+            history: [],
+            trackingMode: mode,
+            totalUnits: 0,
+            initialUnitPrice: initialPrice
         };
 
         savePortfolios(prev => [...prev, newPortfolio], id);
+    };
+
+    const addCapital = async (portfolioId: string, amount: number) => {
+        savePortfolios(prev => prev.map(p => {
+            if (p.id === portfolioId) {
+                const mode = p.trackingMode || 'standard';
+                if (mode === 'unitized') {
+                    // Calculate current total value to get current unit price
+                    // This is a simplified calculation here, might need full aggregation
+                    // But we can approximate with previous value or current state
+                    const currentTotalValue = (p.cashBalance || 0) + 
+                        p.items.reduce((sum, item) => {
+                            const price = prices[item.instrumentId] || item.averageCost;
+                            return sum + (item.amount * price * (item.currency === 'USD' ? currentUsdRate : 1));
+                        }, 0);
+                    
+                    const currentUnits = p.totalUnits || 0;
+                    const initialPrice = p.initialUnitPrice || 1.0;
+                    
+                    let newUnits = 0;
+                    if (currentUnits === 0 || currentTotalValue === 0) {
+                        newUnits = amount / initialPrice;
+                    } else {
+                        const unitPrice = currentTotalValue / currentUnits;
+                        newUnits = amount / unitPrice;
+                    }
+                    
+                    return {
+                        ...p,
+                        cashBalance: (p.cashBalance || 0) + amount,
+                        totalUnits: currentUnits + newUnits
+                    };
+                } else {
+                    return {
+                        ...p,
+                        cashBalance: (p.cashBalance || 0) + amount
+                    };
+                }
+            }
+            return p;
+        }));
     };
 
     const deletePortfolio = async (id: string) => {

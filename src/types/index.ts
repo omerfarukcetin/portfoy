@@ -96,6 +96,9 @@ export interface Portfolio {
   targetValueTry?: number;
   targetCurrency?: 'TRY' | 'USD';
   updatedAt?: number; // Last modified epoch
+  trackingMode?: 'standard' | 'unitized';
+  totalUnits?: number; // For unitized portfolios
+  initialUnitPrice?: number; // Default 1.00
 }
 
 export interface PriceAlert {

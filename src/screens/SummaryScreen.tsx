@@ -65,7 +65,8 @@ export const SummaryScreen = () => {
         syncError,
         priceCurrencies,
         getPortfolioDistribution,
-        fundPrices
+        fundPrices,
+        addCapital
     } = usePortfolio();
 
     const donutChartRef = useRef<ShareableDonutChartHandle>(null);
@@ -91,6 +92,9 @@ export const SummaryScreen = () => {
     const [marketReportVisible, setMarketReportVisible] = useState(false);
     const [marketReportData, setMarketReportData] = useState<any>(null);
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+    const [capitalModalVisible, setCapitalModalVisible] = useState(false);
+    const [capitalAmount, setCapitalAmount] = useState('');
+    const [capitalLoading, setCapitalLoading] = useState(false);
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const distCardWebRef = useRef<any>(null);
@@ -375,6 +379,21 @@ export const SummaryScreen = () => {
                                             <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 4 }}>
                                                 {isHidden ? '****' : `💰 $${portfolioInUsd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}  ·  {isHidden ? '**' : `⚖ ${portfolioInGramGold.toFixed(1)} gr altın`}
                                             </Text>
+                                            {activePortfolio?.trackingMode === 'unitized' && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                                                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                                                            Birim Fiyat: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                        </Text>
+                                                    </View>
+                                                    <TouchableOpacity 
+                                                        onPress={() => setCapitalModalVisible(true)}
+                                                        style={{ backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                                                    >
+                                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Nakit Giriş/Çıkış</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
                                     {/* K/Z Badge Area */}
@@ -923,14 +942,25 @@ export const SummaryScreen = () => {
                                             </Text>
                                         </View>
                                     </View>
-                                    <Text style={{
-                                        color: 'rgba(255,255,255,0.8)',
-                                        fontSize: 11,
-                                        fontWeight: '600',
-                                        marginTop: 2
-                                    }}>
-                                        Toplam: {isHidden ? '•••' : formatCurrency(totalUnrealizedProfitTry, 'TRY')}
+                                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '600', marginTop: 2 }}>
+                                        Toplam K/Z: {isHidden ? '•••' : formatCurrency(totalUnrealizedProfitTry, 'TRY')}
                                     </Text>
+                                    
+                                    {activePortfolio?.trackingMode === 'unitized' && (
+                                        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                                                    Birim: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                </Text>
+                                            </View>
+                                            <TouchableOpacity 
+                                                onPress={() => setCapitalModalVisible(true)}
+                                                style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>Nakit Giriş/Çıkış</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                 </View>
                                 <TouchableOpacity
                                     onPress={() => setIsHidden(!isHidden)}
@@ -1257,8 +1287,6 @@ export const SummaryScreen = () => {
                 </View>
             </Modal >
 
-            {/* AI Assistant FAB */}
-
         </View >
     );
 };
@@ -1491,9 +1519,8 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
-        letterSpacing: -0.5,
     },
     modalDate: {
         fontSize: 13,
@@ -1509,6 +1536,29 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
         marginBottom: 12,
+    },
+    label: {
+        fontSize: 14,
+        marginBottom: 8,
+        fontWeight: '500',
+    },
+    input: {
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    modalButton: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalButtonText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 15,
     },
     marketRow: {
         flexDirection: 'row',
@@ -1559,8 +1609,9 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     recommendationTitle: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 6,
     },
     recommendationDesc: {
         fontSize: 13,

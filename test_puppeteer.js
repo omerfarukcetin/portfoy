@@ -7,8 +7,8 @@ const puppeteer = require('puppeteer');
     let hasError = false;
 
     page.on('console', msg => {
+        console.log(`BROWSER ${msg.type().toUpperCase()}:`, msg.text());
         if (msg.type() === 'error') {
-            console.log('BROWSER ERROR:', msg.text());
             hasError = true;
         }
     });
@@ -19,12 +19,18 @@ const puppeteer = require('puppeteer');
     });
 
     try {
-        await page.goto('http://localhost:8081', { waitUntil: 'networkidle0', timeout: 30000 });
-        if (!hasError) {
-            console.log('No errors detected on load. HTML Snippet:');
-            const html = await page.content();
-            console.log(html.substring(0, 500));
-        }
+        await page.goto('http://localhost:8081', { waitUntil: 'networkidle2', timeout: 30000 });
+        console.log('Page loaded. HTML Snippet (first 1000 chars):');
+        const html = await page.content();
+        console.log(html.substring(0, 1000));
+        
+        // Check if #root has children
+        const hasContent = await page.evaluate(() => {
+            const root = document.getElementById('root');
+            return root && root.children.length > 0;
+        });
+        console.log('App rendered content into #root:', hasContent);
+        
     } catch (e) {
         console.log('GOTO ERROR:', e.message);
     }

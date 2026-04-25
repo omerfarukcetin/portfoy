@@ -8,9 +8,11 @@ export const saveUserPortfolios = async (
     userId: string,
     portfolios: Portfolio[],
     activePortfolioId: string
-): Promise<void> => {
+): Promise<Portfolio[]> => {
     try {
-        console.log(`🔷 Supabase: Saving ${portfolios.length} portfolios for user ${userId}`);
+        const timestamp = new Date().toISOString();
+        console.log(`🔷 Supabase: Saving ${portfolios.length} portfolios for user ${userId} at ${timestamp}`);
+        console.log(`   Portfolios: ${portfolios.map(p => `${p.name} (v:${p.updatedAt})`).join(', ')}`);
 
         // 1. Update or insert user metadata
         const { error: metaError } = await supabase
@@ -18,7 +20,7 @@ export const saveUserPortfolios = async (
             .upsert({
                 id: userId,
                 active_portfolio_id: activePortfolioId,
-                updated_at: new Date().toISOString()
+                updated_at: timestamp
             });
 
         if (metaError) {
@@ -94,9 +96,16 @@ export const saveUserPortfolios = async (
             cash_balance: p.cashBalance || 0,
             target_value_try: p.targetValueTry,
             target_currency: p.targetCurrency,
-            updated_at: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString()
+            // Always set updated_at to now for server-side truth
+            updated_at: new Date().toISOString()
         }));
-        const { error: pError } = await supabase.from('portfolios').upsert(portfolioUpserts);
+        
+        // Return saved data to get the server's timestamps
+        const { data: savedPortfoliosData, error: pError } = await supabase
+            .from('portfolios')
+            .upsert(portfolioUpserts)
+            .select('*');
+            
         if (pError) throw pError;
 
         const allItems = portfolios.flatMap(p => (p.items || []).map(item => ({
@@ -195,6 +204,17 @@ export const saveUserPortfolios = async (
         }
 
         console.log('✅ Portfolios successfully saved to Supabase');
+        
+        // Map saved portfolios back to Portfolio objects with server timestamps
+        return (savedPortfoliosData || []).map(p => {
+            const original = portfolios.find(op => op.id === p.id);
+            return {
+                ...(original || {}),
+                id: p.id,
+                name: p.name,
+                updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
+            } as Portfolio;
+        });
     } catch (error) {
         console.error('❌ Error saving portfolios to Supabase:', error);
         throw error;

@@ -125,6 +125,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
     const loadDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isInitialized = useRef<boolean>(false);
+    const pendingSyncIds = useRef<Set<string>>(new Set());
 
     // Derived active portfolio
     const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
@@ -226,8 +227,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const { portfolios, activeId } = dataToSync;
         console.log('🚀 Triggering IMMEDIATE sync to Supabase (App moving to background)...');
         try {
-            await saveUserPortfolios(user.id, portfolios, activeId);
+            const savedPortfolios = await saveUserPortfolios(user.id, portfolios, activeId);
             console.log('✅ Immediate sync success');
+            
+            // Clear pending IDs and update timestamps
+            setPortfolios(prev => prev.map(p => {
+                const saved = savedPortfolios.find(sp => sp.id === p.id);
+                if (saved) {
+                    pendingSyncIds.current.delete(p.id);
+                    return { ...p, updatedAt: saved.updatedAt };
+                }
+                return p;
+            }));
+
             if (pendingSyncData.current === dataToSync) {
                 pendingSyncData.current = null;
             }
@@ -272,11 +284,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             // Updating all portfolios' timestamps on every save was causing false "newer local" detections.
             const updated = updatedRaw.map(p => {
                 const prevP = prev.find(pp => pp.id === p.id);
-                const hasChanged = !prevP || JSON.stringify(prevP.items) !== JSON.stringify(p.items) ||
+                const hasChanged = !prevP || 
+                    JSON.stringify(prevP.items) !== JSON.stringify(p.items) ||
                     JSON.stringify(prevP.cashItems) !== JSON.stringify(p.cashItems) ||
                     JSON.stringify(prevP.realizedTrades) !== JSON.stringify(p.realizedTrades) ||
+                    JSON.stringify(prevP.dividends) !== JSON.stringify(p.dividends) ||
+                    JSON.stringify(prevP.history) !== JSON.stringify(p.history) ||
                     prevP.name !== p.name || prevP.color !== p.color || prevP.icon !== p.icon;
-                return hasChanged ? { ...p, updatedAt: now } : p;
+                
+                if (hasChanged) {
+                    pendingSyncIds.current.add(p.id);
+                    return { ...p, updatedAt: now };
+                }
+                return p;
             });
 
             // Background tasks for storage
@@ -292,7 +312,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
                         syncTimeoutRef.current = setTimeout(async () => {
                             let retryCount = 0;
-                            const maxRetries = 2;
+                            const maxRetries = 3;
                             setIsSyncing(true);
                             setSyncError(null);
 
@@ -305,19 +325,39 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                                 const dataToSync = pendingSyncData.current;
                                 try {
                                     console.log(`🔷 Debounced background sync to Supabase (Attempt ${retryCount + 1})...`);
-                                    await saveUserPortfolios(user.id, dataToSync.portfolios, dataToSync.activeId);
+                                    const savedPortfolios = await saveUserPortfolios(user.id, dataToSync.portfolios, dataToSync.activeId);
                                     console.log('✅ Supabase sync completed');
 
-                                    // ONLY clear if no newer data has arrived during the sync
+                                    // 1. Clear pending IDs and update timestamps with server truth
+                                    setPortfolios(prev => {
+                                        const now = Date.now();
+                                        return prev.map(p => {
+                                            const saved = savedPortfolios.find(sp => sp.id === p.id);
+                                            // Only clear pending ID if NO NEWER changes happened during sync
+                                            // (If p.updatedAt > dataToSync.portfolios[i].updatedAt, it's a newer change)
+                                            const originalP = dataToSync.portfolios.find(op => op.id === p.id);
+                                            const isStillCurrent = !originalP || p.updatedAt === originalP.updatedAt;
+
+                                            if (saved && isStillCurrent) {
+                                                pendingSyncIds.current.delete(p.id);
+                                                return { ...p, updatedAt: saved.updatedAt };
+                                            }
+                                            return p;
+                                        });
+                                    });
+
+                                    // 2. ONLY clear pending sync data if no newer data has arrived during the sync
                                     if (pendingSyncData.current === dataToSync) {
                                         pendingSyncData.current = null;
                                     }
                                     setIsSyncing(false);
-                                } catch (e) {
+                                    setSyncError(null);
+                                } catch (e: any) {
                                     console.error(`❌ Supabase sync failed (Attempt ${retryCount + 1}):`, e);
                                     if (retryCount < maxRetries) {
                                         retryCount++;
-                                        setTimeout(attemptSync, 3000 * retryCount); // Faster backoff
+                                        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff
+                                        setTimeout(attemptSync, delay);
                                     } else {
                                         console.warn('Final cloud sync attempt failed. Data is saved locally.');
                                         setSyncError('Bulut senkronizasyonu başarısız oldu. Veriniz cihazda güvende ancak diğer cihazlarda görünmeyebilir.');
@@ -327,7 +367,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                             };
 
                             attemptSync();
-                        }, 800); // Reduced to 800ms for better responsiveness
+                        }, 500); // Reduced to 500ms for faster sync
                     }
                 } catch (e) {
                     console.error('❌ Failed to save to local storage:', e);
@@ -407,60 +447,80 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     const supabaseData = await loadUserPortfolios(user.id);
                     const cloudPortfolios = supabaseData.portfolios;
 
-                    // Step 2: Smart Merge - Compare timestamps per-portfolio
-                    // Build maps for O(1) lookup
+                    // Step 2: Granular Merge Logic
                     const localById = new Map(localPortfolios.map(p => [p.id, p]));
                     const cloudById = new Map(cloudPortfolios.map(p => [p.id, p]));
+                    const allIds = Array.from(new Set([...localById.keys(), ...cloudById.keys()]));
 
-                    const localMaxTs = localPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
-                    const cloudMaxTs = cloudPortfolios.reduce((max, p) => Math.max(max, p.updatedAt || 0), 0);
-
-                    console.log(`📥 loadData: Comparison - Local TS: ${localMaxTs}, Cloud TS: ${cloudMaxTs}`);
-
-                    // FIX: Per-portfolio merge — detect if any LOCAL portfolio is strictly newer than its
-                    // cloud counterpart. This handles the case where mobile has NEW data not yet synced.
+                    const mergedPortfolios: Portfolio[] = [];
                     let hasLocalNewer = false;
-                    if (localPortfolios.length > 0 && cloudPortfolios.length > 0) {
-                        for (const localP of localPortfolios) {
-                            const cloudP = cloudById.get(localP.id);
+
+                    for (const id of allIds) {
+                        const localP = localById.get(id);
+                        const cloudP = cloudById.get(id);
+
+                        if (localP && cloudP) {
+                            const isPending = pendingSyncIds.current.has(id);
                             const localTs = localP.updatedAt || 0;
-                            const cloudTs = cloudP?.updatedAt ? new Date(cloudP.updatedAt as any).getTime() : 0;
-                            if (localTs > cloudTs + 2000) { // 2 second grace period for clock skew
+                            const cloudTs = cloudP.updatedAt || 0;
+
+                            if (isPending) {
+                                // We have unsynced local changes, keep local
+                                mergedPortfolios.push(localP);
                                 hasLocalNewer = true;
-                                console.log(`⚠️ loadData: Portfolio "${localP.name}" is newer locally (${localTs} > ${cloudTs})`);
-                                break;
+                            } else if (cloudTs > localTs) {
+                                // Cloud is strictly newer and no local pending changes
+                                mergedPortfolios.push(cloudP);
+                            } else if (JSON.stringify(localP) !== JSON.stringify(cloudP)) {
+                                // Heuristic: If content differs but no local pending, trust cloud
+                                // This solves the clock skew issue where cloud might have "older" ts
+                                // but is actually the most recent confirmed state.
+                                console.log(`🔄 loadData: Content mismatch for "${localP.name}" with no pending sync. Using Cloud.`);
+                                mergedPortfolios.push(cloudP);
+                            } else {
+                                mergedPortfolios.push(localP);
                             }
+                        } else if (localP) {
+                            // Only in local - check if it was newly created or deleted elsewhere
+                            const isPending = pendingSyncIds.current.has(id);
+                            if (isPending || !cloudPortfolios.length) {
+                                mergedPortfolios.push(localP);
+                                hasLocalNewer = true;
+                            } else {
+                                // Likely deleted on another device since it's missing from cloud
+                                // and we don't have a pending sync for it.
+                                console.log(`🗑️ loadData: Portfolio "${localP.name}" missing from cloud and no pending sync. Removing local.`);
+                            }
+                        } else if (cloudP) {
+                            // Only in cloud - new from another device
+                            mergedPortfolios.push(cloudP);
                         }
                     }
 
-                    if (cloudPortfolios.length > 0 && !hasLocalNewer) {
-                        // Cloud is same or newer — use cloud
-                        console.log('✅ loadData: Using Cloud data (newer or same)');
-                        setPortfolios(cloudPortfolios);
-                        setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
-                    } else if (localPortfolios.length > 0 && (hasLocalNewer || localMaxTs > cloudMaxTs)) {
-                        // Local is strictly newer - use it AND trigger immediate sync to fix cloud
-                        console.log('⚠️ loadData: Local data is NEWER than cloud. Re-syncing to cloud...');
-                        setPortfolios(localPortfolios);
-                        setActivePortfolioId(storedActiveId || localPortfolios[0].id);
+                    if (mergedPortfolios.length > 0) {
+                        setPortfolios(mergedPortfolios);
+                        
+                        // Decide active portfolio ID
+                        let finalActiveId = storedActiveId || '';
+                        const exists = mergedPortfolios.some(p => p.id === finalActiveId);
+                        if (!exists || !finalActiveId) {
+                            finalActiveId = supabaseData.activePortfolioId || mergedPortfolios[0].id;
+                        }
+                        setActivePortfolioId(finalActiveId);
 
-                        // Force cloud update - but only after setting isInitialized
-                        setTimeout(() => {
-                            saveUserPortfolios(user.id, localPortfolios, storedActiveId || localPortfolios[0].id)
-                                .then(() => console.log('✅ loadData: Cloud force-synced with newer local data'))
-                                .catch(e => console.error('❌ loadData: Cloud force-sync failed:', e));
-                        }, 100);
-                    } else if (cloudPortfolios.length > 0) {
-                        // Edge case: cloud has data but timestamps are weird, trust cloud
-                        setPortfolios(cloudPortfolios);
-                        setActivePortfolioId(supabaseData.activePortfolioId || cloudPortfolios[0].id);
-                    } else if (localPortfolios.length > 0) {
-                        // Cloud is empty, but local has data
-                        setPortfolios(localPortfolios);
-                        setActivePortfolioId(storedActiveId || localPortfolios[0].id);
+                        // If we have newer local data, force a sync to cloud to keep it updated
+                        if (hasLocalNewer) {
+                            console.log('⚠️ loadData: Local changes detected, triggering background sync...');
+                            setTimeout(() => {
+                                saveUserPortfolios(user.id, mergedPortfolios, finalActiveId)
+                                    .then(() => console.log('✅ loadData: Cloud force-synced successfully'))
+                                    .catch(e => console.error('❌ loadData: Cloud force-sync failed:', e));
+                            }, 500);
+                        }
                     } else {
                         createInitialPortfolio();
                     }
+                    
                     isInitialized.current = true;
                     return;
                 } catch (supabaseError) {
@@ -1332,19 +1392,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const importData = async (newPortfolios: Portfolio[], newActivePortfolioId: string) => {
         try {
-            await AsyncStorage.setItem('portfolios', JSON.stringify(newPortfolios));
-            await AsyncStorage.setItem('activePortfolioId', newActivePortfolioId);
-            setPortfolios(newPortfolios);
-            setActivePortfolioId(newActivePortfolioId);
-
-            // Sync legacy state with the new active portfolio
-            const newActivePortfolio = newPortfolios.find(p => p.id === newActivePortfolioId);
-            if (newActivePortfolio) {
-                setPortfolio(newActivePortfolio.items);
-                setRealizedTrades(newActivePortfolio.realizedTrades);
-                setHistory(newActivePortfolio.history || []);
-                setCashItems(newActivePortfolio.cashItems);
-            }
+            console.log('📥 Importing data...', newPortfolios.length, 'portfolios');
+            
+            // Ensure each portfolio has an updatedAt
+            const now = Date.now();
+            const prepared = newPortfolios.map(p => ({
+                ...p,
+                updatedAt: p.updatedAt || now
+            }));
+            
+            savePortfolios(prepared, newActivePortfolioId);
+            
+            // The useEffect and derive logic will handle the rest
+            console.log('✅ Import successful');
         } catch (error) {
             console.error('Error importing data:', error);
             throw error;

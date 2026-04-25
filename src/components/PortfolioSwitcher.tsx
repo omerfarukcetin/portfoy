@@ -258,7 +258,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                         </View>
 
                         {(isCreating || editingPortfolioId) ? (
-                            <View style={styles.createContainer}>
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.createContainer}>
                                 <Text style={[styles.label, { color: colors.subText }]}>Portföy Adı</Text>
                                 <TextInput
                                     style={[styles.input, {
@@ -334,7 +334,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
-                            </View>
+                            </ScrollView>
                         ) : (
                             <>
                                 <FlatList
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     modalContent: {
         borderRadius: 16,
         padding: 20,
-        maxHeight: '60%',
+        maxHeight: '90%',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,

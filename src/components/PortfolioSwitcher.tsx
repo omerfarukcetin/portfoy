@@ -186,12 +186,13 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                             </TouchableOpacity>
                         )}
 
-                        {item.id !== activePortfolio?.id && item.id !== ALL_PORTFOLIOS_ID && (
+                        {item.id !== ALL_PORTFOLIOS_ID && (
                             <TouchableOpacity
+                                style={styles.deleteButton}
                                 onPress={() => {
                                     Alert.alert(
                                         'Portföyü Sil',
-                                        `"${item.name}" portföyünü silmek istediğinize emin misiniz?`,
+                                        `"${item.name}" portföyünü ve içindeki tüm verileri silmek istediğinize emin misiniz?`,
                                         [
                                             { text: 'İptal', style: 'cancel' },
                                             {
@@ -202,9 +203,8 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                         ]
                                     );
                                 }}
-                                style={{ padding: 6 }}
                             >
-                                <Trash2 size={16} color={colors.subText} />
+                                <Trash2 size={16} color={colors.danger} />
                             </TouchableOpacity>
                         )}
 

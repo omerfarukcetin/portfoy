@@ -641,7 +641,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     // Calculate current total value to get current unit price
                     // This is a simplified calculation here, might need full aggregation
                     // But we can approximate with previous value or current state
-                    const currentTotalValue = (p.cashBalance || 0) + 
+                    const currentTotalValue = ((p.cashItems || []).reduce((sum, ci) => sum + ci.amount, 0)) + 
                         p.items.reduce((sum, item) => {
                             const price = prices[item.instrumentId] || item.averageCost;
                             return sum + (item.amount * price * (item.currency === 'USD' ? currentUsdRate : 1));
@@ -658,14 +658,56 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         newUnits = amount / unitPrice;
                     }
                     
+                    // Update cash items
+                    let updatedCashItems = [...(p.cashItems || [])];
+                    const defaultCashIndex = updatedCashItems.findIndex(ci => ci.type === 'cash' && ci.currency === 'TRY');
+                    
+                    if (defaultCashIndex !== -1) {
+                        updatedCashItems[defaultCashIndex] = {
+                            ...updatedCashItems[defaultCashIndex],
+                            amount: updatedCashItems[defaultCashIndex].amount + amount
+                        };
+                    } else {
+                        updatedCashItems.push({
+                            id: Date.now().toString(),
+                            type: 'cash',
+                            name: 'Nakit (TL)',
+                            amount: amount,
+                            currency: 'TRY',
+                            dateAdded: Date.now()
+                        });
+                    }
+                    
                     return {
                         ...p,
-                        cashBalance: (p.cashBalance || 0) + amount,
+                        cashItems: updatedCashItems,
+                        cashBalance: (p.cashBalance || 0) + amount, // Keep for legacy
                         totalUnits: currentUnits + newUnits
                     };
                 } else {
+                    // Standard portfolio - just update cash
+                    let updatedCashItems = [...(p.cashItems || [])];
+                    const defaultCashIndex = updatedCashItems.findIndex(ci => ci.type === 'cash' && ci.currency === 'TRY');
+                    
+                    if (defaultCashIndex !== -1) {
+                        updatedCashItems[defaultCashIndex] = {
+                            ...updatedCashItems[defaultCashIndex],
+                            amount: updatedCashItems[defaultCashIndex].amount + amount
+                        };
+                    } else {
+                        updatedCashItems.push({
+                            id: Date.now().toString(),
+                            type: 'cash',
+                            name: 'Nakit (TL)',
+                            amount: amount,
+                            currency: 'TRY',
+                            dateAdded: Date.now()
+                        });
+                    }
+                    
                     return {
                         ...p,
+                        cashItems: updatedCashItems,
                         cashBalance: (p.cashBalance || 0) + amount
                     };
                 }
@@ -675,18 +717,22 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const deletePortfolio = async (id: string) => {
-        console.log('🗑️ Attempting to delete portfolio:', id);
+        console.log('🗑️ Deleting portfolio:', id);
+
+        // Determine new active ID if we're deleting the current one
+        let nextActiveId = activePortfolioId;
+        if (id === activePortfolioId) {
+            const other = portfolios.find(p => p.id !== id);
+            nextActiveId = other ? other.id : '';
+        }
 
         savePortfolios(prev => {
             if (prev.length <= 1) {
-                console.log('⚠️ Cannot delete last portfolio');
+                Alert.alert('Hata', 'Son kalan portföyü silemezsiniz.');
                 return prev;
             }
-
-            const filtered = prev.filter(p => p.id !== id);
-            console.log('✅ Portfolio filtered from local state. Remaining:', filtered.length);
-            return filtered;
-        }, id === activePortfolioId ? portfolios.find(p => p.id !== id)?.id : activePortfolioId);
+            return prev.filter(p => p.id !== id);
+        }, nextActiveId);
     };
 
     const switchPortfolio = async (id: string) => {

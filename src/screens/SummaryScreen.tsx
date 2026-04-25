@@ -384,6 +384,11 @@ export const SummaryScreen = () => {
                                                     <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
                                                         <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                                                             Birim Fiyat: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                            {' '}
+                                                            <Text style={{ fontSize: 12, color: (totalPortfolioTry / (activePortfolio.totalUnits || 1)) >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
+                                                                ({(((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
+                                                                {((((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(2)}%)
+                                                            </Text>
                                                         </Text>
                                                     </View>
                                                     <TouchableOpacity 
@@ -951,6 +956,11 @@ export const SummaryScreen = () => {
                                             <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
                                                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
                                                     Birim: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                    {' '}
+                                                    <Text style={{ fontSize: 10, color: (totalPortfolioTry / (activePortfolio.totalUnits || 1)) >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
+                                                        ({(((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
+                                                        {((((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(1)}%)
+                                                    </Text>
                                                 </Text>
                                             </View>
                                             <TouchableOpacity 

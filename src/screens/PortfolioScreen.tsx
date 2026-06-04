@@ -472,11 +472,11 @@ export const PortfolioScreen = () => {
                                             let itemCost = cashItem.amount;
                                             let itemValue = cashItem.amount;
                                             let itemProfit = 0;
+                                            const livePrice = cashItem.instrumentId ? fundPrices[cashItem.instrumentId] : undefined;
 
                                             // For money market funds with units and instrumentId, use live prices
                                             if (cashItem.type === 'money_market_fund' && cashItem.units && cashItem.averageCost && cashItem.instrumentId) {
                                                 itemCost = cashItem.units * cashItem.averageCost;
-                                                const livePrice = fundPrices[cashItem.instrumentId];
                                                 if (livePrice) {
                                                     itemValue = cashItem.units * livePrice;
                                                 }
@@ -519,13 +519,15 @@ export const PortfolioScreen = () => {
                                                                 <Text style={{ fontSize: 16 }}>💰</Text>
                                                             </View>
                                                         )}
-                                                        <View style={styles.textContainer}>
-                                                            <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>{itemName}</Text>
-                                                            <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>
-                                                                {isPPF ? `${formatCurrency(cashItem.amount / (cashItem.units || 1), cashItem.currency)} × ${(cashItem.units || 0).toLocaleString('tr-TR')}` : formatCurrency(cashItem.amount, cashItem.currency)}
-                                                            </Text>
+                                                            <View style={styles.textContainer}>
+                                                                <Text style={[styles.symbol, { color: colors.text, fontSize: 13 }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>{itemName}</Text>
+                                                                <Text style={[styles.amount, { color: colors.subText, fontSize: 11 }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>
+                                                                    {isPPF
+                                                                        ? `${formatCurrency(livePrice || cashItem.averageCost || (cashItem.amount / (cashItem.units || 1)), cashItem.currency)} × ${(cashItem.units || 0).toLocaleString('tr-TR')}`
+                                                                        : formatCurrency(cashItem.amount, cashItem.currency)}
+                                                                </Text>
+                                                            </View>
                                                         </View>
-                                                    </View>
                                                     <View style={styles.rightContainer}>
                                                         <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(itemValue, displayCurrency)}</Text>
                                                         {isPPF && (

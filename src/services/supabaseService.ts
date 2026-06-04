@@ -14,21 +14,7 @@ export const saveUserPortfolios = async (
         console.log(`🔷 Supabase: Saving ${portfolios.length} portfolios for user ${userId} at ${timestamp}`);
         console.log(`   Portfolios: ${portfolios.map(p => `${p.name} (v:${p.updatedAt})`).join(', ')}`);
 
-        // 1. Update or insert user metadata
-        const { error: metaError } = await supabase
-            .from('user_metadata')
-            .upsert({
-                id: userId,
-                active_portfolio_id: activePortfolioId,
-                updated_at: timestamp
-            });
-
-        if (metaError) {
-            console.error('❌ Error saving user metadata:', metaError);
-            throw metaError;
-        }
-
-        // 2. Get existing IDs for efficient pruning
+        // 1. Get existing IDs for efficient pruning
         const [
             { data: existingPortfolios },
             { data: existingItems },
@@ -48,7 +34,7 @@ export const saveUserPortfolios = async (
             .filter(p => !incomingPortfolioIds.has(p.id))
             .map(p => p.id);
 
-        // 3. Global Bulk Delete for removed portfolios
+        // 2. Global Bulk Delete for removed portfolios
         if (portfolioIdsToDelete.length > 0) {
             console.log('🔷 Bulking pruning data for deleted portfolios:', portfolioIdsToDelete);
             await Promise.all([
@@ -61,7 +47,7 @@ export const saveUserPortfolios = async (
             ]);
         }
 
-        // 4. Component-level pruning (items, cash, etc. within existing portfolios)
+        // 3. Component-level pruning (items, cash, etc. within existing portfolios)
         const allIncomingItemIds = new Set(portfolios.flatMap(p => p.items.map(i => i.id)));
         const allIncomingCashIds = new Set(portfolios.flatMap(p => (p.cashItems || []).map(i => i.id)));
         const allIncomingTradeIds = new Set(portfolios.flatMap(p => (p.realizedTrades || []).map(i => i.id)));
@@ -85,7 +71,7 @@ export const saveUserPortfolios = async (
         if (tradesToDelete.length > 0) await supabase.from('realized_trades').delete().in('id', tradesToDelete).eq('user_id', userId);
         if (dividendsToDelete.length > 0) await supabase.from('dividends').delete().in('id', dividendsToDelete).eq('user_id', userId);
 
-        // 5. Batch Upsert EVERYTHING
+        // 4. Batch Upsert EVERYTHING
         const portfolioUpserts = portfolios.map(p => ({
             id: p.id,
             user_id: userId,
@@ -204,6 +190,21 @@ export const saveUserPortfolios = async (
                 onConflict: 'portfolio_id,user_id,date'
             });
             if (hError) throw hError;
+        }
+
+        // 5. Mark save as completed only after all related writes succeeded.
+        // Realtime listeners use this row as the final "sync complete" signal.
+        const { error: metaError } = await supabase
+            .from('user_metadata')
+            .upsert({
+                id: userId,
+                active_portfolio_id: activePortfolioId,
+                updated_at: timestamp
+            });
+
+        if (metaError) {
+            console.error('❌ Error saving user metadata:', metaError);
+            throw metaError;
         }
 
         console.log('✅ Portfolios successfully saved to Supabase');

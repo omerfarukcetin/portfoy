@@ -1,2 +1,4 @@
 requests
 firebase-admin
+pandas
+pytefas>=0.4.0

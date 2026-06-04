@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, DimensionValue } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
     useSharedValue,
@@ -11,8 +11,8 @@ import Animated, {
 import { useTheme } from '../context/ThemeContext';
 
 interface SkeletonProps {
-    width?: number | string;
-    height?: number | string;
+    width?: DimensionValue;
+    height?: DimensionValue;
     style?: ViewStyle;
     borderRadius?: number;
 }

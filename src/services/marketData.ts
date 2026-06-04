@@ -685,8 +685,8 @@ export const MarketDataService = {
     },
 
     /**
-     * Fetch TEFAS Fund Price with improved error handling and caching
-     * Uses RapidAPI TEFAS endpoint
+     * Fetch TEFAS fund price from the maintained snapshot sources.
+     * The legacy TEFAS /api/DB endpoints were retired in 2026.
      */
     getTefasPrice: async (code: string): Promise<Partial<Instrument> | null> => {
         const upperCode = code.toUpperCase();
@@ -725,57 +725,11 @@ export const MarketDataService = {
             };
         }
 
-        // 3. Fallback to Direct API (Slow, but covers non-indexed funds)
         const cacheKey = `TEFAS_${upperCode}`;
 
         return getCachedOrFetch(cacheKey, async () => {
-            try {
-                // Fetch last 30 days to ensure we get the latest price (sometimes funds don't update for a few days)
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(endDate.getDate() - 30);
-
-                // Format dates as YYYY-MM-DD
-                const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-                const data = await fetchTefasData('BindHistoryInfo', {
-                    fontip: "ALL",
-                    bastarih: formatDate(startDate),
-                    bittarih: formatDate(endDate),
-                    fonkod: upperCode
-                });
-
-                if (data && data.data && data.data.length > 0) {
-                    const sorted = data.data.sort((a: any, b: any) => new Date(b.TARIH).getTime() - new Date(a.TARIH).getTime());
-                    const currentPrice = sorted[0].FIYAT;
-
-                    // Calculate 24h change if possible
-                    let change24h = 0;
-                    if (sorted.length >= 2) {
-                        const prevPrice = sorted[1].FIYAT;
-                        if (prevPrice > 0) {
-                            change24h = ((currentPrice - prevPrice) / prevPrice) * 100;
-                        }
-                    }
-
-                    // console.log(`✅ TEFAS (Direct): ${code} = ₺${currentPrice}`);
-
-                    return {
-                        symbol: upperCode,
-                        name: sorted[0].FONUNVAN,
-                        currentPrice: currentPrice,
-                        currency: 'TRY',
-                        lastUpdated: new Date(sorted[0].TARIH).getTime(),
-                        change24h: change24h
-                    };
-                }
-
-                console.warn(`⚠️ TEFAS: No data found for ${code}`);
-                return null;
-            } catch (error: any) {
-                console.error(`❌ TEFAS error for ${code}:`, error.message);
-                return null;
-            }
+            console.warn(`⚠️ TEFAS snapshot data not found for ${upperCode}. Legacy direct endpoints are retired.`);
+            return null;
         }, TEFAS_CACHE_TTL);
     },
 

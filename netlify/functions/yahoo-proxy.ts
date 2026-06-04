@@ -1,6 +1,23 @@
-import { Handler } from '@netlify/functions';
+interface HandlerEvent {
+    queryStringParameters?: Record<string, string | undefined>;
+}
 
-export const handler: Handler = async (event) => {
+interface HandlerResponse {
+    statusCode: number;
+    headers?: Record<string, string>;
+    body: string;
+}
+
+interface YahooSearchQuote {
+    symbol: string;
+    quoteType?: string;
+}
+
+interface YahooSearchResponse {
+    quotes?: YahooSearchQuote[];
+}
+
+export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => {
     const { q, category } = event.queryStringParameters || {};
 
     if (!q) {
@@ -23,19 +40,20 @@ export const handler: Handler = async (event) => {
             throw new Error(`Yahoo Finance API error: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as YahooSearchResponse;
 
         // Filter based on category
-        let filteredQuotes = data.quotes;
+        const quotes = data.quotes || [];
+        let filteredQuotes = quotes;
         if (category === 'BIST') {
-            filteredQuotes = data.quotes.filter(
-                (quote: any) =>
+            filteredQuotes = quotes.filter(
+                (quote) =>
                     quote.symbol.endsWith('.IS') &&
                     (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF')
             );
         } else if (category === 'ABD') {
-            filteredQuotes = data.quotes.filter(
-                (quote: any) =>
+            filteredQuotes = quotes.filter(
+                (quote) =>
                     (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF') &&
                     !quote.symbol.includes('.')
             );

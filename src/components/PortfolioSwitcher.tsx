@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, FlatList, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, FlatList, TextInput, Alert, ScrollView } from 'react-native';
 import { Edit2, Trash2, Check, ChevronDown, X, Plus } from 'lucide-react-native';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -108,13 +108,13 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
         setModalVisible(false);
     };
 
-    const startEditing = (portfolio: any) => {
+    const startEditing = (portfolio: Portfolio) => {
         setEditingPortfolioId(portfolio.id);
         setPortfolioNameInput(portfolio.name);
     };
 
-    const renderItem = ({ item }: { item: any }) => {
-        const stats = calculatePortfolioStats(item as Portfolio, prices, dailyChanges, usdRate);
+    const renderItem = ({ item }: { item: Portfolio }) => {
+        const stats = calculatePortfolioStats(item, prices, dailyChanges, usdRate);
         const hasPrices = Object.keys(prices).length > 0;
 
         return (
@@ -344,9 +344,13 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
                                             name: 'Tüm Portföyler',
                                             color: '#6366f1',
                                             icon: '🌍',
+                                            createdAt: 0,
                                             items: portfolios.flatMap(p => p.items),
+                                            cashBalance: portfolios.reduce((sum, p) => sum + (p.cashBalance || 0), 0),
                                             cashItems: portfolios.flatMap(p => p.cashItems || []),
                                             realizedTrades: portfolios.flatMap(p => p.realizedTrades || []),
+                                            dividends: portfolios.flatMap(p => p.dividends || []),
+                                            history: [],
                                         },
                                         ...portfolios
                                     ]}
@@ -436,6 +440,9 @@ const styles = StyleSheet.create({
     },
     portfolioCount: {
         fontWeight: '400',
+    },
+    deleteButton: {
+        padding: 6,
     },
     addButton: {
         flexDirection: 'row',

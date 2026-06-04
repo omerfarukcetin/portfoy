@@ -1727,6 +1727,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             totalDividendsTry,
             totalDividendsUsd,
             isLoading,
+            addCapital,
             createPortfolio,
             deletePortfolio,
             switchPortfolio,

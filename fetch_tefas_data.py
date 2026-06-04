@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from urllib.parse import quote
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -53,6 +54,7 @@ def push_to_supabase(data):
             }
 
         print("☁️ Supabase'e bağlanılıyor...")
+        sync_timestamp = data.get("lastUpdated") or datetime.now().isoformat()
 
         records = []
         for code, fund_data in data['data'].items():
@@ -62,6 +64,10 @@ def push_to_supabase(data):
                 'date': fund_data.get('date', ''),
                 'daily_change': fund_data.get('dailyChange', 0),
                 'name': fund_data.get('name', ''),
+                'updated_at': sync_timestamp,
+                'last_seen_at': sync_timestamp,
+                'stale_since': None,
+                'is_stale': False,
             })
 
         headers = {
@@ -76,7 +82,7 @@ def push_to_supabase(data):
         for i in range(0, len(records), batch_size):
             batch = records[i:i + batch_size]
             response = requests.post(
-                f'{supabase_url}/rest/v1/tefas_funds',
+                f'{supabase_url}/rest/v1/tefas_funds?on_conflict=code',
                 headers=headers,
                 json=batch,
                 timeout=60,
@@ -87,11 +93,30 @@ def push_to_supabase(data):
                 uploaded_count += len(batch)
                 print(f"✅ Supabase batch {i // batch_size + 1}: {len(batch)} kayıt yüklendi")
 
+        stale_response = requests.patch(
+            f"{supabase_url}/rest/v1/tefas_funds?updated_at=lt.{quote(sync_timestamp, safe='')}",
+            headers=headers,
+            json={
+                'is_stale': True,
+                'stale_since': sync_timestamp,
+            },
+            timeout=60,
+        )
+
+        stale_marked = None
+        if stale_response.status_code not in [200, 204]:
+            print(f"⚠️ Stale işaretleme hatası: {stale_response.status_code} - {stale_response.text}")
+        else:
+            content_range = stale_response.headers.get('content-range')
+            if content_range and '/' in content_range:
+                stale_marked = content_range.split('/')[-1]
+
         print(f"✅ Supabase'e yüklendi ({uploaded_count}/{len(records)} fon)")
         return {
             "success": uploaded_count == len(records),
             "uploaded_count": uploaded_count,
             "total_count": len(records),
+            "stale_marked": stale_marked,
         }
     except Exception as e:
         print(f"❌ Supabase hatası: {e}")
@@ -264,6 +289,8 @@ def print_verification_summary(payload, supabase_result):
             f"{'OK' if supabase_result.get('success') else 'FAILED'} "
             f"({supabase_result.get('uploaded_count', 0)}/{supabase_result.get('total_count', 0)})"
         )
+        if supabase_result.get("stale_marked") is not None:
+            print(f"Stale Rows Marked   : {supabase_result['stale_marked']}")
         if supabase_result.get("error"):
             print(f"Supabase Error      : {supabase_result['error']}")
     else:

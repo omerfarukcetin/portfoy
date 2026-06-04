@@ -112,7 +112,10 @@ CREATE TABLE IF NOT EXISTS tefas_funds (
   price NUMERIC NOT NULL,
   daily_change NUMERIC DEFAULT 0,
   date TEXT NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+  stale_since TIMESTAMPTZ,
+  is_stale BOOLEAN DEFAULT FALSE
 );
 
 -- =====================================================
@@ -202,6 +205,7 @@ CREATE INDEX IF NOT EXISTS idx_realized_trades_portfolio_id ON realized_trades(p
 CREATE INDEX IF NOT EXISTS idx_realized_trades_user_id ON realized_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_dividends_portfolio_id ON dividends(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_dividends_user_id ON dividends(user_id);
+CREATE INDEX IF NOT EXISTS idx_tefas_funds_is_stale ON tefas_funds(is_stale);
 -- =====================================================
 -- BUDGET MANAGEMENT TABLES (TURKISH NAMES)
 -- =====================================================

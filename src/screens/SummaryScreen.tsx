@@ -134,11 +134,15 @@ export const SummaryScreen = () => {
     const prices = contextPrices;
     const dailyChanges = contextDailyChanges;
     const usdRate = contextUsdRate;
+    const lastPricesText = lastPricesUpdate > 0
+        ? `Piyasa: ${new Date(lastPricesUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
+        : 'Piyasa güncelleniyor...';
     const syncStatusText = isSyncing
-        ? 'Buluta kaydediliyor...'
+        ? 'Bulut: kaydediliyor...'
         : lastSyncAt
-            ? `Son senkron: ${new Date(lastSyncAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
-            : 'Henüz senkron yok';
+            ? `Bulut: ${new Date(lastSyncAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Bulut: bekleniyor';
+    const combinedStatusText = `${lastPricesText} • ${syncStatusText}`;
 
     const fetchMarketReport = async () => {
         setMarketReportData(null);
@@ -330,14 +334,9 @@ export const SummaryScreen = () => {
                                     {activePortfolio?.id === 'all-portfolios' ? 'Tüm portföylerinin birleşik özeti' : 'İşte bugünkü finansal özetin'}
                                 </Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Text style={{ fontSize: 11, color: colors.subText, opacity: 0.8 }}>
-                                        {lastPricesUpdate > 0 ? `Veriler Gerçek Zamanlıdır • Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Veriler Güncelleniyor...'}
+                                    <Text style={{ fontSize: 11, color: isSyncing ? colors.primary : colors.subText, opacity: 0.85, fontWeight: isSyncing ? '600' : '500' }}>
+                                        {combinedStatusText}
                                     </Text>
-                                    {!syncError && (
-                                        <Text style={{ fontSize: 10, color: isSyncing ? colors.primary : colors.subText, fontWeight: isSyncing ? '600' : '500' }}>
-                                            {syncStatusText}
-                                        </Text>
-                                    )}
                                     {isSyncing && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                             <ActivityIndicator size="small" color={colors.primary} style={{ transform: [{ scale: 0.7 }] }} />
@@ -887,14 +886,9 @@ export const SummaryScreen = () => {
                                     {activePortfolio?.id === 'all-portfolios' ? 'Tüm Varlıklarım 🌍' : 'Selam! 👋'}
                                 </Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                                    <Text style={{ fontSize: 9, color: colors.subText }}>
-                                        {lastPricesUpdate > 0 ? `Son Güncelleme: ${new Date(lastPricesUpdate).toLocaleTimeString()}` : 'Güncelleniyor...'}
+                                    <Text style={{ fontSize: 9, color: isSyncing ? colors.primary : colors.subText, fontWeight: isSyncing ? '600' : '500' }}>
+                                        {combinedStatusText}
                                     </Text>
-                                    {!syncError && (
-                                        <Text style={{ fontSize: 9, color: isSyncing ? colors.primary : colors.subText, fontWeight: isSyncing ? '600' : '500' }}>
-                                            {syncStatusText}
-                                        </Text>
-                                    )}
                                     {isSyncing && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                                             <ActivityIndicator size="small" color={colors.primary} style={{ transform: [{ scale: 0.5 }] }} />

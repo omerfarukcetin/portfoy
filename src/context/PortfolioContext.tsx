@@ -192,9 +192,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchCurrentUsdRate();
     }, [user?.id]);
 
-    // Setup periodic price refresh — also trigger on portfolio content change
+    const hasTrackedFundItems = cashItems.some(item => item.type === 'money_market_fund' && !!item.instrumentId);
+
+    // Setup periodic price refresh — trigger for both portfolio assets and PPF items
     useEffect(() => {
-        if (portfolio.length > 0) {
+        if (portfolio.length > 0 || hasTrackedFundItems) {
             refreshAllPrices();
 
             // Clear existing timer if any
@@ -204,12 +206,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             priceRefreshTimer.current = setInterval(() => {
                 refreshAllPrices();
             }, 60 * 1000);
+        } else if (priceRefreshTimer.current) {
+            clearInterval(priceRefreshTimer.current);
+            priceRefreshTimer.current = null;
         }
 
         return () => {
             if (priceRefreshTimer.current) clearInterval(priceRefreshTimer.current);
         };
-    }, [portfolio]); // FIX: Watch full portfolio array, not just length, so price refresh triggers on content changes too
+    }, [portfolio, hasTrackedFundItems, cashItems]); // Also watch cash items so PPF-only users get live TEFAS refresh
 
     const fetchCurrentUsdRate = async () => {
         try {

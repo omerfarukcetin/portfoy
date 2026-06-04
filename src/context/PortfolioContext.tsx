@@ -37,6 +37,7 @@ interface PortfolioContextType {
     isLoading: boolean;
     isSyncing: boolean;
     syncError: string | null;
+    lastSyncAt: number | null;
 
     // Real-time Pricing State
     prices: Record<string, number>;
@@ -122,6 +123,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [lastPricesUpdate, setLastPricesUpdate] = useState(0);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
+    const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
     const priceRefreshTimer = useRef<NodeJS.Timeout | null>(null);
     const loadDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -229,6 +231,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setPortfolios(nextPortfolios);
         setActivePortfolioId(nextActiveId);
         await persistLocalState(nextPortfolios, nextActiveId);
+        setLastSyncAt(Date.now());
     };
 
     const flushPendingSync = async () => {
@@ -1645,7 +1648,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             deleteRealizedTrade,
             updatePortfolioCash,
             isSyncing,
-            syncError
+            syncError,
+            lastSyncAt
         }}>
             {children}
         </PortfolioContext.Provider>

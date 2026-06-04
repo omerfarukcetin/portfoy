@@ -3,6 +3,7 @@ import os
 import sys
 from urllib.parse import quote
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -188,10 +189,11 @@ def get_prev_workday(day):
 
 
 def get_target_trading_day():
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("Europe/Istanbul"))
     target_day = now
 
-    # TEFAS verileri genelde sabah önceki iş gününü yansıtır.
+    # TEFAS verileri genelde sabah saatlerinde önceki iş gününü yansıtabilir.
+    # Kararı UTC yerine Istanbul saatine göre veriyoruz.
     if now.hour < 10:
         target_day = target_day - timedelta(days=1)
 
@@ -223,6 +225,18 @@ def fetch_snapshot_for_day(crawler, day):
         return pd.DataFrame()
 
     return pd.concat(frames, ignore_index=True)
+
+
+def fetch_latest_available_snapshot(crawler, start_day, max_lookback_days=5):
+    day = start_day
+    for _ in range(max_lookback_days):
+        if is_workday(day):
+            frame = fetch_snapshot_for_day(crawler, day)
+            normalized = normalize_frame(frame)
+            if not normalized.empty:
+                return day, normalized
+        day = get_prev_workday(day)
+    return start_day, pd.DataFrame()
 
 
 def normalize_frame(frame):
@@ -345,17 +359,17 @@ def fetch_all_funds():
     try:
         crawler = Crawler(timeout=60, max_retry=5)
 
-        target_day = get_target_trading_day()
-        previous_day = get_prev_workday(target_day)
-
-        print(f"📅 Hedef gün: {target_day.strftime('%Y-%m-%d')}")
-        print(f"📅 Önceki iş günü: {previous_day.strftime('%Y-%m-%d')}")
-
-        current_frame = normalize_frame(fetch_snapshot_for_day(crawler, target_day))
+        initial_target_day = get_target_trading_day()
+        target_day, current_frame = fetch_latest_available_snapshot(crawler, initial_target_day)
         if current_frame.empty:
             raise RuntimeError("TEFAS'tan güncel fon snapshot'ı alınamadı.")
 
-        previous_frame = normalize_frame(fetch_snapshot_for_day(crawler, previous_day))
+        previous_day = get_prev_workday(target_day)
+        _, previous_frame = fetch_latest_available_snapshot(crawler, previous_day, max_lookback_days=5)
+
+        print(f"📅 Kullanılan fiyat günü: {target_day.strftime('%Y-%m-%d')}")
+        print(f"📅 Karşılaştırma günü: {previous_day.strftime('%Y-%m-%d')}")
+
         payload = build_payload(current_frame, previous_frame)
 
         save_payload(payload)

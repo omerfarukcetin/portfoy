@@ -10,6 +10,8 @@ import { CashItem } from '../types';
 import { MarketDataService } from '../services/marketData';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SellCashFundModal } from '../components/SellCashFundModal';
+import { CashTypeSelector } from '../components/cash-management/CashTypeSelector';
+import { FundSearchResults } from '../components/cash-management/FundSearchResults';
 
 const TABLET_WIDTH = 768;
 
@@ -522,35 +524,16 @@ export const CashManagementScreen = () => {
                             {!editingItem && (
                                 <View style={styles.formGroup}>
                                     <Text style={[styles.label, { color: colors.text }]}>Tür</Text>
-                                    <View style={styles.typeButtons}>
-                                        {[
-                                            { value: 'cash', label: 'Nakit' },
-                                            { value: 'money_market_fund', label: 'Para Piyasası' },
-                                            { value: 'deposit', label: 'Mevduat' }
-                                        ].map(type => (
-                                            <TouchableOpacity
-                                                key={type.value}
-                                                style={[
-                                                    styles.typeButton,
-                                                    { borderColor: colors.border },
-                                                    formData.type === type.value && { backgroundColor: colors.primary, borderColor: colors.primary }
-                                                ]}
-                                                onPress={() => {
-                                                    setFormData({ ...formData, type: type.value as any });
-                                                    setSelectedFund(null);
-                                                    setFundQuery('');
-                                                    setFundResults([]);
-                                                }}
-                                            >
-                                                <Text style={[
-                                                    styles.typeButtonText,
-                                                    { color: formData.type === type.value ? '#fff' : colors.text }
-                                                ]}>
-                                                    {type.label}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
+                                    <CashTypeSelector
+                                        value={formData.type}
+                                        colors={colors}
+                                        onChange={(value) => {
+                                            setFormData({ ...formData, type: value });
+                                            setSelectedFund(null);
+                                            setFundQuery('');
+                                            setFundResults([]);
+                                        }}
+                                    />
                                 </View>
                             )}
 
@@ -569,20 +552,7 @@ export const CashManagementScreen = () => {
                                         {isSearchingFund && (
                                             <ActivityIndicator style={{ marginTop: 10 }} color={colors.primary} />
                                         )}
-                                        {fundResults.length > 0 && (
-                                            <View style={[styles.fundResultsContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                                                {fundResults.map((fund, index) => (
-                                                    <TouchableOpacity
-                                                        key={fund.id || index}
-                                                        style={[styles.fundResultItem, { borderBottomColor: colors.border }]}
-                                                        onPress={() => selectFund(fund)}
-                                                    >
-                                                        <Text style={[styles.fundCode, { color: colors.primary }]}>{fund.id}</Text>
-                                                        <Text style={[styles.fundName, { color: colors.text }]} numberOfLines={1}>{fund.name}</Text>
-                                                    </TouchableOpacity>
-                                                ))}
-                                            </View>
-                                        )}
+                                        <FundSearchResults funds={fundResults} colors={colors} onSelect={selectFund} />
                                     </View>
 
                                     {selectedFund && (

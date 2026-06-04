@@ -15,6 +15,7 @@ import { PieChart, Download, Pencil, Trash2 } from 'lucide-react-native';
 import { TickerIcon } from '../components/TickerIcon';
 import { SellAssetModal } from '../components/SellAssetModal';
 import { SwipeListView, SwipeRow } from 'react-native-swipe-list-view';
+import { PortfolioCategoryTabs } from '../components/portfolio/PortfolioCategoryTabs';
 
 const getCategoryColor = (category: string) => {
     switch (category) {
@@ -396,31 +397,13 @@ export const PortfolioScreen = () => {
             </View>
 
             {/* Category Tabs */}
-            <View style={{ height: 50, backgroundColor: colors.cardBackground, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, alignItems: 'center', paddingHorizontal: 16 }}
-                >
-                    {allCategories.map(cat => {
-                        const isActive = selectedCategory === cat;
-                        return (
-                            <TouchableOpacity
-                                key={cat}
-                                onPress={() => setSelectedCategory(isActive ? null : cat)}
-                                style={[
-                                    styles.categoryTab,
-                                    { backgroundColor: isActive ? colors.primary : colors.background, borderColor: isActive ? colors.primary : colors.border }
-                                ]}
-                            >
-                                <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : colors.text }}>
-                                    {cat.replace(' (BIST)', '')}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
-
+            <PortfolioCategoryTabs
+                categories={allCategories}
+                selectedCategory={selectedCategory}
+                colors={colors}
+                onSelect={setSelectedCategory}
+            />
+            <View>
                 <SellAssetModal
                     visible={sellModalVisible}
                     item={sellingItem}

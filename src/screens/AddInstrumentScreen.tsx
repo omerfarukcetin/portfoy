@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { MarketDataService } from '../services/marketData';
@@ -7,7 +7,8 @@ import { Instrument } from '../types';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { useFavorites } from '../context/FavoritesContext';
-import { Star, CheckCircle } from 'lucide-react-native';
+import { CategoryTabs } from '../components/add-instrument/CategoryTabs';
+import { InstrumentResultsList } from '../components/add-instrument/InstrumentResultsList';
 
 export const AddInstrumentScreen = () => {
     const [query, setQuery] = useState('');
@@ -278,36 +279,12 @@ export const AddInstrumentScreen = () => {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {!selectedInstrument ? (
                 <>
-                    <View style={{ height: 50, marginBottom: 15 }}>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: 'center' }}
-                        >
-                            {['BIST', 'ABD', 'EMTIA', 'KRIPTO', 'FON', 'BES', 'DÖVİZ', 'NAKİT', 'DİĞER'].map((cat) => {
-                                const catKey = cat === 'DİĞER' ? 'DIGER' : cat === 'NAKİT' ? 'NAKIT' : cat;
-                                return (
-                                    <TouchableOpacity
-                                        key={cat}
-                                        style={[
-                                            styles.tab,
-                                            category === catKey && { backgroundColor: colors.primary },
-                                            { marginBottom: 0 } // Override margin for horizontal scroll
-                                        ]}
-                                        onPress={() => {
-                                            if (cat === 'NAKİT') {
-                                                navigation.navigate('CashManagement' as never);
-                                            } else {
-                                                setCategory(catKey as any);
-                                            }
-                                        }}
-                                    >
-                                        <Text style={[styles.tabText, { color: category === catKey ? '#fff' : colors.subText }]}>{cat}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </ScrollView>
-                    </View>
+                    <CategoryTabs
+                        activeCategory={category}
+                        colors={colors}
+                        onCategorySelect={setCategory}
+                        onCashManagementPress={() => navigation.navigate('CashManagement' as never)}
+                    />
 
                     {category === 'KRIPTO' ? (
                         <>
@@ -321,51 +298,23 @@ export const AddInstrumentScreen = () => {
                             {isSearchingCrypto ? (
                                 <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
                             ) : cryptoResults.length > 0 ? (
-                                <FlatList
-                                    data={cryptoResults}
-                                    keyExtractor={item => item.id}
-                                    renderItem={({ item }) => {
-                                        const cryptoInstrument = {
-                                            id: item.id,
-                                            symbol: item.symbol.toUpperCase(),
-                                            name: item.name,
-                                            type: 'crypto' as const,
-                                            instrumentId: item.id
-                                        };
-
-                                        return (
-                                            <TouchableOpacity
-                                                style={[styles.cryptoItem, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                                onPress={() => {
-                                                    setSelectedInstrument(cryptoInstrument as Instrument);
-                                                    setCryptoQuery('');
-                                                    setCurrency('USD');
-                                                }}
-                                            >
-                                                <Image source={{ uri: item.thumb }} style={styles.cryptoLogo} />
-                                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                                    <Text style={[styles.cryptoName, { color: colors.text }]}>{item.name}</Text>
-                                                    <Text style={[styles.cryptoSymbol, { color: colors.subText }]}>{item.symbol.toUpperCase()}</Text>
-                                                </View>
-                                                <TouchableOpacity
-                                                    style={{ padding: 8, marginRight: 8 }}
-                                                    onPress={() => {
-                                                        if (isFavorite(item.id)) {
-                                                            removeFavorite(item.id);
-                                                        } else {
-                                                            addFavorite(cryptoInstrument as Instrument);
-                                                        }
-                                                    }}
-                                                >
-                                                    <Star
-                                                        size={24}
-                                                        color={isFavorite(item.id) ? "#FFD700" : colors.subText}
-                                                        fill={isFavorite(item.id) ? "#FFD700" : "none"}
-                                                    />
-                                                </TouchableOpacity>
-                                                <CheckCircle size={24} color={colors.primary} />
-                                            </TouchableOpacity>
-                                        );
+                                <InstrumentResultsList
+                                    isCryptoMode
+                                    cryptoResults={cryptoResults}
+                                    results={[]}
+                                    colors={colors}
+                                    isFavorite={isFavorite}
+                                    onSelectInstrument={(instrument) => {
+                                        setSelectedInstrument(instrument);
+                                        setCryptoQuery('');
+                                        setCurrency('USD');
+                                    }}
+                                    onToggleFavorite={(instrument) => {
+                                        if (isFavorite(instrument.id)) {
+                                            removeFavorite(instrument.id);
+                                        } else {
+                                            addFavorite(instrument);
+                                        }
                                     }}
                                 />
                             ) : cryptoQuery.length >= 2 ? (
@@ -425,54 +374,18 @@ export const AddInstrumentScreen = () => {
                                 <ActivityIndicator color={colors.primary} />
                             ) : (
                                 <View style={{ height: Platform.OS === 'web' ? 400 : undefined, flex: Platform.OS === 'web' ? undefined : 1 }}>
-                                    <FlatList
-                                        data={results}
-                                        keyExtractor={item => item.id}
-                                        nestedScrollEnabled={true}
-                                        style={{ flex: 1 }}
-                                        renderItem={({ item }) => {
-                                            let icon = '📈'; // Default
-                                            if (item.type === 'crypto') icon = '₿';
-                                            else if (item.type === 'gold' || item.type === 'metal') icon = '🪙';
-                                            else if (item.type === 'fund') icon = '📊';
-                                            else if (item.type === 'bes') icon = '🏦';
-                                            else if (item.type === 'stock') icon = '📈';
-
-                                            return (
-                                                <TouchableOpacity
-                                                    style={[styles.item, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                                                    onPress={() => handleSelect(item)}
-                                                >
-                                                    <View style={styles.itemLeft}>
-                                                        <Text style={{ fontSize: 24, marginRight: 12 }}>{icon}</Text>
-                                                        <View>
-                                                            <Text style={[styles.symbol, { color: colors.text }]}>{item.symbol}</Text>
-                                                            <Text style={[styles.name, { color: colors.subText }]}>{item.name}</Text>
-                                                        </View>
-                                                    </View>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                        <TouchableOpacity
-                                                            style={{ padding: 8, marginRight: 8 }}
-                                                            onPress={() => {
-                                                                if (isFavorite(item.id)) {
-                                                                    removeFavorite(item.id);
-                                                                } else {
-                                                                    addFavorite(item);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Star
-                                                                size={24}
-                                                                color={isFavorite(item.id) ? "#FFD700" : colors.subText}
-                                                                fill={isFavorite(item.id) ? "#FFD700" : "none"}
-                                                            />
-                                                        </TouchableOpacity>
-                                                        <View style={[styles.typeBadge, { backgroundColor: colors.primary + '20' }]}>
-                                                            <Text style={[styles.type, { color: colors.primary }]}>{item.type.toUpperCase()}</Text>
-                                                        </View>
-                                                    </View>
-                                                </TouchableOpacity>
-                                            );
+                                    <InstrumentResultsList
+                                        results={results}
+                                        cryptoResults={[]}
+                                        colors={colors}
+                                        isFavorite={isFavorite}
+                                        onSelectInstrument={handleSelect}
+                                        onToggleFavorite={(instrument) => {
+                                            if (isFavorite(instrument.id)) {
+                                                removeFavorite(instrument.id);
+                                            } else {
+                                                addFavorite(instrument);
+                                            }
                                         }}
                                     />
                                 </View>

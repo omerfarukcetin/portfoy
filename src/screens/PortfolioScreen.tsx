@@ -56,6 +56,7 @@ export const PortfolioScreen = () => {
         cashItems,
         prices: contextPrices,
         dailyChanges: contextDailyChanges,
+        fundPrices,
         currentUsdRate: contextUsdRate,
         lastPricesUpdate,
         refreshAllPrices,
@@ -70,7 +71,6 @@ export const PortfolioScreen = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [displayCurrency, setDisplayCurrency] = useState<'TRY' | 'USD'>('TRY');
-    const [fundPrices, setFundPrices] = useState<Record<string, number>>({});
 
     // Edit Modal State
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -98,42 +98,14 @@ export const PortfolioScreen = () => {
         return symbol.toUpperCase();
     };
 
-    // Auto-refresh fund prices specifically
-    useEffect(() => {
-        fetchPrices();
-    }, [portfolio.length]);
-
     const prices = contextPrices;
     const dailyChanges = contextDailyChanges;
     const usdRate = contextUsdRate;
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await Promise.all([
-            refreshAllPrices(),
-            fetchPrices() // for fund prices
-        ]);
+        await refreshAllPrices();
         setRefreshing(false);
-    };
-
-    const fetchPrices = async () => {
-        // This primarily handles Money Market Fund prices for PPF now
-        const fundItems = cashItems.filter(item => item.type === 'money_market_fund' && item.instrumentId);
-        if (fundItems.length === 0) return;
-
-        const newFundPrices: Record<string, number> = {};
-        for (const item of fundItems) {
-            try {
-                // Using getTefasPrice if available or Yahoo
-                const priceResult = await MarketDataService.getTefasPrice(item.instrumentId!);
-                if (priceResult && priceResult.currentPrice) {
-                    newFundPrices[item.instrumentId!] = priceResult.currentPrice;
-                }
-            } catch (error) {
-                console.error('Error fetching fund price:', error);
-            }
-        }
-        setFundPrices(newFundPrices);
     };
 
 

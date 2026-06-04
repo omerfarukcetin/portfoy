@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -43,7 +44,13 @@ def push_to_supabase(data):
 
         if not supabase_url or not supabase_key:
             print("ℹ️ SUPABASE_URL veya SUPABASE_SERVICE_KEY bulunamadı, Supabase'e yükleme yapılmayacak.")
-            return
+            return {
+                "success": False,
+                "uploaded_count": 0,
+                "total_count": len(data.get('data', {})) if isinstance(data, dict) else 0,
+                "skipped": True,
+                "error": "Supabase credentials missing",
+            }
 
         print("☁️ Supabase'e bağlanılıyor...")
 
@@ -65,6 +72,7 @@ def push_to_supabase(data):
         }
 
         batch_size = 500
+        uploaded_count = 0
         for i in range(0, len(records), batch_size):
             batch = records[i:i + batch_size]
             response = requests.post(
@@ -76,11 +84,23 @@ def push_to_supabase(data):
             if response.status_code not in [200, 201]:
                 print(f"⚠️ Supabase batch {i // batch_size + 1} hatası: {response.status_code} - {response.text}")
             else:
+                uploaded_count += len(batch)
                 print(f"✅ Supabase batch {i // batch_size + 1}: {len(batch)} kayıt yüklendi")
 
-        print(f"✅ Supabase'e yüklendi ({len(records)} fon)")
+        print(f"✅ Supabase'e yüklendi ({uploaded_count}/{len(records)} fon)")
+        return {
+            "success": uploaded_count == len(records),
+            "uploaded_count": uploaded_count,
+            "total_count": len(records),
+        }
     except Exception as e:
         print(f"❌ Supabase hatası: {e}")
+        return {
+            "success": False,
+            "uploaded_count": 0,
+            "total_count": len(data.get('data', {})) if isinstance(data, dict) else 0,
+            "error": str(e),
+        }
 
 
 def is_workday(day):
@@ -228,6 +248,30 @@ def save_payload(payload):
     print(f"💾 Veriler kaydedildi ({payload['count']} fon): {output_file}")
 
 
+def print_verification_summary(payload, supabase_result):
+    data_map = payload.get("data", {})
+    unique_dates = sorted({item.get("date") for item in data_map.values() if item.get("date")})
+    latest_price_date = unique_dates[-1] if unique_dates else "unknown"
+
+    print("========== TEFAS VERIFY ==========")
+    print(f"Snapshot Updated At : {payload.get('lastUpdated')}")
+    print(f"Fund Count          : {payload.get('count')}")
+    print(f"Latest Price Date   : {latest_price_date}")
+
+    if supabase_result:
+        print(
+            "Supabase Upload     : "
+            f"{'OK' if supabase_result.get('success') else 'FAILED'} "
+            f"({supabase_result.get('uploaded_count', 0)}/{supabase_result.get('total_count', 0)})"
+        )
+        if supabase_result.get("error"):
+            print(f"Supabase Error      : {supabase_result['error']}")
+    else:
+        print("Supabase Upload     : SKIPPED")
+
+    print("==================================")
+
+
 def fetch_all_funds():
     print("🚀 TEFAS verileri yeni API üzerinden çekiliyor...")
 
@@ -249,7 +293,12 @@ def fetch_all_funds():
 
         save_payload(payload)
         push_to_firebase(payload)
-        push_to_supabase(payload)
+        supabase_result = push_to_supabase(payload)
+        print_verification_summary(payload, supabase_result)
+
+        credentials_present = bool(os.environ.get('SUPABASE_URL') and os.environ.get('SUPABASE_SERVICE_KEY'))
+        if credentials_present and (not supabase_result or not supabase_result.get("success")):
+            raise RuntimeError("Supabase upload failed")
 
         print(f"✅ İşlem tamamlandı. Toplam {payload['count']} fon güncellendi.")
         return True
@@ -261,4 +310,5 @@ def fetch_all_funds():
 
 
 if __name__ == "__main__":
-    fetch_all_funds()
+    success = fetch_all_funds()
+    sys.exit(0 if success else 1)

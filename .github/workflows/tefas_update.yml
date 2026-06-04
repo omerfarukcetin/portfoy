@@ -37,6 +37,27 @@ jobs:
       run: |
         python fetch_tefas_data.py
 
+    - name: Verify Snapshot Output
+      run: |
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        path = Path("src/data/tefas_data.json")
+        if not path.exists():
+            raise SystemExit("tefas_data.json not found")
+
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        data = payload.get("data", {})
+        dates = sorted({item.get("date") for item in data.values() if item.get("date")})
+        latest_price_date = dates[-1] if dates else "unknown"
+
+        print("WORKFLOW VERIFY :: "
+              f"lastUpdated={payload.get('lastUpdated')} :: "
+              f"count={payload.get('count')} :: "
+              f"latestPriceDate={latest_price_date}")
+        PY
+
     - name: Commit and Push Updated Data
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"

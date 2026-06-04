@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { Instrument, InstrumentType } from '../types';
 import { Platform } from 'react-native';
+import { CRYPTO_CACHE_TTL, TEFAS_CACHE_TTL, getCachedOrFetch } from './market-data/cache';
+import { fetchTefasSnapshot, localTefasData, searchLocalTefasFunds, searchSnapshotTefasFunds } from './market-data/tefas';
 
 const YAHOO_BASE_URL = 'https://query2.finance.yahoo.com/v8/finance/chart';
 const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
@@ -51,121 +53,10 @@ const CRYPTO_ID_MAP: Record<string, string> = {
     'uniswap': 'uniswap',
 };
 
-// Price cache to prevent rate limiting
-const priceCache: { [key: string]: { data: Partial<Instrument>, timestamp: number } } = {};
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes default
-const CRYPTO_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for crypto (increased to avoid rate limits)
-const TEFAS_CACHE_TTL = 60 * 60 * 1000; // 1 hour for TEFAS
-
 // Yahoo Finance requires a User-Agent to avoid being blocked.
 // In a browser/RN environment, this is usually handled automatically, but we might need to be careful.
 // If direct calls fail in RN, we might need a proxy or a different library.
 // For now, we'll try direct calls.
-
-// Supabase Cloud Data
-import { supabase } from './supabaseClient';
-
-// Import local data (Back to imported for now)
-import tefasDataRaw from '../data/tefas_data.json';
-const tefasData = tefasDataRaw as {
-    lastUpdated: string;
-    count: number;
-    data: Record<string, {
-        code: string;
-        price: number;
-        date: string;
-        dailyChange?: number;
-        daily_change?: number;
-        name?: string;
-    }>
-};
-
-// GitHub raw URL for TEFAS data (updated via GitHub Actions)
-const GITHUB_TEFAS_URL = 'https://raw.githubusercontent.com/omerfarukcetin/portfoy/main/src/data/tefas_data.json';
-
-// In-Memory cache for TEFAS data
-let tefasDataCache: {
-    lastUpdated: string;
-    count: number;
-    data: Record<string, {
-        code: string;
-        price: number;
-        date: string;
-        dailyChange?: number;
-        daily_change?: number;
-        name?: string;
-    }>
-} | null = null;
-
-// Fetch full snapshot - Priority: GitHub > Supabase > Local file
-const fetchTefasSnapshot = async () => {
-    if (tefasDataCache) return tefasDataCache; // Return memory cache if available
-
-    // 1. Try GitHub first (most up-to-date via GitHub Actions)
-    try {
-        console.log('🔍 Fetching TEFAS data from GitHub...');
-        const response = await fetch(GITHUB_TEFAS_URL, {
-            cache: 'no-cache',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.data && Object.keys(data.data).length > 0) {
-                tefasDataCache = {
-                    lastUpdated: data.lastUpdated || new Date().toISOString(),
-                    count: data.count || Object.keys(data.data).length,
-                    data: data.data
-                };
-                console.log(`✅ GitHub TEFAS Data Loaded: ${tefasDataCache.count} funds (${data.lastUpdated})`);
-                return tefasDataCache;
-            }
-        }
-    } catch (error) {
-        console.warn('⚠️ GitHub TEFAS fetch failed, trying Supabase...', error);
-    }
-
-    // 2. Try Supabase
-    try {
-        const { data, error } = await supabase
-            .from('tefas_funds')
-            .select('*');
-
-        if (!error && data && data.length > 0) {
-            // Convert array to Record format
-            const fundRecord: Record<string, {
-                code: string;
-                price: number;
-                date: string;
-                dailyChange?: number;
-                name?: string;
-            }> = {};
-            data.forEach((fund: any) => {
-                fundRecord[fund.code] = {
-                    code: fund.code,
-                    price: Number(fund.price),
-                    date: fund.date,
-                    dailyChange: fund.daily_change || 0,
-                    name: fund.name || ''
-                };
-            });
-
-            tefasDataCache = {
-                lastUpdated: new Date().toISOString(),
-                count: data.length,
-                data: fundRecord
-            };
-            console.log(`🔷 Supabase TEFAS Data Loaded: ${data.length} funds`);
-            return tefasDataCache;
-        }
-    } catch (error) {
-        console.warn("⚠️ Supabase TEFAS fetch failed, using local data...", error);
-    }
-
-    // 3. Use local file as last resort
-    console.log('📦 Using local TEFAS data file');
-    return null; // Will fall back to tefasData import
-};
 
 const TEFAS_BASE_URL = 'https://www.tefas.gov.tr/api/DB';
 let cookiesWarmedUp = false;
@@ -215,41 +106,6 @@ const fetchTefasData = async (endpoint: string, data: any) => {
         console.error(`TEFAS request failed for ${endpoint}:`, error);
         return null;
     }
-};
-
-const getCachedOrFetch = async (
-    cacheKey: string,
-    fetchFn: () => Promise<Partial<Instrument> | null>,
-    ttl: number = CACHE_TTL
-): Promise<Partial<Instrument> | null> => {
-    const now = Date.now();
-    const cached = priceCache[cacheKey];
-
-    // Return stale cache immediately if available
-    if (cached) {
-        // If cache is still fresh, just return it
-        if (now - cached.timestamp < ttl) {
-            return cached.data;
-        }
-
-        // Cache is stale, but return it immediately and refresh in background
-        fetchFn().then(freshData => {
-            if (freshData) {
-                priceCache[cacheKey] = { data: freshData, timestamp: Date.now() };
-            }
-        }).catch(err => {
-            console.warn(`Background refresh failed for ${cacheKey}:`, err.message);
-        });
-
-        return cached.data;
-    }
-
-    // No cache, fetch now
-    const data = await fetchFn();
-    if (data) {
-        priceCache[cacheKey] = { data, timestamp: now };
-    }
-    return data;
 };
 
 export const MarketDataService = {
@@ -714,8 +570,8 @@ export const MarketDataService = {
         }
 
         // 2. Fallback to Local JSON (Backup if Cloud fails)
-        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
-            const fund = tefasData.data[upperCode];
+        if (localTefasData && localTefasData.data && localTefasData.data[upperCode]) {
+            const fund = localTefasData.data[upperCode];
             return {
                 symbol: upperCode,
                 name: (fund as any).name || upperCode,
@@ -740,7 +596,7 @@ export const MarketDataService = {
 
         // Check if it is a TEFAS Fund
         const upperCode = symbol.toUpperCase();
-        if (tefasData && tefasData.data && tefasData.data[upperCode]) {
+        if (localTefasData && localTefasData.data && localTefasData.data[upperCode]) {
             // It is a fund, don't use Yahoo
             return 0;
         }
@@ -961,56 +817,15 @@ export const MarketDataService = {
             try {
                 // Get TEFAS data from cache or fetch
                 const cloudData = await fetchTefasSnapshot();
-                const searchQuery = query.toLowerCase().trim();
 
                 // Priority: Supabase/GitHub data, then local file
                 if (cloudData && cloudData.data) {
-                    const results: Instrument[] = [];
-
-                    for (const [code, fund] of Object.entries(cloudData.data) as [string, any][]) {
-                        const fundName = fund.name || code;
-                        if (code.toLowerCase().includes(searchQuery) ||
-                            fundName.toLowerCase().includes(searchQuery)) {
-                            results.push({
-                                id: code,
-                                symbol: code,
-                                name: fundName,
-                                type: 'fund',
-                                currency: 'TRY',
-                                currentPrice: fund.price || 0,
-                                dailyChange: fund.daily_change || fund.dailyChange || 0,
-                                lastUpdated: Date.now()
-                            });
-                        }
-                        if (results.length >= 50) break; // Limit results
-                    }
-
-                    return results;
+                    return searchSnapshotTefasFunds(cloudData, query);
                 }
 
                 // Fallback to local TEFAS data
-                if (tefasData && tefasData.data) {
-                    const results: Instrument[] = [];
-
-                    for (const [code, fund] of Object.entries(tefasData.data) as [string, any][]) {
-                        const fundName = fund.name || code;
-                        if (code.toLowerCase().includes(searchQuery) ||
-                            fundName.toLowerCase().includes(searchQuery)) {
-                            results.push({
-                                id: code,
-                                symbol: code,
-                                name: fundName,
-                                type: 'fund',
-                                currency: 'TRY',
-                                currentPrice: fund.price || 0,
-                                dailyChange: fund.dailyChange || 0,
-                                lastUpdated: Date.now()
-                            });
-                        }
-                        if (results.length >= 50) break;
-                    }
-
-                    return results;
+                if (localTefasData && localTefasData.data) {
+                    return searchLocalTefasFunds(query);
                 }
 
                 // If no data, return manual entry option

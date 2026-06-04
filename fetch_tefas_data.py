@@ -38,7 +38,7 @@ def push_to_firebase(data):
 
 
 def push_to_supabase(data):
-    """Push TEFAS data to Supabase tefas_funds table."""
+    """Push TEFAS data to Supabase latest and snapshot tables."""
     try:
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
@@ -56,9 +56,12 @@ def push_to_supabase(data):
         print("☁️ Supabase'e bağlanılıyor...")
         sync_timestamp = data.get("lastUpdated") or datetime.now().isoformat()
 
-        records = []
+        latest_records = []
+        snapshot_records = []
+        source_run_id = sync_timestamp
+
         for code, fund_data in data['data'].items():
-            records.append({
+            latest_records.append({
                 'code': code,
                 'price': fund_data['price'],
                 'date': fund_data.get('date', ''),
@@ -69,6 +72,15 @@ def push_to_supabase(data):
                 'stale_since': None,
                 'is_stale': False,
             })
+            snapshot_records.append({
+                'fund_code': code,
+                'fund_name': fund_data.get('name', ''),
+                'price': fund_data['price'],
+                'daily_change': fund_data.get('dailyChange', 0),
+                'price_date': fund_data.get('date', ''),
+                'fetched_at': sync_timestamp,
+                'source_run_id': source_run_id,
+            })
 
         headers = {
             'apikey': supabase_key,
@@ -78,9 +90,11 @@ def push_to_supabase(data):
         }
 
         batch_size = 500
-        uploaded_count = 0
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
+        uploaded_latest_count = 0
+        uploaded_snapshot_count = 0
+
+        for i in range(0, len(latest_records), batch_size):
+            batch = latest_records[i:i + batch_size]
             response = requests.post(
                 f'{supabase_url}/rest/v1/tefas_funds?on_conflict=code',
                 headers=headers,
@@ -90,8 +104,22 @@ def push_to_supabase(data):
             if response.status_code not in [200, 201]:
                 print(f"⚠️ Supabase batch {i // batch_size + 1} hatası: {response.status_code} - {response.text}")
             else:
-                uploaded_count += len(batch)
-                print(f"✅ Supabase batch {i // batch_size + 1}: {len(batch)} kayıt yüklendi")
+                uploaded_latest_count += len(batch)
+                print(f"✅ Supabase latest batch {i // batch_size + 1}: {len(batch)} kayıt yüklendi")
+
+        for i in range(0, len(snapshot_records), batch_size):
+            batch = snapshot_records[i:i + batch_size]
+            response = requests.post(
+                f'{supabase_url}/rest/v1/tefas_fund_snapshots?on_conflict=fund_code,price_date',
+                headers=headers,
+                json=batch,
+                timeout=60,
+            )
+            if response.status_code not in [200, 201]:
+                print(f"⚠️ Snapshot batch {i // batch_size + 1} hatası: {response.status_code} - {response.text}")
+            else:
+                uploaded_snapshot_count += len(batch)
+                print(f"✅ Supabase snapshot batch {i // batch_size + 1}: {len(batch)} kayıt yüklendi")
 
         stale_response = requests.patch(
             f"{supabase_url}/rest/v1/tefas_funds?updated_at=lt.{quote(sync_timestamp, safe='')}",
@@ -111,11 +139,17 @@ def push_to_supabase(data):
             if content_range and '/' in content_range:
                 stale_marked = content_range.split('/')[-1]
 
-        print(f"✅ Supabase'e yüklendi ({uploaded_count}/{len(records)} fon)")
+        print(
+            "✅ Supabase'e yüklendi "
+            f"(latest: {uploaded_latest_count}/{len(latest_records)}, "
+            f"snapshot: {uploaded_snapshot_count}/{len(snapshot_records)})"
+        )
         return {
-            "success": uploaded_count == len(records),
-            "uploaded_count": uploaded_count,
-            "total_count": len(records),
+            "success": uploaded_latest_count == len(latest_records) and uploaded_snapshot_count == len(snapshot_records),
+            "uploaded_count": uploaded_latest_count,
+            "snapshot_uploaded_count": uploaded_snapshot_count,
+            "total_count": len(latest_records),
+            "snapshot_total_count": len(snapshot_records),
             "stale_marked": stale_marked,
         }
     except Exception as e:
@@ -123,7 +157,9 @@ def push_to_supabase(data):
         return {
             "success": False,
             "uploaded_count": 0,
+            "snapshot_uploaded_count": 0,
             "total_count": len(data.get('data', {})) if isinstance(data, dict) else 0,
+            "snapshot_total_count": len(data.get('data', {})) if isinstance(data, dict) else 0,
             "error": str(e),
         }
 
@@ -288,6 +324,10 @@ def print_verification_summary(payload, supabase_result):
             "Supabase Upload     : "
             f"{'OK' if supabase_result.get('success') else 'FAILED'} "
             f"({supabase_result.get('uploaded_count', 0)}/{supabase_result.get('total_count', 0)})"
+        )
+        print(
+            "Snapshot Upload     : "
+            f"({supabase_result.get('snapshot_uploaded_count', 0)}/{supabase_result.get('snapshot_total_count', 0)})"
         )
         if supabase_result.get("stale_marked") is not None:
             print(f"Stale Rows Marked   : {supabase_result['stale_marked']}")

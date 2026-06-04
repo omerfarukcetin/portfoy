@@ -999,7 +999,7 @@ export const MarketDataService = {
      * Get historical data for benchmarks (BIST100, USD, Gold)
      * Returns array of { date, value }
      */
-    getBenchmarkHistory: async (symbol: string, range: '1mo' | '3mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
+    getBenchmarkHistory: async (symbol: string, range: '5d' | '1mo' | '3mo' | '6mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
         try {
             // Special handling for Gold - use Gram Gold TL instead of GC=F
             if (symbol === 'GOLD_GRAM_TL') {
@@ -1009,7 +1009,15 @@ export const MarketDataService = {
             // Yahoo Finance Chart API
             // symbol: XU100.IS (BIST), TRY=X (USD)
             const interval = '1d';
-            const response = await fetch(`${YAHOO_BASE_URL}/${symbol}?interval=${interval}&range=${range}`);
+            const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+            const url = getYahooUrl(symbol, `interval=${interval}&range=${range}`);
+            const response = await fetch(url, {
+                headers: isWeb ? {} : {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                }
+            });
 
             if (!response.ok) {
                 console.error(`Failed to fetch benchmark history for ${symbol}`);
@@ -1039,14 +1047,29 @@ export const MarketDataService = {
      * Get historical Gram Gold prices in TL
      * Calculates using XAU/USD * USD/TRY / 31.1035
      */
-    getGoldGramTLHistory: async (range: '1mo' | '3mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
+    getGoldGramTLHistory: async (range: '5d' | '1mo' | '3mo' | '6mo' | '1y' = '1mo'): Promise<{ date: string, value: number }[]> => {
         try {
             const interval = '1d';
+            const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+            const goldUrl = getYahooUrl('GC=F', `interval=${interval}&range=${range}`);
+            const usdUrl = getYahooUrl('TRY=X', `interval=${interval}&range=${range}`);
 
             // Fetch Gold USD and USD/TRY historical data
             const [goldResponse, usdResponse] = await Promise.all([
-                fetch(`${YAHOO_BASE_URL}/GC=F?interval=${interval}&range=${range}`),
-                fetch(`${YAHOO_BASE_URL}/TRY=X?interval=${interval}&range=${range}`)
+                fetch(goldUrl, {
+                    headers: isWeb ? {} : {
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    }
+                }),
+                fetch(usdUrl, {
+                    headers: isWeb ? {} : {
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    }
+                })
             ]);
 
             if (!goldResponse.ok || !usdResponse.ok) {

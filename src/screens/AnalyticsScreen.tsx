@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Activ
 import { useTheme } from '../context/ThemeContext';
 import { usePortfolio } from '../context/PortfolioContext';
 import { MarketDataService } from '../services/marketData';
+import { BenchmarkService, ComparisonPeriod } from '../services/benchmarkService';
 import { LineChart } from 'react-native-chart-kit';
 import {
     TrendingUp,
@@ -26,10 +27,10 @@ const isWide = Platform.OS === 'web' && screenWidth > 800;
 
 export const AnalyticsScreen = () => {
     const { colors, fontScale } = useTheme();
-    const { history, portfolio } = usePortfolio();
+    const { history, portfolio, cashItems } = usePortfolio();
     const [loading, setLoading] = useState(false);
-    const [period, setPeriod] = useState<'1W' | '1M' | '3M' | '1Y'>('1M');
-    const [benchmarkData, setBenchmarkData] = useState<Record<string, number[]>>({});
+    const [period, setPeriod] = useState<ComparisonPeriod>('1M');
+    const [comparisonData, setComparisonData] = useState<Awaited<ReturnType<typeof BenchmarkService.getComparisonData>>>(null);
     const [contributionData, setContributionData] = useState<any[]>([]);
 
     useEffect(() => {
@@ -48,12 +49,18 @@ export const AnalyticsScreen = () => {
     const getHistorySlice = () => {
         let days = 7;
         switch (period) {
+            case '1D': days = 2; break;
             case '1W': days = 7; break;
             case '1M': days = 30; break;
             case '3M': days = 90; break;
+            case '6M': days = 180; break;
             case '1Y': days = 365; break;
         }
-        return history.slice(-days);
+        const sliced = history.slice(-days);
+        if (period === '1D' && sliced.length < 2 && history.length >= 2) {
+            return history.slice(-2);
+        }
+        return sliced;
     };
 
     const calculateContributions = async () => {
@@ -108,41 +115,8 @@ export const AnalyticsScreen = () => {
     };
 
     const fetchBenchmarks = async () => {
-        const historySlice = getHistorySlice();
-        if (!historySlice || historySlice.length === 0) return;
-
-        let range: '1mo' | '3mo' | '1y' = '1mo';
-        if (period === '3M') range = '3mo';
-        if (period === '1Y') range = '1y';
-
-        const benchmarks = {
-            'BIST 100': 'XU100.IS',
-            'Dolar/TL': 'TRY=X',
-            'Gram Altın': 'GOLD_GRAM_TL'
-        };
-
-        const newBenchmarkData: Record<string, number[]> = {};
-
-        for (const [name, symbol] of Object.entries(benchmarks)) {
-            const data = await MarketDataService.getBenchmarkHistory(symbol, range);
-
-            if (data.length > 0) {
-                const startVal = data[0].value;
-                const percentData = data.map(d => ((d.value - startVal) / startVal) * 100);
-
-                const resampled = [];
-                const step = percentData.length / historySlice.length;
-                for (let i = 0; i < historySlice.length; i++) {
-                    const index = Math.min(Math.floor(i * step), percentData.length - 1);
-                    resampled.push(percentData[index]);
-                }
-                newBenchmarkData[name] = resampled;
-            } else {
-                newBenchmarkData[name] = new Array(historySlice.length).fill(0);
-            }
-        }
-
-        setBenchmarkData(newBenchmarkData);
+        const data = await BenchmarkService.getComparisonData(history, cashItems, period);
+        setComparisonData(data);
     };
 
     const metrics = useMemo(() => {
@@ -181,36 +155,28 @@ export const AnalyticsScreen = () => {
             );
         }
 
-        const portfolioData = historySlice.map(h => h.valueTry);
-        const portfolioStart = portfolioData[0];
-        const portfolioPercent = portfolioData.map(v => ((v - portfolioStart) / portfolioStart) * 100);
+        const portfolioPercent = comparisonData?.portfolio.values || [];
 
         const datasets = [
             {
                 data: portfolioPercent,
-                color: (opacity = 1) => colors.primary,
+                color: (opacity = 1) => comparisonData?.portfolio.color || colors.primary,
                 strokeWidth: 3,
             }
         ];
 
-        const benchmarkColors: Record<string, string> = {
-            'BIST 100': '#FF9500',
-            'Dolar/TL': '#34C759',
-            'Gram Altın': '#FFD60A'
-        };
-
-        Object.keys(benchmarkData).forEach(key => {
-            if (benchmarkData[key] && benchmarkData[key].length === portfolioPercent.length) {
+        (comparisonData?.benchmarks || []).forEach(benchmark => {
+            if (benchmark.values.length === portfolioPercent.length) {
                 datasets.push({
-                    data: benchmarkData[key],
-                    color: (opacity = 1) => benchmarkColors[key] || '#8E8E93',
+                    data: benchmark.values,
+                    color: (opacity = 1) => benchmark.color,
                     strokeWidth: 1.5,
                 } as any);
             }
         });
 
         let labels = historySlice.map(h => h.date.substr(5));
-        if (period === '3M' || period === '1Y') {
+        if (period === '3M' || period === '6M' || period === '1Y') {
             const step = Math.ceil(labels.length / 6);
             labels = labels.map((l, i) => i % step === 0 ? l : '');
         }
@@ -257,14 +223,14 @@ export const AnalyticsScreen = () => {
                 </View>
 
                 <View style={styles.periodSelector}>
-                    {['1W', '1M', '3M', '1Y'].map((p) => (
+                    {['1D', '1W', '1M', '3M', '6M', '1Y'].map((p) => (
                         <TouchableOpacity
                             key={p}
                             style={[
                                 styles.periodBtn,
                                 { backgroundColor: period === p ? colors.primary : colors.background }
                             ]}
-                            onPress={() => setPeriod(p as any)}
+                            onPress={() => setPeriod(p as ComparisonPeriod)}
                         >
                             <Text style={[styles.periodText, { color: period === p ? '#fff' : colors.subText }]}>{p}</Text>
                         </TouchableOpacity>
@@ -349,16 +315,15 @@ export const AnalyticsScreen = () => {
                                 </Text>
                             </View>
 
-                            {Object.keys(benchmarkData).map(key => {
-                                const data = benchmarkData[key];
-                                const lastValue = data && data.length > 0 ? data[data.length - 1] : 0;
+                            {(comparisonData?.benchmarks || []).map(benchmark => {
+                                const lastValue = benchmark.latestReturn || 0;
                                 return (
-                                    <View key={key} style={styles.benchmarkRow}>
+                                    <View key={benchmark.code} style={styles.benchmarkRow}>
                                         <View style={styles.benchmarkIconLabel}>
-                                            <View style={[styles.symbolIcon, { backgroundColor: colors.border }]}>
+                                            <View style={[styles.symbolIcon, { backgroundColor: benchmark.color + '20' }]}>
                                                 <TrendingUp size={14} color={colors.subText} />
                                             </View>
-                                            <Text style={[styles.benchmarkLabel, { color: colors.text }]}>{key}</Text>
+                                            <Text style={[styles.benchmarkLabel, { color: colors.text }]}>{benchmark.label}</Text>
                                         </View>
                                         <Text style={[styles.benchmarkValue, { color: lastValue >= 0 ? colors.success : colors.danger }]}>
                                             {lastValue >= 0 ? '+' : ''}{lastValue.toFixed(2)}%
@@ -366,6 +331,10 @@ export const AnalyticsScreen = () => {
                                     </View>
                                 );
                             })}
+
+                            <Text style={[styles.footnote, { color: colors.subText }]}>
+                                TL mevduat kıyası {comparisonData?.depositAnnualRate?.toFixed(1) || '45.0'}% yıllık bileşik oran varsayımıyla hesaplanır.
+                            </Text>
                         </View>
                     </View>
 
@@ -421,7 +390,7 @@ export const AnalyticsScreen = () => {
                         <View style={[styles.card, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', borderStyle: 'dashed' }]}>
                             <Text style={[styles.cardTitle, { color: colors.primary, fontSize: 14 }]}>Dönem Özeti</Text>
                             <Text style={[styles.insightText, { color: colors.text }]}>
-                                {period === '1W' ? 'Son 7 günde' : period === '1M' ? 'Son 30 günde' : period === '3M' ? 'Son 3 ayda' : 'Son 1 yılda'} portföyünüz
+                                {period === '1D' ? 'Son 1 işlem gününde' : period === '1W' ? 'Son 7 günde' : period === '1M' ? 'Son 30 günde' : period === '3M' ? 'Son 3 ayda' : period === '6M' ? 'Son 6 ayda' : 'Son 1 yılda'} portföyünüz
                                 <Text style={{ fontWeight: 'bold' }}> {metrics ? (metrics.totalReturn >= 0 ? 'gelişim gösterdi.' : 'değer kaybetti.') : ''}</Text>
                                 {metrics && metrics.volatility > 5 ? ' Hareketli bir dönem geçirdiniz.' : ' Sakin bir seyir izlediniz.'}
                             </Text>
@@ -645,5 +614,10 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 20,
         marginTop: 8,
-    }
+    },
+    footnote: {
+        marginTop: 14,
+        fontSize: 12,
+        lineHeight: 18,
+    },
 });

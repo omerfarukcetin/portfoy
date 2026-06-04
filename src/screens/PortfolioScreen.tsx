@@ -473,6 +473,7 @@ export const PortfolioScreen = () => {
                                             let itemValue = cashItem.amount;
                                             let itemProfit = 0;
                                             const livePrice = cashItem.instrumentId ? fundPrices[cashItem.instrumentId] : undefined;
+                                            const fundDailyChange = cashItem.instrumentId ? (dailyChanges[cashItem.instrumentId] || 0) : 0;
 
                                             // For money market funds with units and instrumentId, use live prices
                                             if (cashItem.type === 'money_market_fund' && cashItem.units && cashItem.averageCost && cashItem.instrumentId) {
@@ -526,6 +527,21 @@ export const PortfolioScreen = () => {
                                                                         ? `${formatCurrency(livePrice || cashItem.averageCost || (cashItem.amount / (cashItem.units || 1)), cashItem.currency)} × ${(cashItem.units || 0).toLocaleString('tr-TR')}`
                                                                         : formatCurrency(cashItem.amount, cashItem.currency)}
                                                                 </Text>
+                                                                {isPPF && (
+                                                                    <Text
+                                                                        style={{
+                                                                            color: fundDailyChange >= 0 ? colors.success : colors.danger,
+                                                                            fontSize: 11,
+                                                                            fontWeight: '700',
+                                                                            marginTop: 2
+                                                                        }}
+                                                                        numberOfLines={1}
+                                                                        ellipsizeMode="tail"
+                                                                        adjustsFontSizeToFit
+                                                                    >
+                                                                        {fundDailyChange >= 0 ? '+' : ''}{fundDailyChange.toFixed(2)}% günlük
+                                                                    </Text>
+                                                                )}
                                                             </View>
                                                         </View>
                                                     <View style={styles.rightContainer}>

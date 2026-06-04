@@ -18,7 +18,7 @@ const TABLET_WIDTH = 768;
 export const CashManagementScreen = () => {
     const { width } = useWindowDimensions();
     const isLargeScreen = width >= TABLET_WIDTH;
-    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund, fundPrices, currentUsdRate } = usePortfolio();
+    const { cashItems, cashBalance, addCashItem, updateCashItem, deleteCashItem, updateCash, sellCashFund, fundPrices, dailyChanges, currentUsdRate } = usePortfolio();
     const { colors, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<CashItem | null>(null);
@@ -338,6 +338,7 @@ export const CashManagementScreen = () => {
                     let profitUsdPercent = 0;
                     let costUsd = 0;
                     let currentValueUsd = 0;
+                    const fundDailyChange = item.instrumentId ? (dailyChanges[item.instrumentId] || 0) : 0;
 
                     if (item.type === 'money_market_fund' && item.instrumentId && item.units && item.averageCost) {
                         const livePrice = fundPrices[item.instrumentId];
@@ -379,6 +380,11 @@ export const CashManagementScreen = () => {
                                                 {item.interestRate && ` • %${item.interestRate} faiz`}
                                                 {item.units && ` • ${item.units.toLocaleString('tr-TR')} adet`}
                                             </Text>
+                                            {item.type === 'money_market_fund' && item.instrumentId && (
+                                                <Text style={{ color: fundDailyChange >= 0 ? colors.success : colors.danger, fontSize: 12, fontWeight: '700', marginTop: 3 }}>
+                                                    {fundDailyChange >= 0 ? '+' : ''}{fundDailyChange.toFixed(2)}% günlük
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                 </View>

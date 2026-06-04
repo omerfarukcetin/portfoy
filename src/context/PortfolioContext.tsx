@@ -1221,6 +1221,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         const priceResult = await MarketDataService.getTefasPrice(item.instrumentId);
                         if (priceResult && priceResult.currentPrice) {
                             newFundPrices[item.instrumentId] = priceResult.currentPrice;
+                            newDailyChanges[item.instrumentId] = (priceResult as any).change24h || 0;
                         }
                     } catch (e) {
                         console.warn(`Failed to fetch fund price for ${item.instrumentId}`, e);

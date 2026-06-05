@@ -150,9 +150,8 @@ export const SettingsScreen = () => {
                     try {
                         const data = await downloadBackup(user.id);
                         if (!data) return Alert.alert('Bulunamadı', 'Yedek yok.');
-                        await AsyncStorage.setItem('portfolios', JSON.stringify(data.portfolios));
-                        if (data.activePortfolioId) await AsyncStorage.setItem('activePortfolioId', data.activePortfolioId);
-                        Alert.alert('Tamam', 'Veriler yüklendi. Uygulamayı yeniden başlatın.');
+                        await importData(data.portfolios, data.activePortfolioId || data.portfolios?.[0]?.id || '');
+                        Alert.alert('Tamam', 'Veriler yüklendi ve senkron kuyruğuna alındı.');
                     } catch { Alert.alert('Hata', 'İşlem başarısız.'); }
                 }
             }

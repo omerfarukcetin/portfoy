@@ -91,6 +91,13 @@ interface PortfolioContextType {
 }
 
 const ALL_PORTFOLIOS_ID = 'all-portfolios';
+const SYNC_META_KEY = 'portfolioSyncMeta';
+
+type SyncMeta = {
+    dirty: boolean;
+    lastLocalRevision: number;
+    lastSuccessfulSyncRevision: number;
+};
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
@@ -132,6 +139,55 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const syncInFlightRef = useRef(false);
     const serverReloadQueuedRef = useRef(false);
     const isInitialized = useRef<boolean>(false);
+
+    const getPortfoliosRevision = (list: Portfolio[]) => {
+        if (!list || list.length === 0) return 0;
+        return list.reduce((max, portfolio) => Math.max(max, portfolio.updatedAt || portfolio.createdAt || 0), 0);
+    };
+
+    const readSyncMeta = async (): Promise<SyncMeta> => {
+        try {
+            const raw = await AsyncStorage.getItem(SYNC_META_KEY);
+            if (!raw) {
+                return { dirty: false, lastLocalRevision: 0, lastSuccessfulSyncRevision: 0 };
+            }
+
+            const parsed = JSON.parse(raw);
+            return {
+                dirty: !!parsed.dirty,
+                lastLocalRevision: Number(parsed.lastLocalRevision) || 0,
+                lastSuccessfulSyncRevision: Number(parsed.lastSuccessfulSyncRevision) || 0,
+            };
+        } catch (error) {
+            console.error('Failed to read sync meta:', error);
+            return { dirty: false, lastLocalRevision: 0, lastSuccessfulSyncRevision: 0 };
+        }
+    };
+
+    const writeSyncMeta = async (meta: SyncMeta) => {
+        await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+    };
+
+    const markLocalDirty = async (revision: number) => {
+        const current = await readSyncMeta();
+        await writeSyncMeta({
+            dirty: true,
+            lastLocalRevision: Math.max(current.lastLocalRevision, revision),
+            lastSuccessfulSyncRevision: current.lastSuccessfulSyncRevision,
+        });
+    };
+
+    const markSyncSuccessful = async (revision: number) => {
+        const current = await readSyncMeta();
+        const nextSuccessfulRevision = Math.max(current.lastSuccessfulSyncRevision, revision);
+        const stillDirty = current.lastLocalRevision > nextSuccessfulRevision;
+
+        await writeSyncMeta({
+            dirty: stillDirty,
+            lastLocalRevision: Math.max(current.lastLocalRevision, revision),
+            lastSuccessfulSyncRevision: nextSuccessfulRevision,
+        });
+    };
 
     // Derived active portfolio
     const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
@@ -232,10 +288,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await AsyncStorage.setItem('activePortfolioId', nextActiveId);
     };
 
-    const applyLoadedState = async (nextPortfolios: Portfolio[], nextActiveId: string) => {
+    const applyLoadedState = async (nextPortfolios: Portfolio[], nextActiveId: string, options?: { markSynced?: boolean }) => {
         setPortfolios(nextPortfolios);
         setActivePortfolioId(nextActiveId);
         await persistLocalState(nextPortfolios, nextActiveId);
+        if (options?.markSynced) {
+            await markSyncSuccessful(getPortfoliosRevision(nextPortfolios));
+        }
         setLastSyncAt(Date.now());
     };
 
@@ -251,6 +310,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         try {
             console.log('🚀 Syncing portfolios to Supabase...');
             const savedPortfolios = await saveUserPortfolios(user.id, dataToSync.portfolios, dataToSync.activeId);
+            await markSyncSuccessful(getPortfoliosRevision(dataToSync.portfolios));
 
             if (!pendingSyncData.current) {
                 await applyLoadedState(savedPortfolios, dataToSync.activeId);
@@ -334,9 +394,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             const updated = updatedRaw.map(p => ({ ...p, updatedAt: Date.now() }));
+            const revision = getPortfoliosRevision(updated);
 
             void persistLocalState(updated, activeId).catch(e => {
                 console.error('❌ Failed to save to local storage:', e);
+            });
+            void markLocalDirty(revision).catch(e => {
+                console.error('❌ Failed to update sync meta:', e);
             });
 
             scheduleSync({ portfolios: updated, activeId });
@@ -375,6 +439,9 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         void persistLocalState([defaultPortfolio], 'default').catch(error => {
             console.error('Failed to persist initial portfolio', error);
         });
+        void markLocalDirty(defaultPortfolio.updatedAt || defaultPortfolio.createdAt).catch(error => {
+            console.error('Failed to initialize sync meta', error);
+        });
     };
 
     // Listen for Web visibility changes
@@ -410,20 +477,39 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
             const localPortfolios: Portfolio[] = storedPortfolios ? JSON.parse(storedPortfolios) : [];
             const localActiveId = storedActiveId || localPortfolios[0]?.id || '';
+            const localRevision = getPortfoliosRevision(localPortfolios);
+            const syncMeta = await readSyncMeta();
 
             if (user?.id) {
                 console.log('📥 loadData: User logged in, fetching from Supabase...');
                 try {
                     const supabaseData = await loadUserPortfolios(user.id);
                     const cloudPortfolios = supabaseData.portfolios;
+                    const cloudRevision = getPortfoliosRevision(cloudPortfolios);
+
+                    if (syncMeta.dirty && localPortfolios.length > 0) {
+                        console.log('🛡️ loadData: Unsynced local changes detected, preferring local data and forcing sync...');
+                        await applyLoadedState(localPortfolios, localActiveId);
+                        scheduleSync({ portfolios: localPortfolios, activeId: localActiveId }, true);
+                        isInitialized.current = true;
+                        return;
+                    }
 
                     if (cloudPortfolios.length > 0) {
-                        let finalActiveId = supabaseData.activePortfolioId || localActiveId;
-                        if (!cloudPortfolios.some(p => p.id === finalActiveId)) {
-                            finalActiveId = cloudPortfolios[0].id;
-                        }
+                        const preferLocal = localPortfolios.length > 0 && localRevision > cloudRevision;
 
-                        await applyLoadedState(cloudPortfolios, finalActiveId);
+                        if (preferLocal) {
+                            console.log('🛡️ loadData: Local revision is newer than cloud, restoring local and re-syncing...');
+                            await applyLoadedState(localPortfolios, localActiveId);
+                            scheduleSync({ portfolios: localPortfolios, activeId: localActiveId }, true);
+                        } else {
+                            let finalActiveId = supabaseData.activePortfolioId || localActiveId;
+                            if (!cloudPortfolios.some(p => p.id === finalActiveId)) {
+                                finalActiveId = cloudPortfolios[0].id;
+                            }
+
+                            await applyLoadedState(cloudPortfolios, finalActiveId, { markSynced: true });
+                        }
                     } else if (localPortfolios.length > 0) {
                         console.log('📤 loadData: Cloud empty, migrating existing local data to Supabase...');
                         await migrateToSupabase(user.id, localPortfolios, localActiveId);

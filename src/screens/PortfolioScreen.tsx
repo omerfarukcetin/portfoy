@@ -1,20 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/formatting';
-import { MarketDataService } from '../services/marketData';
 import { PortfolioItem } from '../types';
 import { PortfolioSwitcher } from '../components/PortfolioSwitcher';
 import { useNavigation } from '@react-navigation/native';
 import { useSettings } from '../context/SettingsContext';
-import { GradientCard } from '../components/GradientCard';
 import { AssetRow } from '../components/AssetRow';
-import { PieChart, Download, Pencil, Trash2 } from 'lucide-react-native';
-import { TickerIcon } from '../components/TickerIcon';
+import { Pencil, Trash2, Target, Layers3, WalletCards, Briefcase } from 'lucide-react-native';
 import { SellAssetModal } from '../components/SellAssetModal';
-import { SwipeListView, SwipeRow } from 'react-native-swipe-list-view';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { PortfolioCategoryTabs } from '../components/portfolio/PortfolioCategoryTabs';
 
 const getCategoryColor = (category: string) => {
@@ -27,20 +24,6 @@ const getCategoryColor = (category: string) => {
         case 'Yedek Akçe': return '#FF2D55';
         case 'BES': return '#AF52DE';
         default: return '#8E8E93';
-    }
-};
-
-const getCategoryIcon = (category: string) => {
-    switch (category) {
-        case 'Hisse (BIST)': return 'trending-up';
-        case 'Hisse (ABD)': return 'globe';
-        case 'Fon': return 'pie-chart';
-        case 'Kripto': return 'activity';
-        case 'Altın/Gümüş': return 'layers';
-        case 'Yedek Akçe': return 'database';
-        case 'Emtia': return 'truck';
-        case 'BES': return 'shield';
-        default: return 'folder';
     }
 };
 
@@ -68,7 +51,6 @@ export const PortfolioScreen = () => {
     const isLargeScreen = Platform.OS === 'web' && width >= 768;
 
     const [refreshing, setRefreshing] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [displayCurrency, setDisplayCurrency] = useState<'TRY' | 'USD'>('TRY');
 
@@ -83,9 +65,6 @@ export const PortfolioScreen = () => {
     const [besYield, setBesYield] = useState('');
     const [besStateContrib, setBesStateContrib] = useState('');
     const [besStateYield, setBesStateYield] = useState('');
-    const [refreshIntrevalRef] = useState(null);
-    const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
     const [targetModalVisible, setTargetModalVisible] = useState(false);
     const [targetAmount, setTargetAmount] = useState('');
 
@@ -313,22 +292,6 @@ export const PortfolioScreen = () => {
         setTargetModalVisible(false);
     };
 
-    // --- Styling Helpers ---
-    const getCategoryColors = (category: string): [string, string] => {
-        switch (category) {
-            case 'Altın': return ['rgba(255, 215, 0, 0.15)', 'rgba(255, 215, 0, 0.05)'];
-            case 'Gümüş': return ['rgba(192, 192, 192, 0.2)', 'rgba(192, 192, 192, 0.05)'];
-            case 'Döviz': return ['rgba(52, 199, 89, 0.15)', 'rgba(52, 199, 89, 0.05)'];
-            case 'Hisse (BIST)': return ['rgba(0, 122, 255, 0.15)', 'rgba(0, 122, 255, 0.05)'];
-            case 'Kripto': return ['rgba(175, 82, 222, 0.15)', 'rgba(175, 82, 222, 0.05)'];
-            case 'BES': return ['rgba(255, 149, 0, 0.15)', 'rgba(255, 149, 0, 0.05)'];
-            case 'Fon': return ['rgba(255, 45, 85, 0.15)', 'rgba(255, 45, 85, 0.05)'];
-            case 'ABD ETF': return ['rgba(10, 132, 255, 0.2)', 'rgba(10, 132, 255, 0.05)'];
-            case 'Yedek Akçe': return ['rgba(142, 142, 147, 0.15)', 'rgba(142, 142, 147, 0.05)'];
-            default: return ['rgba(142, 142, 147, 0.1)', 'rgba(142, 142, 147, 0.05)'];
-        }
-    };
-
     // Get category icon using emojis for reliable web rendering
     const getCategoryIcon = (category: string) => {
         const iconConfig = {
@@ -344,28 +307,44 @@ export const PortfolioScreen = () => {
         }[category] || { emoji: '📦', color: '#8E8E93' };
 
         return (
-            <View style={{ backgroundColor: iconConfig.color + '20', padding: 6, borderRadius: 8, minWidth: 28, alignItems: 'center' }}>
+            <View style={{ backgroundColor: iconConfig.color + '18', padding: 8, borderRadius: 12, minWidth: 34, alignItems: 'center' }}>
                 <Text style={{ fontSize: 14 }}>{iconConfig.emoji}</Text>
             </View>
         );
     };
 
+    const itemCount = portfolio.length + cashItems.length;
+    const lastUpdatedText = lastPricesUpdate
+        ? new Date(lastPricesUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        : 'Bekleniyor';
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: colors.cardBackground, paddingTop: Platform.OS === 'web' ? 20 : 10 }]}>
-                <PortfolioSwitcher />
-                <View style={styles.headerRight}>
-                    <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-                        <Text style={{ fontSize: 18 }}>{refreshing ? '⏳' : '🔄'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => setDisplayCurrency(prev => prev === 'TRY' ? 'USD' : 'TRY')}
-                        style={[styles.currencyButton, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                    >
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>{displayCurrency}</Text>
-                    </TouchableOpacity>
+            <View style={[styles.header, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? 20 : 10 }]}>
+                <View style={styles.headerTopRow}>
+                    <View style={styles.headerInfo}>
+                        <Text style={[styles.headerLabel, { color: colors.subText }]}>PORTFÖY</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>
+                            {activePortfolio?.name || 'Portföyüm'}
+                        </Text>
+                        <Text style={[styles.headerMeta, { color: colors.subText }]}>
+                            Son fiyat güncellemesi: {lastUpdatedText}
+                        </Text>
+                    </View>
+                    <View style={styles.headerRight}>
+                        <TouchableOpacity onPress={onRefresh} disabled={refreshing} style={[styles.headerIconButton, { backgroundColor: colors.cardBackground }]}>
+                            <Text style={{ fontSize: 16 }}>{refreshing ? '⏳' : '🔄'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setDisplayCurrency(prev => prev === 'TRY' ? 'USD' : 'TRY')}
+                            style={[styles.currencyButton, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
+                        >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>{displayCurrency}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
+                <PortfolioSwitcher />
             </View>
 
             {/* Category Tabs */}
@@ -386,48 +365,72 @@ export const PortfolioScreen = () => {
                 />
             </View>
 
-            {/* Portfolio Target Progress */}
-            {targetValue > 0 && (
-                <View style={[styles.targetContainer, { borderBottomColor: colors.border }]}>
-                    <View style={styles.targetHeader}>
-                        <Text style={[styles.targetLabel, { color: colors.subText }]}>HEDEF İLERLEMESİ</Text>
-                        <Text style={[styles.targetValue, { color: colors.text }]}>
-                            {formatCurrency(currentTotal, displayCurrency)} / {formatCurrency(targetValue, displayCurrency)}
-                        </Text>
-                    </View>
-                    <View style={[styles.progressBarBg, { backgroundColor: colors.inputBackground }]}>
-                        <View
-                            style={[
-                                styles.progressBarFill,
-                                {
-                                    backgroundColor: colors.primary,
-                                    width: `${Math.min(targetPercent, 100)}%`
-                                }
-                            ]}
-                        />
-                    </View>
-                    <View style={styles.targetFooter}>
-                        <Text style={[styles.targetPercent, { color: colors.primary }]}>{targetPercent.toFixed(1)}%</Text>
-                        <TouchableOpacity onPress={() => {
-                            setTargetAmount(targetValue.toString());
-                            setTargetModalVisible(true);
-                        }}>
-                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Hedefi Güncelle</Text>
+            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+                <View style={[styles.heroCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                    <View style={styles.heroTop}>
+                        <View>
+                            <Text style={[styles.heroLabel, { color: colors.subText }]}>TOPLAM DEĞER</Text>
+                            <Text style={[styles.heroValue, { color: colors.text }]}>{formatCurrency(currentTotal, displayCurrency)}</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setTargetModalVisible(true)}
+                            style={[styles.heroAction, { backgroundColor: colors.primary + '12' }]}
+                        >
+                            <Target size={16} color={colors.primary} />
+                            <Text style={[styles.heroActionText, { color: colors.primary }]}>
+                                {targetValue > 0 ? 'Hedefi Düzenle' : 'Hedef Ekle'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
+
+                    <View style={styles.heroStatsRow}>
+                        <View style={[styles.heroStat, { backgroundColor: colors.background }]}>
+                            <Layers3 size={16} color={colors.primary} />
+                            <Text style={[styles.heroStatValue, { color: colors.text }]}>{allCategories.length}</Text>
+                            <Text style={[styles.heroStatLabel, { color: colors.subText }]}>Kategori</Text>
+                        </View>
+                        <View style={[styles.heroStat, { backgroundColor: colors.background }]}>
+                            <Briefcase size={16} color={colors.primary} />
+                            <Text style={[styles.heroStatValue, { color: colors.text }]}>{itemCount}</Text>
+                            <Text style={[styles.heroStatLabel, { color: colors.subText }]}>Kayıt</Text>
+                        </View>
+                        <View style={[styles.heroStat, { backgroundColor: colors.background }]}>
+                            <WalletCards size={16} color={colors.primary} />
+                            <Text style={[styles.heroStatValue, { color: colors.text }]}>{formatCurrency(categoryValues['Yedek Akçe'] || 0, displayCurrency)}</Text>
+                            <Text style={[styles.heroStatLabel, { color: colors.subText }]}>Yedek Akçe</Text>
+                        </View>
+                    </View>
+
+                    {targetValue > 0 ? (
+                        <View style={styles.targetInlineBlock}>
+                            <View style={styles.targetHeader}>
+                                <Text style={[styles.targetLabel, { color: colors.subText }]}>HEDEF İLERLEMESİ</Text>
+                                <Text style={[styles.targetValue, { color: colors.text }]}>
+                                    {formatCurrency(currentTotal, displayCurrency)} / {formatCurrency(targetValue, displayCurrency)}
+                                </Text>
+                            </View>
+                            <View style={[styles.progressBarBg, { backgroundColor: colors.inputBackground }]}>
+                                <View
+                                    style={[
+                                        styles.progressBarFill,
+                                        {
+                                            backgroundColor: colors.primary,
+                                            width: `${Math.min(targetPercent, 100)}%`
+                                        }
+                                    ]}
+                                />
+                            </View>
+                            <View style={styles.targetFooter}>
+                                <Text style={[styles.targetPercent, { color: colors.primary }]}>{targetPercent.toFixed(1)}%</Text>
+                                <Text style={[styles.targetHint, { color: colors.subText }]}>Hedefe kalan: {formatCurrency(Math.max(targetValue - currentTotal, 0), displayCurrency)}</Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <Text style={[styles.heroHint, { color: colors.subText }]}>
+                            Minimal bir takip için kategori filtresini kullanabilir, dilersen bu portföye hedef değer de ekleyebilirsin.
+                        </Text>
+                    )}
                 </View>
-            )}
-
-            {targetValue === 0 && (
-                <TouchableOpacity
-                    style={[styles.setTargetDraft, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
-                    onPress={() => setTargetModalVisible(true)}
-                >
-                    <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>+ Portföy Hedefi Belirle</Text>
-                </TouchableOpacity>
-            )}
-
-            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
                 {allCategories
                     .filter(cat => selectedCategory === null || selectedCategory === cat)
@@ -445,24 +448,29 @@ export const PortfolioScreen = () => {
                         return (
                             <View key={category} style={styles.categorySection}>
                                 {/* Category Header */}
-                                <View style={styles.categoryHeader}>
-                                    <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                            <View style={{ width: 4, height: 20, borderRadius: 2, backgroundColor: getCategoryColor(category) }} />
-                                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{category.toUpperCase()}</Text>
-                                            <Text style={[styles.sectionTotal, { color: colors.text, fontSize: 16 }]}>
-                                                {formatCurrency(categoryValues[category], displayCurrency)}
+                                <View style={[styles.categoryHeaderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                    <View style={styles.categoryHeaderMain}>
+                                        {getCategoryIcon(category)}
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{category}</Text>
+                                            <Text style={[styles.categoryMeta, { color: colors.subText }]}>
+                                                {category === 'Yedek Akçe' ? `${cashItems.length} kayıt` : `${items.length} varlık`}
                                             </Text>
-                                            {currentCategoryCost > 0 && (
-                                                <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 13, fontWeight: '700' }}>
-                                                    {isProfitable ? '+' : ''}{formatCurrency(currentCategoryPL, displayCurrency)} ({isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%)
-                                                </Text>
-                                            )}
                                         </View>
                                     </View>
+                                    <View style={styles.categoryHeaderRight}>
+                                        <Text style={[styles.sectionTotal, { color: colors.text }]}>
+                                            {formatCurrency(categoryValues[category], displayCurrency)}
+                                        </Text>
+                                        {currentCategoryCost > 0 && (
+                                            <View style={[styles.categoryChangeBadge, { backgroundColor: isProfitable ? colors.success + '12' : colors.danger + '12' }]}>
+                                                <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 12, fontWeight: '700' }}>
+                                                    {isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </View>
-
-
 
                                 {/* Asset Grid */}
                                 {category === 'Yedek Akçe' ? (
@@ -504,7 +512,7 @@ export const PortfolioScreen = () => {
                                             return (
                                                 <RowWrapper
                                                     key={index}
-                                                    style={[styles.itemRow, { borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border + '30' }]}
+                                                    style={[styles.itemRow, { borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border + '26' }]}
                                                     {...(isPPF && {
                                                         onPress: () => (navigation as any).navigate('AssetDetail', { id: cashItem.id }),
                                                         activeOpacity: 0.7
@@ -512,11 +520,11 @@ export const PortfolioScreen = () => {
                                                 >
                                                     <View style={styles.leftContainer}>
                                                         {isPPF ? (
-                                                            <View style={{ backgroundColor: '#8E8E9320', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
+                                                            <View style={[styles.cashIcon, { backgroundColor: colors.primary + '14' }]}>
                                                                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.subText }}>{iconSymbol}</Text>
                                                             </View>
                                                         ) : (
-                                                            <View style={{ backgroundColor: '#8E8E9320', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
+                                                            <View style={[styles.cashIcon, { backgroundColor: colors.border + '30' }]}>
                                                                 <Text style={{ fontSize: 16 }}>💰</Text>
                                                             </View>
                                                         )}
@@ -564,7 +572,7 @@ export const PortfolioScreen = () => {
                                                 activeOpacity={0.7}
                                             >
                                                 <View style={styles.leftContainer}>
-                                                    <View style={{ backgroundColor: '#FFD70020', padding: 8, borderRadius: 10, minWidth: 40, alignItems: 'center' }}>
+                                                    <View style={[styles.cashIcon, { backgroundColor: colors.primary + '14' }]}>
                                                         <Text style={{ fontSize: 16 }}>💰</Text>
                                                     </View>
                                                     <View style={styles.textContainer}>
@@ -776,53 +784,40 @@ export const PortfolioScreen = () => {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     header: {
-        paddingTop: Platform.OS === 'ios' ? 45 : 25,
+        paddingTop: Platform.OS === 'ios' ? 44 : 24,
         paddingBottom: 12,
-        paddingHorizontal: 15,
+        paddingHorizontal: 16,
+    },
+    headerTopRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 3,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
+        marginBottom: 14,
+        gap: 12,
     },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    scrollContent: { paddingBottom: 100, paddingHorizontal: Platform.OS === 'web' ? 16 : 12 },
-    scrollContentWeb: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 16,
+    headerIconButton: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    sectionContainer: { marginTop: Platform.OS === 'web' ? 20 : 16 },
-    sectionContainerWeb: {
-        width: '32%', // 3 columns
-        minWidth: 280,
-        marginTop: 10,
-    },
-    sectionHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 10, paddingHorizontal: 4
-    },
+    scrollContent: { paddingBottom: 100, paddingHorizontal: Platform.OS === 'web' ? 16 : 12, paddingTop: 10 },
     sectionTitle: { fontSize: Platform.OS === 'web' ? 13 : 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
-    categoryPL: { fontSize: Platform.OS === 'web' ? 11 : 10, fontWeight: '600', marginTop: 2 },
     sectionTotal: { fontSize: Platform.OS === 'web' ? 14 : 12, fontWeight: '700' },
 
     // New Card Container Style (Modern look with border and shadow)
     cardContainer: {
-        borderRadius: 16,
+        borderRadius: 20,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: 'rgba(15,23,42,0.06)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 24,
+        elevation: 3,
     },
 
     // Legacy / Shared Styles
@@ -856,32 +851,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: 4,
     },
-    rowLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    downloadButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        gap: 8,
-    },
-    downloadButtonText: {
-        fontSize: 14,
-        fontWeight: '700',
-    },
     currencyButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
     itemRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
     },
     leftContainer: {
         flexDirection: 'row',
@@ -910,93 +886,126 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
     },
-    divider: {
-        height: 1,
-        width: '100%',
-        opacity: 0.08,
-        marginLeft: 60, // Indent divider to align with text start (iOS style)
-    },
-    plBadge: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginTop: 4,
-    },
-
-    // Category Tabs
-    categoryTab: {
-        paddingHorizontal: 16,
-        height: 34,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 17,
-        borderWidth: 1,
-        minWidth: 80,
-    },
-
     // Category Section
     categorySection: {
-        marginTop: 20,
-        paddingHorizontal: 4,
+        marginTop: 18,
+        paddingHorizontal: 2,
     },
-    categoryHeader: {
+    categoryHeaderCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 12,
-    },
-
-    // Asset Grid
-    assetGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-
-    // Compact Card
-    compactCard: {
-        width: Platform.OS === 'web' ? '23%' : '48%',
-        minWidth: 140,
-        padding: 12,
-        borderRadius: 12,
         borderWidth: 1,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
     },
-    cardSymbol: {
-        fontSize: 15,
-        fontWeight: '700',
-        marginBottom: 4,
+    categoryHeaderMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
     },
-    cardDetail: {
-        fontSize: 11,
-        marginBottom: 2,
+    categoryHeaderRight: {
+        alignItems: 'flex-end',
+        marginLeft: 12,
     },
-    cardCost: {
-        fontSize: 10,
-        marginBottom: 6,
+    categoryMeta: {
+        fontSize: 12,
+        fontWeight: '500',
+        marginTop: 2,
     },
+    categoryChangeBadge: {
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        marginTop: 6,
+    },
+
     headerInfo: {
         flex: 1,
     },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-    },
-    lastUpdated: {
+    headerLabel: {
         fontSize: 11,
-        fontWeight: '500',
-        opacity: 0.8,
-        marginTop: 2,
-    },
-    cardValue: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontWeight: '800',
+        letterSpacing: 1,
         marginBottom: 4,
     },
-    cardPL: {
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 6,
-        alignSelf: 'flex-start',
+    headerTitle: {
+        fontSize: 26,
+        fontWeight: '800',
+        letterSpacing: -0.6,
+    },
+    headerMeta: {
+        fontSize: 12,
+        fontWeight: '500',
+        opacity: 0.8,
+        marginTop: 4,
+    },
+    heroCard: {
+        borderWidth: 1,
+        borderRadius: 24,
+        padding: 18,
+        marginBottom: 18,
+    },
+    heroTop: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 16,
+    },
+    heroLabel: {
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 1,
+        marginBottom: 6,
+    },
+    heroValue: {
+        fontSize: Platform.OS === 'web' ? 34 : 28,
+        fontWeight: '800',
+        letterSpacing: -1,
+    },
+    heroAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 14,
+    },
+    heroActionText: {
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    heroStatsRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 16,
+    },
+    heroStat: {
+        flex: 1,
+        minHeight: 78,
+        borderRadius: 16,
+        padding: 12,
+        justifyContent: 'space-between',
+    },
+    heroStatValue: {
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    heroStatLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    heroHint: {
+        fontSize: 12,
+        lineHeight: 18,
+        fontWeight: '500',
+    },
+    targetInlineBlock: {
+        marginTop: 2,
     },
     targetContainer: {
         padding: 16,
@@ -1032,6 +1041,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
+    targetHint: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
     targetPercent: {
         fontSize: 14,
         fontWeight: '800',
@@ -1042,6 +1055,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
         borderStyle: 'dashed',
+        alignItems: 'center',
+    },
+    cashIcon: {
+        padding: 8,
+        borderRadius: 12,
+        minWidth: 42,
         alignItems: 'center',
     },
 });

@@ -15,7 +15,6 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { ManageCategoriesScreen } from '../screens/ManageCategoriesScreen';
 import { DividendsScreen } from '../screens/DividendsScreen';
 import { WalletScreen } from '../screens/WalletScreen';
-import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -51,7 +50,6 @@ const PAGE_TITLES: Record<string, string> = {
     'Register': 'Kayıt Ol - Portföy Cepte',
     'Dividends': 'Temettüler - Portföy Cepte',
     'Wallet': 'Cüzdan - Portföy Cepte',
-    'Analytics': 'Analiz - Portföy Cepte',
 };
 
 const Stack = createNativeStackNavigator();
@@ -365,7 +363,6 @@ const WebNavigator = () => {
                             <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favoriler' }} />
                             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
                             <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Cüzdan' }} />
-                            <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analiz' }} />
                             <Stack.Screen
                                 name="AddInstrument"
                                 component={AddInstrumentScreen}
@@ -441,7 +438,6 @@ const MainNavigator = () => {
                 component={AssetDetailScreen}
                 options={{ presentation: 'modal', title: 'Varlık Detayı' }}
             />
-            <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analiz' }} />
             <Stack.Screen name="Dividends" component={DividendsScreen} options={{ title: 'Temettüler' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
             <Stack.Screen name="ManageCategories" component={ManageCategoriesScreen} options={{ title: 'Kategorileri Yönet' }} />

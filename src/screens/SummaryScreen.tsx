@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, ChevronRight, Zap, BarChart2, ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react-native';
+import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, Zap, ArrowDownRight, DollarSign } from 'lucide-react-native';
 
 import { PortfolioSwitcher } from '../components/PortfolioSwitcher';
 import { useTheme } from '../context/ThemeContext';
@@ -143,7 +143,6 @@ export const SummaryScreen = () => {
             ? `Bulut: ${new Date(lastSyncAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
             : 'Bulut: bekleniyor';
     const combinedStatusText = `${lastPricesText} • ${syncStatusText}`;
-    const openAnalytics = () => (navigation as any).navigate('Analytics');
 
     const fetchMarketReport = async () => {
         setMarketReportData(null);
@@ -1088,45 +1087,6 @@ export const SummaryScreen = () => {
                             </View>
                         )}
 
-                        <Card style={styles.analyticsCard} onPress={openAnalytics}>
-                            <View style={styles.analyticsCardHeader}>
-                                <View style={styles.analyticsTitleRow}>
-                                    <View style={[styles.analyticsIconBadge, { backgroundColor: colors.primary + '14' }]}>
-                                        <BarChart2 size={18} color={colors.primary} />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.analyticsTitle, { color: colors.text }]}>Analiz ve Karşılaştırma</Text>
-                                        <Text style={[styles.analyticsSubtitle, { color: colors.subText }]}>
-                                            Portföyünü BIST 100, Dolar/TL, Euro/TL, Gram Altın ve TL mevduat ile kıyasla.
-                                        </Text>
-                                    </View>
-                                </View>
-                                <ChevronRight size={18} color={colors.subText} />
-                            </View>
-
-                            <View style={styles.analyticsPills}>
-                                <View style={[styles.analyticsPill, { backgroundColor: colors.background }]}>
-                                    <Text style={[styles.analyticsPillText, { color: colors.text }]}>1G - 1Y</Text>
-                                </View>
-                                <View style={[styles.analyticsPill, { backgroundColor: colors.background }]}>
-                                    <Text style={[styles.analyticsPillText, { color: colors.text }]}>BIST 100</Text>
-                                </View>
-                                <View style={[styles.analyticsPill, { backgroundColor: colors.background }]}>
-                                    <Text style={[styles.analyticsPillText, { color: colors.text }]}>Gram Altın</Text>
-                                </View>
-                                <View style={[styles.analyticsPill, { backgroundColor: colors.background }]}>
-                                    <Text style={[styles.analyticsPillText, { color: colors.text }]}>Dolar/TL</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.analyticsFooter}>
-                                <Text style={[styles.analyticsHint, { color: colors.subText }]}>
-                                    Detaylı grafik, dönem seçici ve yüzdesel karşılaştırma
-                                </Text>
-                                <Text style={[styles.analyticsAction, { color: colors.primary }]}>Analizi Aç</Text>
-                            </View>
-                        </Card>
-
                         {/* Distribution Card */}
                         {portfolio.length > 0 && (
                             <Card style={{ padding: 16 }}>
@@ -1135,9 +1095,6 @@ export const SummaryScreen = () => {
                                     <View style={{ flexDirection: 'row', gap: 12 }}>
                                         <TouchableOpacity onPress={() => captureDistributionCard()}>
                                             <Download size={18} color={colors.subText} />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={openAnalytics}>
-                                            <ArrowUpRight size={18} color={colors.primary} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -1545,71 +1502,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 2,
-    },
-    analyticsCard: {
-        padding: 16,
-        marginBottom: 14,
-    },
-    analyticsCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    analyticsTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-        flex: 1,
-    },
-    analyticsIconBadge: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    analyticsTitle: {
-        fontSize: 15,
-        fontWeight: '800',
-        marginBottom: 4,
-    },
-    analyticsSubtitle: {
-        fontSize: 12,
-        lineHeight: 18,
-        fontWeight: '500',
-    },
-    analyticsPills: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 14,
-    },
-    analyticsPill: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-    },
-    analyticsPillText: {
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    analyticsFooter: {
-        marginTop: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    analyticsHint: {
-        flex: 1,
-        fontSize: 11,
-        lineHeight: 16,
-        fontWeight: '500',
-    },
-    analyticsAction: {
-        fontSize: 12,
-        fontWeight: '800',
     },
     fab: {
         position: 'absolute',

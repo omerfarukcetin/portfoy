@@ -249,13 +249,6 @@ export const HomeScreen = () => {
                         <Text style={[styles.subValue, { color: '#FFD700' }]}>{portfolioInGramGold.toFixed(2)} gr Altın</Text>
                     </View>
 
-                    <TouchableOpacity
-                        style={{ marginTop: 10, padding: 8, backgroundColor: colors.background, borderRadius: 8 }}
-                        onPress={() => (navigation as any).navigate('Analytics')}
-                    >
-                        <Text style={{ color: colors.primary, fontWeight: '600' }}>Analiz ve Raporlar ➔</Text>
-                    </TouchableOpacity>
-
                     <View style={styles.summaryRow}>
                         <View style={styles.summaryItem}>
                             <Text style={[styles.summaryLabel, { color: colors.subText }]}>Toplam K/Z</Text>

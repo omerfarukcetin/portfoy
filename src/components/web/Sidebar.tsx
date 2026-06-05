@@ -31,7 +31,7 @@ export const Sidebar = () => {
             // Method 1: Try window.location
             if (Platform.OS === 'web') {
                 const path = window.location.hash || window.location.pathname;
-                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Analytics|Settings|Dividends|Wallet)/i);
+                const routeMatch = path.match(/\/(Summary|Portfolio|Transactions|Favorites|Settings|Dividends|Wallet)/i);
                 if (routeMatch) {
                     const newRoute = routeMatch[1];
                     if (newRoute !== currentRoute) {

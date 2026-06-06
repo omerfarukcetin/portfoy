@@ -32,6 +32,7 @@ import {
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const PRE_RESTORE_SNAPSHOT_KEY = 'preRestoreSnapshot';
 
 export const SettingsScreen = () => {
     const { colors, theme, fontSize, heroSize, setTheme, setFontSize, setHeroSize, fontScale } = useTheme();
@@ -58,6 +59,22 @@ export const SettingsScreen = () => {
     } = useSettings();
 
     const [instrumentsModalVisible, setInstrumentsModalVisible] = useState(false);
+
+    const buildRestorePreview = (data: any) => {
+        const portfolioCount = Array.isArray(data?.portfolios) ? data.portfolios.length : 0;
+        const assetCount = (data?.portfolios || []).reduce((sum: number, portfolio: any) => sum + (portfolio.items?.length || 0), 0);
+        const cashCount = (data?.portfolios || []).reduce((sum: number, portfolio: any) => sum + (portfolio.cashItems?.length || 0), 0);
+        return `${portfolioCount} portföy, ${assetCount} varlık, ${cashCount} yedek akçe kaydı yüklenecek.`;
+    };
+
+    const savePreRestoreSnapshot = async () => {
+        const snapshot = {
+            savedAt: new Date().toISOString(),
+            portfolios,
+            activePortfolioId,
+        };
+        await AsyncStorage.setItem(PRE_RESTORE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    };
 
     // --- Helpers ---
     const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -150,8 +167,23 @@ export const SettingsScreen = () => {
                     try {
                         const data = await downloadBackup(user.id);
                         if (!data) return Alert.alert('Bulunamadı', 'Yedek yok.');
-                        await importData(data.portfolios, data.activePortfolioId || data.portfolios?.[0]?.id || '');
-                        Alert.alert('Tamam', 'Veriler yüklendi ve senkron kuyruğuna alındı.');
+                        const preview = buildRestorePreview(data);
+                        Alert.alert(
+                            'Yedeği Onayla',
+                            `${preview}\n\nMevcut verilerin geri dönüş noktası bu cihazda saklanacak.`,
+                            [
+                                { text: 'Vazgeç', style: 'cancel' },
+                                {
+                                    text: 'Onayla',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        await savePreRestoreSnapshot();
+                                        await importData(data.portfolios, data.activePortfolioId || data.portfolios?.[0]?.id || '');
+                                        Alert.alert('Tamam', 'Veriler yüklendi, senkron kuyruğuna alındı ve önceki veriniz geri dönüş için saklandı.');
+                                    }
+                                }
+                            ]
+                        );
                     } catch { Alert.alert('Hata', 'İşlem başarısız.'); }
                 }
             }

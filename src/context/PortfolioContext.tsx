@@ -145,6 +145,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return list.reduce((max, portfolio) => Math.max(max, portfolio.updatedAt || portfolio.createdAt || 0), 0);
     };
 
+    const getLocalDateString = (date: Date = new Date()) => {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Istanbul',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(date);
+    };
+
     const readSyncMeta = async (): Promise<SyncMeta> => {
         try {
             const raw = await AsyncStorage.getItem(SYNC_META_KEY);
@@ -393,7 +402,23 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return prev;
             }
 
-            const updated = updatedRaw.map(p => ({ ...p, updatedAt: Date.now() }));
+            const nextRevision = Date.now();
+            const prevById = new Map(prev.map(portfolio => [portfolio.id, portfolio]));
+            const updated = updatedRaw.map(portfolio => {
+                const previous = prevById.get(portfolio.id);
+                const unchangedReference = previous === portfolio;
+                if (unchangedReference) {
+                    return portfolio;
+                }
+
+                const previousRevision = previous?.updatedAt || previous?.createdAt || 0;
+                const incomingRevision = portfolio.updatedAt || 0;
+                if (incomingRevision > previousRevision) {
+                    return portfolio;
+                }
+
+                return { ...portfolio, updatedAt: nextRevision };
+            });
             const revision = getPortfoliosRevision(updated);
 
             void persistLocalState(updated, activeId).catch(e => {
@@ -1411,7 +1436,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setTotalValueTry(valTry);
         setTotalValueUsd(valUsd);
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         let newHistory = [...history];
 
         const lastPoint = newHistory[newHistory.length - 1];

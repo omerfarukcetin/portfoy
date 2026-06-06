@@ -1,6 +1,20 @@
 import { supabase } from './supabaseClient';
 import { Portfolio, PortfolioItem, CashItem, RealizedTrade, Dividend } from '../types';
 
+const toIsoStringFromEpoch = (value?: number | null) => {
+    if (!value) return new Date().toISOString();
+    return new Date(value).toISOString();
+};
+
+const getLocalDateString = (date: Date = new Date()) => {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Istanbul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+};
+
 /**
  * Save all portfolios for a user to Supabase
  */
@@ -85,8 +99,8 @@ export const saveUserPortfolios = async (
             tracking_mode: p.trackingMode || 'standard',
             total_units: p.totalUnits || 0,
             initial_unit_price: p.initialUnitPrice || 1.0,
-            // Always set updated_at to now for server-side truth
-            updated_at: new Date().toISOString()
+            // Preserve client-side revision so load conflict checks can compare revisions accurately.
+            updated_at: toIsoStringFromEpoch(p.updatedAt || p.createdAt)
         }));
         
         // Return saved data to get the server's timestamps
@@ -210,13 +224,15 @@ export const saveUserPortfolios = async (
         console.log('✅ Portfolios successfully saved to Supabase');
         
         // Map saved portfolios back to Portfolio objects with server timestamps
-        return (savedPortfoliosData || []).map(p => {
-            const original = portfolios.find(op => op.id === p.id);
+        const savedById = new Map((savedPortfoliosData || []).map(p => [p.id, p]));
+
+        return portfolios.map(original => {
+            const p = savedById.get(original.id);
             return {
-                ...(original || {}),
-                id: p.id,
-                name: p.name,
-                updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now()
+                ...original,
+                id: p?.id || original.id,
+                name: p?.name || original.name,
+                updatedAt: p?.updated_at ? new Date(p.updated_at).getTime() : (original.updatedAt || Date.now())
             } as Portfolio;
         });
     } catch (error) {
@@ -444,7 +460,7 @@ export const recordDailySnapshot = async (
     valueUsd: number
 ): Promise<void> => {
     try {
-        const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const date = getLocalDateString();
 
         console.log(`🔷 Supabase: Recording daily snapshot for ${date}`, { portfolioId, valueTry });
 

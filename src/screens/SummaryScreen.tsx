@@ -12,6 +12,7 @@ import { formatCurrency } from '../utils/formatting';
 import { ShareableDonutChart, ShareableDonutChartHandle } from '../components/ShareableDonutChart';
 import { PortfolioChart, PortfolioChartHandle } from '../components/PortfolioChart';
 import { generateRecommendations, Recommendation } from '../services/advisorService';
+import { projectRecurringContribution } from '../services/simulationService';
 import { Skeleton } from '../components/Skeleton';
 import { NewsFeed } from '../components/NewsFeed';
 import { GradientCard } from '../components/GradientCard';
@@ -22,6 +23,8 @@ import ViewShot from 'react-native-view-shot';
 
 const screenWidth = Dimensions.get('window').width;
 const insightCardWidth = (screenWidth - 58) / 3;
+const contributionOptions = [2500, 5000, 10000, 20000];
+const projectionMonthOptions = [6, 12, 24];
 
 // Responsive breakpoints
 const TABLET_WIDTH = 768;
@@ -96,6 +99,8 @@ export const SummaryScreen = () => {
     const [capitalModalVisible, setCapitalModalVisible] = useState(false);
     const [capitalAmount, setCapitalAmount] = useState('');
     const [capitalLoading, setCapitalLoading] = useState(false);
+    const [monthlyContribution, setMonthlyContribution] = useState(5000);
+    const [projectionMonths, setProjectionMonths] = useState(12);
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const distCardWebRef = useRef<any>(null);
@@ -314,6 +319,9 @@ export const SummaryScreen = () => {
     const dailyProfitPercent = totalPortfolioTry > 0 ? (dailyProfit / totalPortfolioTry) * 100 : 0;
     const portfolioInGramGold = goldPrice > 0 ? totalPortfolioTry / goldPrice : 0;
     const portfolioInUsd = usdRate > 0 ? totalPortfolioTry / usdRate : 0;
+    const contributionProjection = React.useMemo(() => {
+        return projectRecurringContribution(history, totalPortfolioTry, monthlyContribution, projectionMonths);
+    }, [history, totalPortfolioTry, monthlyContribution, projectionMonths]);
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -674,6 +682,122 @@ export const SummaryScreen = () => {
 
                             {/* RIGHT COLUMN - Insights */}
                             <View style={{ flex: 1, gap: 16 }}>
+                                <View style={{
+                                    backgroundColor: colors.cardBackground,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border
+                                }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                                        <View style={{ flex: 1, marginRight: 12 }}>
+                                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Aylik Katki Plani</Text>
+                                            <Text style={{ fontSize: 12, color: colors.subText, marginTop: 4, lineHeight: 18 }}>
+                                                {projectionMonths} ay boyunca her ay {formatCurrency(monthlyContribution, 'TRY')} eklersen tahmini toplam
+                                            </Text>
+                                        </View>
+                                        <View style={{
+                                            backgroundColor: colors.primary + '12',
+                                            paddingHorizontal: 10,
+                                            paddingVertical: 6,
+                                            borderRadius: 8
+                                        }}>
+                                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                                                {contributionProjection.isTrendBased
+                                                    ? `${contributionProjection.basisDays}g trend`
+                                                    : 'Duz hesap'}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>
+                                        {isHidden ? '••••••' : formatCurrency(contributionProjection.projectedValue, 'TRY')}
+                                    </Text>
+
+                                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                                        <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                                            <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>EKLEYECEGIN</Text>
+                                            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 }}>
+                                                {isHidden ? '•••' : formatCurrency(contributionProjection.contributedCapital, 'TRY')}
+                                            </Text>
+                                        </View>
+                                        <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                                            <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>TREND ETKISI</Text>
+                                            <Text style={{
+                                                color: contributionProjection.projectedGain >= 0 ? colors.success : colors.danger,
+                                                fontSize: 15,
+                                                fontWeight: '700',
+                                                marginTop: 4
+                                            }}>
+                                                {isHidden ? '•••' : `${contributionProjection.projectedGain >= 0 ? '+' : ''}${formatCurrency(contributionProjection.projectedGain, 'TRY')}`}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ marginTop: 16 }}>
+                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>AYLIK KATKI</Text>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                            {contributionOptions.map(option => (
+                                                <TouchableOpacity
+                                                    key={option}
+                                                    onPress={() => setMonthlyContribution(option)}
+                                                    style={{
+                                                        paddingHorizontal: 12,
+                                                        paddingVertical: 8,
+                                                        borderRadius: 10,
+                                                        backgroundColor: monthlyContribution === option ? colors.primary : colors.background,
+                                                        borderWidth: 1,
+                                                        borderColor: monthlyContribution === option ? colors.primary : colors.border
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        color: monthlyContribution === option ? '#fff' : colors.text,
+                                                        fontSize: 12,
+                                                        fontWeight: '700'
+                                                    }}>
+                                                        {formatCurrency(option, 'TRY')}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+
+                                    <View style={{ marginTop: 14 }}>
+                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>SURE</Text>
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            {projectionMonthOptions.map(option => (
+                                                <TouchableOpacity
+                                                    key={option}
+                                                    onPress={() => setProjectionMonths(option)}
+                                                    style={{
+                                                        flex: 1,
+                                                        paddingVertical: 10,
+                                                        borderRadius: 10,
+                                                        backgroundColor: projectionMonths === option ? colors.primary : colors.background,
+                                                        borderWidth: 1,
+                                                        borderColor: projectionMonths === option ? colors.primary : colors.border,
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        color: projectionMonths === option ? '#fff' : colors.text,
+                                                        fontSize: 12,
+                                                        fontWeight: '700'
+                                                    }}>
+                                                        {option} Ay
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+
+                                    <Text style={{ color: colors.subText, fontSize: 11, lineHeight: 17, marginTop: 14 }}>
+                                        {contributionProjection.isTrendBased
+                                            ? `Son ${contributionProjection.basisDays} gunluk portfoy egilimine gore hesaplanir. Yatirim tavsiyesi degildir.`
+                                            : 'Yeterli gecmis veri olmadigi icin sadece duzenli katkilar toplanarak hesaplanir.'}
+                                    </Text>
+                                </View>
+
                                 {/* Risk Analysis Card */}
                                 <View style={{
                                     backgroundColor: colors.cardBackground,
@@ -1060,6 +1184,117 @@ export const SummaryScreen = () => {
                                 </Card>
                             )}
                         </ScrollView>
+
+                        <Card style={{ padding: 16, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                                <View style={{ flex: 1, marginRight: 12 }}>
+                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Aylik Katki Plani</Text>
+                                    <Text style={{ fontSize: 12, color: colors.subText, marginTop: 4, lineHeight: 18 }}>
+                                        {projectionMonths} ay boyunca her ay {formatCurrency(monthlyContribution, 'TRY')} eklersen
+                                    </Text>
+                                </View>
+                                <View style={{
+                                    backgroundColor: colors.primary + '12',
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 6,
+                                    borderRadius: 8
+                                }}>
+                                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
+                                        {contributionProjection.isTrendBased
+                                            ? `${contributionProjection.basisDays}g trend`
+                                            : 'Duz hesap'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>
+                                {isHidden ? '••••••' : formatCurrency(contributionProjection.projectedValue, 'TRY')}
+                            </Text>
+                            <Text style={{ color: colors.subText, fontSize: 12, marginTop: 4 }}>
+                                Tahmini toplam deger
+                            </Text>
+
+                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                                <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                                    <Text style={{ color: colors.subText, fontSize: 10, fontWeight: '700' }}>EK KATKI</Text>
+                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>
+                                        {isHidden ? '•••' : formatCurrency(contributionProjection.contributedCapital, 'TRY')}
+                                    </Text>
+                                </View>
+                                <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                                    <Text style={{ color: colors.subText, fontSize: 10, fontWeight: '700' }}>TREND ETKISI</Text>
+                                    <Text style={{
+                                        color: contributionProjection.projectedGain >= 0 ? colors.success : colors.danger,
+                                        fontSize: 14,
+                                        fontWeight: '800',
+                                        marginTop: 4
+                                    }}>
+                                        {isHidden ? '•••' : `${contributionProjection.projectedGain >= 0 ? '+' : ''}${formatCurrency(contributionProjection.projectedGain, 'TRY')}`}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 8, paddingTop: 14 }}
+                            >
+                                {contributionOptions.map(option => (
+                                    <TouchableOpacity
+                                        key={option}
+                                        onPress={() => setMonthlyContribution(option)}
+                                        style={{
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 8,
+                                            borderRadius: 10,
+                                            backgroundColor: monthlyContribution === option ? colors.primary : colors.background,
+                                            borderWidth: 1,
+                                            borderColor: monthlyContribution === option ? colors.primary : colors.border
+                                        }}
+                                    >
+                                        <Text style={{
+                                            color: monthlyContribution === option ? '#fff' : colors.text,
+                                            fontSize: 12,
+                                            fontWeight: '700'
+                                        }}>
+                                            {formatCurrency(option, 'TRY')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                                {projectionMonthOptions.map(option => (
+                                    <TouchableOpacity
+                                        key={option}
+                                        onPress={() => setProjectionMonths(option)}
+                                        style={{
+                                            flex: 1,
+                                            alignItems: 'center',
+                                            paddingVertical: 9,
+                                            borderRadius: 10,
+                                            backgroundColor: projectionMonths === option ? colors.primary : colors.background,
+                                            borderWidth: 1,
+                                            borderColor: projectionMonths === option ? colors.primary : colors.border
+                                        }}
+                                    >
+                                        <Text style={{
+                                            color: projectionMonths === option ? '#fff' : colors.text,
+                                            fontSize: 12,
+                                            fontWeight: '700'
+                                        }}>
+                                            {option} Ay
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <Text style={{ color: colors.subText, fontSize: 11, lineHeight: 17, marginTop: 12 }}>
+                                {contributionProjection.isTrendBased
+                                    ? `Son ${contributionProjection.basisDays} gunluk portfoy egilimine gore hesaplanir.`
+                                    : 'Yeterli gecmis veri olmadigi icin sadece duzenli katkilar toplanir.'}
+                            </Text>
+                        </Card>
 
                         {/* Chart Preview */}
                         {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (

@@ -18,15 +18,23 @@ const getLocalDateString = (date: Date = new Date()) =>
         day: '2-digit',
     }).format(date);
 
-const webDateInputStyle = (colors: any) => ({
-    padding: 12,
-    fontSize: 16,
+const webDateInputStyle = (colors: any): any => ({
+    padding: '0 14px',
+    fontSize: 15,
     borderRadius: 12,
     border: `1px solid ${colors.border}`,
     backgroundColor: colors.inputBackground,
     color: colors.text,
     width: '100%',
+    height: 48,
     minHeight: 48,
+    maxHeight: 48,
+    lineHeight: '48px',
+    boxSizing: 'border-box',
+    margin: 0,
+    display: 'block',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none',
 });
 
 const formatNumberCurrency = (value: number, currency: 'USD' | 'TRY') => {

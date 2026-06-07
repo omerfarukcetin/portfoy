@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { MarketDataService } from '../services/marketData';
@@ -38,6 +38,8 @@ const formatNumberCurrency = (value: number, currency: 'USD' | 'TRY') => {
 };
 
 export const AddInstrumentScreen = () => {
+    const { width } = useWindowDimensions();
+    const isCompactMobile = width < 430;
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<Instrument[]>([]);
     const [loading, setLoading] = useState(false);
@@ -318,7 +320,7 @@ export const AddInstrumentScreen = () => {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             {!selectedInstrument ? (
                 <View style={{ flex: 1 }}>
-                    <View style={[styles.heroCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                    <View style={[styles.heroCard, isCompactMobile && styles.heroCardCompact, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                         <View style={styles.stepBadge}>
                             <Text style={[styles.stepBadgeText, { color: colors.primary }]}>1/2</Text>
                         </View>
@@ -335,7 +337,7 @@ export const AddInstrumentScreen = () => {
 
                     {category === 'KRIPTO' ? (
                         <>
-                            <View style={[styles.searchCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                            <View style={[styles.searchCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                 <Text style={[styles.cardTitle, { color: colors.text }]}>Kripto Ara</Text>
                                 <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Coin adını ya da sembolünü yaz.</Text>
                                 <TextInput
@@ -375,7 +377,7 @@ export const AddInstrumentScreen = () => {
                             )}
                         </>
                     ) : category === 'DIGER' ? (
-                        <View style={[styles.searchCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <View style={[styles.searchCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                             <Text style={[styles.cardTitle, { color: colors.text }]}>Özel Varlık Tanımı</Text>
                             <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Önce adı ve kategoriyi belirle, sonra işlem detayına geç.</Text>
 
@@ -417,7 +419,7 @@ export const AddInstrumentScreen = () => {
                         </View>
                     ) : (
                         <>
-                            <View style={[styles.searchCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                            <View style={[styles.searchCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                 <Text style={[styles.cardTitle, { color: colors.text }]}>{selectedCategoryLabel} Ara</Text>
                                 <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Varlığı seçtikten sonra sade bir işlem formu açılacak.</Text>
                                 <TextInput
@@ -453,7 +455,7 @@ export const AddInstrumentScreen = () => {
                 </View>
             ) : (
                 <ScrollView
-                    style={[styles.form, { backgroundColor: colors.cardBackground, shadowColor: colors.text }]}
+                    style={[styles.form, isCompactMobile && styles.formCompact, { backgroundColor: colors.cardBackground, shadowColor: colors.text }]}
                     contentContainerStyle={{ paddingBottom: 28 }}
                 >
                     <View style={styles.formHeader}>
@@ -468,7 +470,7 @@ export const AddInstrumentScreen = () => {
                         </View>
                     </View>
 
-                    <View style={[styles.assetPreviewCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <View style={[styles.assetPreviewCard, isCompactMobile && styles.assetPreviewCardCompact, { backgroundColor: colors.background, borderColor: colors.border }]}>
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{selectedInstrument.symbol}</Text>
                             <Text style={{ color: colors.subText, fontSize: 13, marginTop: 2 }} numberOfLines={2}>
@@ -487,7 +489,7 @@ export const AddInstrumentScreen = () => {
                     </View>
 
                     {category === 'BES' ? (
-                        <View style={[styles.formSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <View style={[styles.formSectionCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                             <Text style={[styles.cardTitle, { color: colors.text }]}>BES Özeti</Text>
                             <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Bu alan toplam ana para ve güncel kâr/zararı kaydeder.</Text>
 
@@ -517,7 +519,7 @@ export const AddInstrumentScreen = () => {
                             </View>
 
                             {besPrincipal && besProfit && (
-                                <View style={[styles.summaryCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <View style={[styles.summaryCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                     <Text style={{ color: colors.subText, fontSize: 12 }}>Güncel Toplam Değer</Text>
                                     <Text style={{ color: colors.text, fontWeight: '800', fontSize: 18, marginTop: 4 }}>
                                         ₺{(parseFloat(besPrincipal.replace(',', '.') || '0') + parseFloat(besProfit.replace(',', '.') || '0')).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -527,7 +529,7 @@ export const AddInstrumentScreen = () => {
                         </View>
                     ) : category === 'DIGER' ? (
                         <>
-                            <View style={[styles.formSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            <View style={[styles.formSectionCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                 <Text style={[styles.cardTitle, { color: colors.text }]}>Temel Bilgiler</Text>
                                 <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Özel varlığın adetini, maliyetini ve güncel değerini gir.</Text>
 
@@ -599,7 +601,7 @@ export const AddInstrumentScreen = () => {
                             </View>
 
                             {amount && cost && customCurrentUnitPrice && (
-                                <View style={[styles.summaryCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <View style={[styles.summaryCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                     <View>
                                         <Text style={{ color: colors.subText, fontSize: 11 }}>Toplam Maliyet</Text>
                                         <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>
@@ -622,7 +624,7 @@ export const AddInstrumentScreen = () => {
                         </>
                     ) : (
                         <>
-                            <View style={[styles.formSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            <View style={[styles.formSectionCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                 <Text style={[styles.cardTitle, { color: colors.text }]}>Temel Bilgiler</Text>
                                 <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Miktar, tarih ve maliyeti gir. Uygun alanlar otomatik doldurulur.</Text>
 
@@ -669,24 +671,24 @@ export const AddInstrumentScreen = () => {
                                 )}
 
                                 <Text style={[styles.label, { color: colors.subText }]}>Birim Maliyet</Text>
-                                <View style={styles.row}>
+                                <View style={[styles.row, isCompactMobile && styles.rowCompact]}>
                                     <TextInput
-                                        style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                        style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }, isCompactMobile && styles.rowInputCompact]}
                                         keyboardType="numeric"
                                         value={cost}
                                         onChangeText={setCost}
                                         placeholder="0.00"
                                         placeholderTextColor={colors.subText}
                                     />
-                                    <View style={[styles.currencyToggle, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                    <View style={[styles.currencyToggle, { backgroundColor: colors.cardBackground, borderColor: colors.border }, isCompactMobile && styles.currencyToggleCompact]}>
                                         <TouchableOpacity
-                                            style={[styles.currencyBtn, currency === 'TRY' && { backgroundColor: colors.primary + '18' }]}
+                                            style={[styles.currencyBtn, isCompactMobile && styles.currencyBtnCompact, currency === 'TRY' && { backgroundColor: colors.primary + '18' }]}
                                             onPress={() => setCurrency('TRY')}
                                         >
                                             <Text style={[styles.currencyText, { color: currency === 'TRY' ? colors.primary : colors.subText, fontWeight: '700' }]}>TL</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.currencyBtn, currency === 'USD' && { backgroundColor: colors.primary + '18' }]}
+                                            style={[styles.currencyBtn, isCompactMobile && styles.currencyBtnCompact, currency === 'USD' && { backgroundColor: colors.primary + '18' }]}
                                             onPress={() => setCurrency('USD')}
                                         >
                                             <Text style={[styles.currencyText, { color: currency === 'USD' ? colors.primary : colors.subText, fontWeight: '700' }]}>USD</Text>
@@ -717,7 +719,7 @@ export const AddInstrumentScreen = () => {
                             </TouchableOpacity>
 
                             {showAdvancedFields && (
-                                <View style={[styles.formSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <View style={[styles.formSectionCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                     <Text style={[styles.label, { color: colors.text }]}>O günkü Dolar Kuru (Opsiyonel)</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <TextInput
@@ -792,7 +794,7 @@ export const AddInstrumentScreen = () => {
                             )}
 
                             {(amount || cost) && (
-                                <View style={[styles.summaryCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <View style={[styles.summaryCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                     <View style={styles.summaryRow}>
                                         <Text style={{ color: colors.subText, fontSize: 12 }}>Toplam alış tutarı</Text>
                                         <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>
@@ -826,14 +828,15 @@ export const AddInstrumentScreen = () => {
                         </>
                     )}
 
-                    <View style={styles.buttons}>
-                        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.background }]} onPress={resetSelection}>
+                    <View style={[styles.buttons, isCompactMobile && styles.buttonsCompact]}>
+                        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.background }, isCompactMobile && styles.buttonCompact]} onPress={resetSelection}>
                             <Text style={[styles.cancelButtonText, { color: colors.subText }]}>Geri Dön</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[
                                 styles.addButton,
                                 { backgroundColor: colors.primary },
+                                isCompactMobile && styles.buttonCompact,
                                 isAdding && { opacity: 0.7 }
                             ]}
                             onPress={handleAdd}
@@ -896,6 +899,10 @@ const styles = StyleSheet.create({
         padding: 20,
         marginBottom: 16,
     },
+    heroCardCompact: {
+        padding: 16,
+        borderRadius: 18,
+    },
     stepBadge: {
         alignSelf: 'flex-start',
         paddingHorizontal: 10,
@@ -923,6 +930,10 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 18,
         marginBottom: 14,
+    },
+    compactCard: {
+        padding: 14,
+        borderRadius: 16,
     },
     cardTitle: {
         fontSize: 18,
@@ -1003,6 +1014,10 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 5,
     },
+    formCompact: {
+        padding: 16,
+        borderRadius: 18,
+    },
     formHeader: {
         marginBottom: 20,
     },
@@ -1015,6 +1030,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: 12,
         marginBottom: 16,
+    },
+    assetPreviewCardCompact: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
     },
     formSectionCard: {
         borderWidth: 1,
@@ -1069,10 +1088,23 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
     },
+    currencyToggleCompact: {
+        marginLeft: 0,
+        width: '100%',
+        height: 48,
+        justifyContent: 'space-between',
+    },
     currencyBtn: {
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 10,
+    },
+    currencyBtnCompact: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     currencyText: {
         fontWeight: '600',
@@ -1081,6 +1113,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 32,
+    },
+    buttonsCompact: {
+        gap: 10,
+        marginTop: 20,
     },
     addButton: {
         paddingVertical: 18,
@@ -1119,6 +1155,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 16,
+    },
+    rowCompact: {
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: 10,
+    },
+    rowInputCompact: {
+        flex: 0,
+        width: '100%',
+        marginBottom: 0,
     },
     cryptoItem: {
         flexDirection: 'row',
@@ -1176,5 +1222,10 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 8,
         borderWidth: 1,
+    },
+    buttonCompact: {
+        paddingVertical: 15,
+        marginLeft: 0,
+        marginRight: 0,
     },
 });

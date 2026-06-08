@@ -20,7 +20,8 @@ const calculatePortfolioStats = (
     portfolio: Portfolio,
     prices: Record<string, number>,
     dailyChanges: Record<string, number>,
-    usdRate: number
+    usdRate: number,
+    fundPrices: Record<string, number>
 ) => {
     let totalValue = 0;
     let totalCost = 0;
@@ -53,9 +54,24 @@ const calculatePortfolioStats = (
     });
 
     // Add cash balance
-    const cashBalance = portfolio.cashItems?.reduce((sum, item) => sum + item.amount, 0) || 0;
+    const cashBalance = portfolio.cashItems?.reduce((sum, item) => {
+        let itemValue = item.amount;
+
+        if (item.type === 'money_market_fund' && item.units && item.instrumentId) {
+            const livePrice = fundPrices[item.instrumentId];
+            if (livePrice) {
+                itemValue = item.units * livePrice;
+            }
+        }
+
+        if (item.currency === 'USD') {
+            itemValue *= usdRate;
+        }
+
+        totalCost += item.currency === 'USD' ? item.amount * usdRate : item.amount;
+        return sum + itemValue;
+    }, 0) || 0;
     totalValue += cashBalance;
-    totalCost += cashBalance; // Cash is not a profit/loss source
 
     const totalPL = totalValue - totalCost;
     const totalPLPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
@@ -72,7 +88,7 @@ const calculatePortfolioStats = (
 };
 
 export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1, goldPrice = 0 }: PortfolioSwitcherProps) => {
-    const { portfolios, activePortfolio, switchPortfolio, createPortfolio, deletePortfolio, renamePortfolio } = usePortfolio();
+    const { portfolios, activePortfolio, switchPortfolio, createPortfolio, deletePortfolio, renamePortfolio, fundPrices } = usePortfolio();
     const { colors, fontScale, fonts } = useTheme();
     const [modalVisible, setModalVisible] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -114,7 +130,7 @@ export const PortfolioSwitcher = ({ prices = {}, dailyChanges = {}, usdRate = 1,
     };
 
     const renderItem = ({ item }: { item: Portfolio }) => {
-        const stats = calculatePortfolioStats(item, prices, dailyChanges, usdRate);
+        const stats = calculatePortfolioStats(item, prices, dailyChanges, usdRate, fundPrices);
         const hasPrices = Object.keys(prices).length > 0;
 
         return (

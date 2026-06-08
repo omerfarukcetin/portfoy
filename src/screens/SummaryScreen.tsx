@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Platform, useWindowDimensions, Alert, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, Eye, EyeOff, Briefcase, TrendingUp, TrendingDown, Calendar, CheckSquare, Archive, Download, MoreHorizontal, Shield, Activity, Settings, Plus, X, Zap, ArrowDownRight, DollarSign } from 'lucide-react-native';
 
@@ -12,7 +12,6 @@ import { formatCurrency } from '../utils/formatting';
 import { ShareableDonutChart, ShareableDonutChartHandle } from '../components/ShareableDonutChart';
 import { PortfolioChart, PortfolioChartHandle } from '../components/PortfolioChart';
 import { generateRecommendations, Recommendation } from '../services/advisorService';
-import { projectRecurringContribution } from '../services/simulationService';
 import { Skeleton } from '../components/Skeleton';
 import { NewsFeed } from '../components/NewsFeed';
 import { GradientCard } from '../components/GradientCard';
@@ -23,8 +22,6 @@ import ViewShot from 'react-native-view-shot';
 
 const screenWidth = Dimensions.get('window').width;
 const insightCardWidth = (screenWidth - 58) / 3;
-const contributionOptions = [2500, 5000, 10000, 20000];
-const projectionMonthOptions = [6, 12, 24];
 
 // Responsive breakpoints
 const TABLET_WIDTH = 768;
@@ -99,8 +96,7 @@ export const SummaryScreen = () => {
     const [capitalModalVisible, setCapitalModalVisible] = useState(false);
     const [capitalAmount, setCapitalAmount] = useState('');
     const [capitalLoading, setCapitalLoading] = useState(false);
-    const [monthlyContribution, setMonthlyContribution] = useState(5000);
-    const [projectionMonths, setProjectionMonths] = useState(12);
+    const [capitalDirection, setCapitalDirection] = useState<'in' | 'out'>('in');
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const distCardWebRef = useRef<any>(null);
@@ -319,9 +315,46 @@ export const SummaryScreen = () => {
     const dailyProfitPercent = totalPortfolioTry > 0 ? (dailyProfit / totalPortfolioTry) * 100 : 0;
     const portfolioInGramGold = goldPrice > 0 ? totalPortfolioTry / goldPrice : 0;
     const portfolioInUsd = usdRate > 0 ? totalPortfolioTry / usdRate : 0;
-    const contributionProjection = React.useMemo(() => {
-        return projectRecurringContribution(history, totalPortfolioTry, monthlyContribution, projectionMonths);
-    }, [history, totalPortfolioTry, monthlyContribution, projectionMonths]);
+    const currentUnitPrice = activePortfolio?.trackingMode === 'unitized'
+        ? (activePortfolio.totalUnits && activePortfolio.totalUnits > 0
+            ? totalPortfolioTry / activePortfolio.totalUnits
+            : (activePortfolio.initialUnitPrice || 1))
+        : 0;
+    const availableTryCash = React.useMemo(() => {
+        return (activePortfolio?.cashItems || []).reduce((sum, item) => {
+            if (item.type !== 'cash') return sum;
+            if (item.currency === 'USD') return sum + (item.amount * usdRate);
+            return sum + item.amount;
+        }, 0);
+    }, [activePortfolio, usdRate]);
+
+    const handleCapitalAdjustment = async () => {
+        if (!activePortfolio || activePortfolio.trackingMode !== 'unitized') return;
+
+        const parsedAmount = parseFloat(capitalAmount.replace(',', '.'));
+        if (!parsedAmount || parsedAmount <= 0) {
+            Alert.alert('Hata', 'Lütfen geçerli bir tutar gir.');
+            return;
+        }
+
+        if (capitalDirection === 'out' && parsedAmount > availableTryCash) {
+            Alert.alert('Yetersiz Nakit', 'Çıkış için portföyde yeterli kullanılabilir TL nakit bulunmuyor.');
+            return;
+        }
+
+        setCapitalLoading(true);
+        try {
+            const signedAmount = capitalDirection === 'out' ? -parsedAmount : parsedAmount;
+            await addCapital(activePortfolio.id, signedAmount);
+            setCapitalAmount('');
+            setCapitalModalVisible(false);
+        } catch (error) {
+            console.error('Capital adjustment error:', error);
+            Alert.alert('Hata', 'Nakit giriş/çıkış işlemi tamamlanamadı.');
+        } finally {
+            setCapitalLoading(false);
+        }
+    };
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -401,11 +434,11 @@ export const SummaryScreen = () => {
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
                                                     <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
                                                         <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
-                                                            Birim Fiyat: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                            Birim Fiyat: {formatCurrency(currentUnitPrice, 'TRY')}
                                                             {' '}
-                                                            <Text style={{ fontSize: 12, color: (totalPortfolioTry / (activePortfolio.totalUnits || 1)) >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
-                                                                ({(((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
-                                                                {((((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(2)}%)
+                                                            <Text style={{ fontSize: 12, color: currentUnitPrice >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
+                                                                ({((currentUnitPrice / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
+                                                                {(((currentUnitPrice / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(2)}%)
                                                             </Text>
                                                         </Text>
                                                     </View>
@@ -682,122 +715,6 @@ export const SummaryScreen = () => {
 
                             {/* RIGHT COLUMN - Insights */}
                             <View style={{ flex: 1, gap: 16 }}>
-                                <View style={{
-                                    backgroundColor: colors.cardBackground,
-                                    borderRadius: 16,
-                                    padding: 20,
-                                    borderWidth: 1,
-                                    borderColor: colors.border
-                                }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                                        <View style={{ flex: 1, marginRight: 12 }}>
-                                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Aylik Katki Plani</Text>
-                                            <Text style={{ fontSize: 12, color: colors.subText, marginTop: 4, lineHeight: 18 }}>
-                                                {projectionMonths} ay boyunca her ay {formatCurrency(monthlyContribution, 'TRY')} eklersen tahmini toplam
-                                            </Text>
-                                        </View>
-                                        <View style={{
-                                            backgroundColor: colors.primary + '12',
-                                            paddingHorizontal: 10,
-                                            paddingVertical: 6,
-                                            borderRadius: 8
-                                        }}>
-                                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
-                                                {contributionProjection.isTrendBased
-                                                    ? `${contributionProjection.basisDays}g trend`
-                                                    : 'Duz hesap'}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>
-                                        {isHidden ? '••••••' : formatCurrency(contributionProjection.projectedValue, 'TRY')}
-                                    </Text>
-
-                                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                                        <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                                            <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>EKLEYECEGIN</Text>
-                                            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 }}>
-                                                {isHidden ? '•••' : formatCurrency(contributionProjection.contributedCapital, 'TRY')}
-                                            </Text>
-                                        </View>
-                                        <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                                            <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '600' }}>TREND ETKISI</Text>
-                                            <Text style={{
-                                                color: contributionProjection.projectedGain >= 0 ? colors.success : colors.danger,
-                                                fontSize: 15,
-                                                fontWeight: '700',
-                                                marginTop: 4
-                                            }}>
-                                                {isHidden ? '•••' : `${contributionProjection.projectedGain >= 0 ? '+' : ''}${formatCurrency(contributionProjection.projectedGain, 'TRY')}`}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    <View style={{ marginTop: 16 }}>
-                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>AYLIK KATKI</Text>
-                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                                            {contributionOptions.map(option => (
-                                                <TouchableOpacity
-                                                    key={option}
-                                                    onPress={() => setMonthlyContribution(option)}
-                                                    style={{
-                                                        paddingHorizontal: 12,
-                                                        paddingVertical: 8,
-                                                        borderRadius: 10,
-                                                        backgroundColor: monthlyContribution === option ? colors.primary : colors.background,
-                                                        borderWidth: 1,
-                                                        borderColor: monthlyContribution === option ? colors.primary : colors.border
-                                                    }}
-                                                >
-                                                    <Text style={{
-                                                        color: monthlyContribution === option ? '#fff' : colors.text,
-                                                        fontSize: 12,
-                                                        fontWeight: '700'
-                                                    }}>
-                                                        {formatCurrency(option, 'TRY')}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    </View>
-
-                                    <View style={{ marginTop: 14 }}>
-                                        <Text style={{ color: colors.subText, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>SURE</Text>
-                                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                                            {projectionMonthOptions.map(option => (
-                                                <TouchableOpacity
-                                                    key={option}
-                                                    onPress={() => setProjectionMonths(option)}
-                                                    style={{
-                                                        flex: 1,
-                                                        paddingVertical: 10,
-                                                        borderRadius: 10,
-                                                        backgroundColor: projectionMonths === option ? colors.primary : colors.background,
-                                                        borderWidth: 1,
-                                                        borderColor: projectionMonths === option ? colors.primary : colors.border,
-                                                        alignItems: 'center'
-                                                    }}
-                                                >
-                                                    <Text style={{
-                                                        color: projectionMonths === option ? '#fff' : colors.text,
-                                                        fontSize: 12,
-                                                        fontWeight: '700'
-                                                    }}>
-                                                        {option} Ay
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    </View>
-
-                                    <Text style={{ color: colors.subText, fontSize: 11, lineHeight: 17, marginTop: 14 }}>
-                                        {contributionProjection.isTrendBased
-                                            ? `Son ${contributionProjection.basisDays} gunluk portfoy egilimine gore hesaplanir. Yatirim tavsiyesi degildir.`
-                                            : 'Yeterli gecmis veri olmadigi icin sadece duzenli katkilar toplanarak hesaplanir.'}
-                                    </Text>
-                                </View>
-
                                 {/* Risk Analysis Card */}
                                 <View style={{
                                     backgroundColor: colors.cardBackground,
@@ -1089,11 +1006,11 @@ export const SummaryScreen = () => {
                                         <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                             <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
                                                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-                                                    Birim: {formatCurrency(totalPortfolioTry / (activePortfolio.totalUnits || 1), 'TRY')}
+                                                    Birim: {formatCurrency(currentUnitPrice, 'TRY')}
                                                     {' '}
-                                                    <Text style={{ fontSize: 10, color: (totalPortfolioTry / (activePortfolio.totalUnits || 1)) >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
-                                                        ({(((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
-                                                        {((((totalPortfolioTry / (activePortfolio.totalUnits || 1)) / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(1)}%)
+                                                    <Text style={{ fontSize: 10, color: currentUnitPrice >= (activePortfolio.initialUnitPrice || 1) ? '#4ADE80' : '#FF7E7E' }}>
+                                                        ({((currentUnitPrice / (activePortfolio.initialUnitPrice || 1)) - 1) * 100 >= 0 ? '+' : ''}
+                                                        {(((currentUnitPrice / (activePortfolio.initialUnitPrice || 1)) - 1) * 100).toFixed(1)}%)
                                                     </Text>
                                                 </Text>
                                             </View>
@@ -1185,117 +1102,6 @@ export const SummaryScreen = () => {
                             )}
                         </ScrollView>
 
-                        <Card style={{ padding: 16, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-                                <View style={{ flex: 1, marginRight: 12 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Aylik Katki Plani</Text>
-                                    <Text style={{ fontSize: 12, color: colors.subText, marginTop: 4, lineHeight: 18 }}>
-                                        {projectionMonths} ay boyunca her ay {formatCurrency(monthlyContribution, 'TRY')} eklersen
-                                    </Text>
-                                </View>
-                                <View style={{
-                                    backgroundColor: colors.primary + '12',
-                                    paddingHorizontal: 10,
-                                    paddingVertical: 6,
-                                    borderRadius: 8
-                                }}>
-                                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
-                                        {contributionProjection.isTrendBased
-                                            ? `${contributionProjection.basisDays}g trend`
-                                            : 'Duz hesap'}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>
-                                {isHidden ? '••••••' : formatCurrency(contributionProjection.projectedValue, 'TRY')}
-                            </Text>
-                            <Text style={{ color: colors.subText, fontSize: 12, marginTop: 4 }}>
-                                Tahmini toplam deger
-                            </Text>
-
-                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                                <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                                    <Text style={{ color: colors.subText, fontSize: 10, fontWeight: '700' }}>EK KATKI</Text>
-                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>
-                                        {isHidden ? '•••' : formatCurrency(contributionProjection.contributedCapital, 'TRY')}
-                                    </Text>
-                                </View>
-                                <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                                    <Text style={{ color: colors.subText, fontSize: 10, fontWeight: '700' }}>TREND ETKISI</Text>
-                                    <Text style={{
-                                        color: contributionProjection.projectedGain >= 0 ? colors.success : colors.danger,
-                                        fontSize: 14,
-                                        fontWeight: '800',
-                                        marginTop: 4
-                                    }}>
-                                        {isHidden ? '•••' : `${contributionProjection.projectedGain >= 0 ? '+' : ''}${formatCurrency(contributionProjection.projectedGain, 'TRY')}`}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ gap: 8, paddingTop: 14 }}
-                            >
-                                {contributionOptions.map(option => (
-                                    <TouchableOpacity
-                                        key={option}
-                                        onPress={() => setMonthlyContribution(option)}
-                                        style={{
-                                            paddingHorizontal: 12,
-                                            paddingVertical: 8,
-                                            borderRadius: 10,
-                                            backgroundColor: monthlyContribution === option ? colors.primary : colors.background,
-                                            borderWidth: 1,
-                                            borderColor: monthlyContribution === option ? colors.primary : colors.border
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: monthlyContribution === option ? '#fff' : colors.text,
-                                            fontSize: 12,
-                                            fontWeight: '700'
-                                        }}>
-                                            {formatCurrency(option, 'TRY')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-
-                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                                {projectionMonthOptions.map(option => (
-                                    <TouchableOpacity
-                                        key={option}
-                                        onPress={() => setProjectionMonths(option)}
-                                        style={{
-                                            flex: 1,
-                                            alignItems: 'center',
-                                            paddingVertical: 9,
-                                            borderRadius: 10,
-                                            backgroundColor: projectionMonths === option ? colors.primary : colors.background,
-                                            borderWidth: 1,
-                                            borderColor: projectionMonths === option ? colors.primary : colors.border
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: projectionMonths === option ? '#fff' : colors.text,
-                                            fontSize: 12,
-                                            fontWeight: '700'
-                                        }}>
-                                            {option} Ay
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-
-                            <Text style={{ color: colors.subText, fontSize: 11, lineHeight: 17, marginTop: 12 }}>
-                                {contributionProjection.isTrendBased
-                                    ? `Son ${contributionProjection.basisDays} gunluk portfoy egilimine gore hesaplanir.`
-                                    : 'Yeterli gecmis veri olmadigi icin sadece duzenli katkilar toplanir.'}
-                            </Text>
-                        </Card>
-
                         {/* Chart Preview */}
                         {portfolioChartVisible && activePortfolio?.id !== 'all-portfolios' && (
                             <View style={{ marginTop: 4, marginBottom: 8 }}>
@@ -1384,6 +1190,123 @@ export const SummaryScreen = () => {
                 </TouchableOpacity>
             )}
 
+            <Modal
+                visible={capitalModalVisible}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setCapitalModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.capitalModalContent, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Nakit Giris / Cikis</Text>
+                            <TouchableOpacity onPress={() => setCapitalModalVisible(false)}>
+                                <X size={22} color={colors.subText} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={{ color: colors.subText, fontSize: 13, lineHeight: 20 }}>
+                            Birim fiyat sabit kalir; girislerde yeni pay eklenir, cikislarda pay azaltılır.
+                        </Text>
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.capitalTypeButton,
+                                    {
+                                        backgroundColor: capitalDirection === 'in' ? colors.primary : colors.background,
+                                        borderColor: capitalDirection === 'in' ? colors.primary : colors.border
+                                    }
+                                ]}
+                                onPress={() => setCapitalDirection('in')}
+                            >
+                                <Text style={{ color: capitalDirection === 'in' ? '#fff' : colors.text, fontWeight: '700' }}>Nakit Girisi</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.capitalTypeButton,
+                                    {
+                                        backgroundColor: capitalDirection === 'out' ? colors.primary : colors.background,
+                                        borderColor: capitalDirection === 'out' ? colors.primary : colors.border
+                                    }
+                                ]}
+                                onPress={() => setCapitalDirection('out')}
+                            >
+                                <Text style={{ color: capitalDirection === 'out' ? '#fff' : colors.text, fontWeight: '700' }}>Nakit Cikisi</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={{ marginTop: 18, gap: 10 }}>
+                            <View style={[styles.capitalInfoCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <Text style={{ color: colors.subText, fontSize: 12 }}>Guncel Birim Fiyat</Text>
+                                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+                                    {formatCurrency(currentUnitPrice, 'TRY')}
+                                </Text>
+                            </View>
+                            <View style={[styles.capitalInfoCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <Text style={{ color: colors.subText, fontSize: 12 }}>Toplam Pay</Text>
+                                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+                                    {(activePortfolio?.totalUnits || 0).toLocaleString('tr-TR', { maximumFractionDigits: 4 })}
+                                </Text>
+                            </View>
+                            <View style={[styles.capitalInfoCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <Text style={{ color: colors.subText, fontSize: 12 }}>Kullanilabilir TL Nakit</Text>
+                                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+                                    {formatCurrency(availableTryCash, 'TRY')}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <Text style={{ color: colors.subText, fontSize: 13, fontWeight: '600', marginTop: 18, marginBottom: 8 }}>
+                            Tutar
+                        </Text>
+                        <TextInput
+                            style={[styles.capitalInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                            keyboardType="numeric"
+                            value={capitalAmount}
+                            onChangeText={setCapitalAmount}
+                            placeholder="10000"
+                            placeholderTextColor={colors.subText}
+                        />
+
+                        {!!capitalAmount && currentUnitPrice > 0 && (
+                            <Text style={{ color: colors.subText, fontSize: 12, lineHeight: 18, marginTop: 10 }}>
+                                {capitalDirection === 'in' ? 'Eklenecek' : 'Azalacak'} pay:
+                                {' '}
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>
+                                    {(Math.max(0, parseFloat(capitalAmount.replace(',', '.')) || 0) / currentUnitPrice).toLocaleString('tr-TR', { maximumFractionDigits: 4 })}
+                                </Text>
+                            </Text>
+                        )}
+
+                        {capitalDirection === 'out' && (
+                            <Text style={{ color: colors.subText, fontSize: 12, lineHeight: 18, marginTop: 8 }}>
+                                Cikis yalnizca portfoyde mevcut TL nakit kadar yapilabilir.
+                            </Text>
+                        )}
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+                            <TouchableOpacity
+                                style={[styles.capitalActionButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+                                onPress={() => setCapitalModalVisible(false)}
+                            >
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>Vazgec</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.capitalActionButton, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                                onPress={handleCapitalAdjustment}
+                                disabled={capitalLoading}
+                            >
+                                {capitalLoading ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Text style={{ color: '#fff', fontWeight: '700' }}>Uygula</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Critical Updates Modal */}
             <Modal
@@ -1780,6 +1703,41 @@ const styles = StyleSheet.create({
     },
     modalBody: {
         flex: 1,
+    },
+    capitalModalContent: {
+        width: '92%',
+        maxWidth: 460,
+        borderRadius: 22,
+        padding: 20,
+        borderWidth: 1,
+        alignSelf: 'center',
+        marginBottom: 24,
+    },
+    capitalTypeButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
+    capitalInfoCard: {
+        borderWidth: 1,
+        borderRadius: 14,
+        padding: 14,
+    },
+    capitalInput: {
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        fontSize: 16,
+    },
+    capitalActionButton: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        alignItems: 'center',
     },
     modalSection: {
         marginBottom: 24,

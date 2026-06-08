@@ -198,6 +198,102 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
+    const calculatePortfolioSnapshot = (portfolioToValue: Portfolio) => {
+        let totalTry = 0;
+        let totalUsd = 0;
+        let costBasisTry = 0;
+        let dailyProfitTry = 0;
+
+        (portfolioToValue.items || []).forEach(item => {
+            let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
+            const priceCurrency = item.customCurrentPrice
+                ? item.currency
+                : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
+            const changePercent = dailyChanges[item.instrumentId] || 0;
+
+            if (priceCurrency !== item.currency && price > 0) {
+                if (priceCurrency === 'USD' && item.currency === 'TRY') {
+                    price = price * (currentUsdRate || 1);
+                } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
+                    price = price / (currentUsdRate || 1);
+                }
+            }
+
+            let value = item.amount * price;
+            if (item.type === 'bes') {
+                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
+            }
+
+            if (item.currency === 'USD') {
+                const valueTry = value * (currentUsdRate || 1);
+                totalTry += valueTry;
+                totalUsd += value;
+                costBasisTry += item.amount * item.averageCost * (currentUsdRate || 1);
+                dailyProfitTry += valueTry * (changePercent / 100);
+            } else {
+                totalTry += value;
+                totalUsd += value / (currentUsdRate || 1);
+                costBasisTry += item.amount * item.averageCost;
+                dailyProfitTry += value * (changePercent / 100);
+            }
+        });
+
+        (portfolioToValue.cashItems || []).forEach(item => {
+            let itemValue = item.amount;
+
+            if (item.type === 'money_market_fund' && item.units && item.instrumentId) {
+                const livePrice = fundPrices[item.instrumentId];
+                if (livePrice) {
+                    itemValue = item.units * livePrice;
+                }
+            }
+
+            if (item.currency === 'USD') {
+                const itemValueTry = itemValue * (currentUsdRate || 1);
+                totalTry += itemValueTry;
+                totalUsd += itemValue;
+                costBasisTry += item.amount * (currentUsdRate || 1);
+            } else {
+                totalTry += itemValue;
+                totalUsd += itemValue / (currentUsdRate || 1);
+                costBasisTry += item.amount;
+            }
+        });
+
+        return {
+            totalTry,
+            totalUsd,
+            costBasisTry,
+            dailyProfitTry,
+        };
+    };
+
+    const getPortfolioTryCashBalance = (portfolioToValue: Portfolio) => {
+        return (portfolioToValue.cashItems || []).reduce((sum, item) => {
+            if (item.type !== 'cash') return sum;
+            if (item.currency === 'USD') {
+                return sum + (item.amount * (currentUsdRate || 1));
+            }
+            return sum + item.amount;
+        }, 0);
+    };
+
+    const getPortfolioUnitPrice = (portfolioToValue: Portfolio, totalTry?: number) => {
+        const currentUnits = portfolioToValue.totalUnits || 0;
+        const initialPrice = portfolioToValue.initialUnitPrice || 1.0;
+
+        if (currentUnits <= 0) {
+            return initialPrice;
+        }
+
+        const valuation = totalTry ?? calculatePortfolioSnapshot(portfolioToValue).totalTry;
+        if (valuation <= 0) {
+            return initialPrice;
+        }
+
+        return valuation / currentUnits;
+    };
+
     // Derived active portfolio
     const activePortfolio = activePortfolioId === ALL_PORTFOLIOS_ID
         ? {
@@ -635,36 +731,49 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (p.id === portfolioId) {
                 const mode = p.trackingMode || 'standard';
                 if (mode === 'unitized') {
-                    // Calculate current total value to get current unit price
-                    // This is a simplified calculation here, might need full aggregation
-                    // But we can approximate with previous value or current state
-                    const currentTotalValue = ((p.cashItems || []).reduce((sum, ci) => sum + ci.amount, 0)) + 
-                        p.items.reduce((sum, item) => {
-                            const price = prices[item.instrumentId] || item.averageCost;
-                            return sum + (item.amount * price * (item.currency === 'USD' ? currentUsdRate : 1));
-                        }, 0);
-                    
+                    const snapshot = calculatePortfolioSnapshot(p);
+                    const currentTotalValue = snapshot.totalTry;
                     const currentUnits = p.totalUnits || 0;
-                    const initialPrice = p.initialUnitPrice || 1.0;
-                    
-                    let newUnits = 0;
-                    if (currentUnits === 0 || currentTotalValue === 0) {
-                        newUnits = amount / initialPrice;
-                    } else {
-                        const unitPrice = currentTotalValue / currentUnits;
-                        newUnits = amount / unitPrice;
+                    const unitPrice = getPortfolioUnitPrice(p, currentTotalValue);
+                    const tryCashBalance = getPortfolioTryCashBalance(p);
+
+                    if (amount < 0) {
+                        const withdrawalAmount = Math.abs(amount);
+
+                        if (withdrawalAmount > currentTotalValue) {
+                            Alert.alert('Hata', 'Portföy değerinden fazla çıkış yapılamaz.');
+                            return p;
+                        }
+
+                        if (withdrawalAmount > tryCashBalance) {
+                            Alert.alert('Hata', 'Çıkış için portföyde yeterli kullanılabilir nakit yok. Önce satış yapıp nakit oluşturmalısın.');
+                            return p;
+                        }
                     }
-                    
+
+                    const unitDelta = amount / unitPrice;
+                    const nextUnits = currentUnits + unitDelta;
+
+                    if (nextUnits < -0.000001) {
+                        Alert.alert('Hata', 'Toplam pay adedi eksiye düşemez.');
+                        return p;
+                    }
+
                     // Update cash items
                     let updatedCashItems = [...(p.cashItems || [])];
                     const defaultCashIndex = updatedCashItems.findIndex(ci => ci.type === 'cash' && ci.currency === 'TRY');
-                    
+
                     if (defaultCashIndex !== -1) {
+                        const nextCashAmount = updatedCashItems[defaultCashIndex].amount + amount;
+                        if (nextCashAmount < -0.000001) {
+                            Alert.alert('Hata', 'Portföyde yeterli TL nakit bulunmuyor.');
+                            return p;
+                        }
                         updatedCashItems[defaultCashIndex] = {
                             ...updatedCashItems[defaultCashIndex],
-                            amount: updatedCashItems[defaultCashIndex].amount + amount
+                            amount: nextCashAmount
                         };
-                    } else {
+                    } else if (amount > 0) {
                         updatedCashItems.push({
                             id: Date.now().toString(),
                             type: 'cash',
@@ -673,35 +782,47 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                             currency: 'TRY',
                             dateAdded: Date.now()
                         });
+                    } else {
+                        Alert.alert('Hata', 'Çıkış için portföyde TL nakit bulunmuyor.');
+                        return p;
                     }
-                    
+
                     return {
                         ...p,
                         cashItems: updatedCashItems,
-                        cashBalance: (p.cashBalance || 0) + amount, // Keep for legacy
-                        totalUnits: currentUnits + newUnits
+                        cashBalance: (p.cashBalance || 0) + amount,
+                        totalUnits: Math.max(0, nextUnits)
                     };
                 } else {
-                    // Standard portfolio - just update cash
                     let updatedCashItems = [...(p.cashItems || [])];
                     const defaultCashIndex = updatedCashItems.findIndex(ci => ci.type === 'cash' && ci.currency === 'TRY');
-                    
+
                     if (defaultCashIndex !== -1) {
+                        const nextCashAmount = updatedCashItems[defaultCashIndex].amount + amount;
+                        if (nextCashAmount < -0.000001) {
+                            Alert.alert('Hata', 'Portföyde yeterli TL nakit bulunmuyor.');
+                            return p;
+                        }
                         updatedCashItems[defaultCashIndex] = {
                             ...updatedCashItems[defaultCashIndex],
-                            amount: updatedCashItems[defaultCashIndex].amount + amount
+                            amount: nextCashAmount
                         };
                     } else {
-                        updatedCashItems.push({
-                            id: Date.now().toString(),
-                            type: 'cash',
-                            name: 'Nakit (TL)',
-                            amount: amount,
-                            currency: 'TRY',
-                            dateAdded: Date.now()
-                        });
+                        if (amount > 0) {
+                            updatedCashItems.push({
+                                id: Date.now().toString(),
+                                type: 'cash',
+                                name: 'Nakit (TL)',
+                                amount: amount,
+                                currency: 'TRY',
+                                dateAdded: Date.now()
+                            });
+                        } else {
+                            Alert.alert('Hata', 'Portföyde TL nakit bulunmuyor.');
+                            return p;
+                        }
                     }
-                    
+
                     return {
                         ...p,
                         cashItems: updatedCashItems,
@@ -1355,71 +1476,27 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         if (Object.keys(prices).length === 0 && portfolio.length > 0) return;
 
-        let calcTotalTry = 0;
-        let calcTotalUsd = 0;
-        let calcCostBasisTry = 0;
-        let calcDailyProfit = 0;
-
-        // Calculate Portfolio Items
-        portfolio.forEach(item => {
-            let price = item.customCurrentPrice || prices[item.instrumentId] || 0;
-            const priceCurrency = item.customCurrentPrice
-                ? item.currency
-                : (priceCurrencies[item.instrumentId] || (item.type === 'crypto' ? 'USD' : 'TRY'));
-            const changePercent = dailyChanges[item.instrumentId] || 0;
-
-            // Normalize price to item's currency
-            if (priceCurrency !== item.currency && price > 0) {
-                if (priceCurrency === 'USD' && item.currency === 'TRY') {
-                    price = price * (currentUsdRate || 1);
-                } else if (priceCurrency === 'TRY' && item.currency === 'USD') {
-                    price = price / (currentUsdRate || 1);
-                }
-            }
-
-
-            let value = item.amount * price;
-            if (item.type === 'bes') {
-                value = (item.besPrincipal || 0) + (item.besStateContrib || 0) + (item.besStateContribYield || 0) + (item.besPrincipalYield || 0);
-            }
-
-            if (item.currency === 'USD') {
-                const valueTry = value * (currentUsdRate || 1);
-                calcTotalTry += valueTry;
-                calcTotalUsd += value;
-                calcCostBasisTry += item.amount * item.averageCost * (currentUsdRate || 1);
-                calcDailyProfit += valueTry * (changePercent / 100);
-            } else {
-                calcTotalTry += value;
-                calcTotalUsd += value / (currentUsdRate || 1);
-                calcCostBasisTry += item.amount * item.averageCost;
-                calcDailyProfit += value * (changePercent / 100);
-            }
+        const snapshot = calculatePortfolioSnapshot({
+            id: activePortfolioId || 'preview',
+            name: activePortfolio?.name || 'Portföy',
+            color: activePortfolio?.color || '#007AFF',
+            icon: activePortfolio?.icon || '💼',
+            createdAt: activePortfolio?.createdAt || Date.now(),
+            items: portfolio,
+            cashBalance: 0,
+            cashItems,
+            realizedTrades,
+            dividends,
+            history,
+            trackingMode: activePortfolio?.trackingMode,
+            totalUnits: activePortfolio?.totalUnits,
+            initialUnitPrice: activePortfolio?.initialUnitPrice,
         });
 
-        // Calculate Cash Items (Nakit + PPF)
-        cashItems.forEach(item => {
-            let itemValue = item.amount;
-
-            // PPF Live Valuation
-            if (item.type === 'money_market_fund' && item.units && item.instrumentId) {
-                const livePrice = fundPrices[item.instrumentId];
-                if (livePrice) {
-                    itemValue = item.units * livePrice;
-                }
-            }
-
-            if (item.currency === 'USD') {
-                const itemValueTry = itemValue * (currentUsdRate || 1);
-                calcTotalTry += itemValueTry;
-                calcTotalUsd += itemValue;
-                calcCostBasisTry += item.amount * (currentUsdRate || 1);
-            } else {
-                calcTotalTry += itemValue;
-                calcTotalUsd += itemValue / (currentUsdRate || 1);
-                calcCostBasisTry += item.amount;
-            }
-        });
+        const calcTotalTry = snapshot.totalTry;
+        const calcTotalUsd = snapshot.totalUsd;
+        const calcCostBasisTry = snapshot.costBasisTry;
+        const calcDailyProfit = snapshot.dailyProfitTry;
 
         // Update Context States
         setTotalValueTry(calcTotalTry);
@@ -1430,7 +1507,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Update History Tracking
         updateTotalValue(calcTotalTry, calcTotalUsd);
 
-    }, [portfolio, cashItems, prices, fundPrices, currentUsdRate]);
+    }, [portfolio, cashItems, prices, fundPrices, currentUsdRate, priceCurrencies, dailyChanges, activePortfolio]);
 
     const updateTotalValue = async (valTry: number, valUsd: number) => {
         setTotalValueTry(valTry);

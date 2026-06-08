@@ -316,6 +316,7 @@ export const AddInstrumentScreen = () => {
     const estimatedRemainingCash = useFromCash && currency === 'TRY'
         ? cashBalance - totalPurchaseAmount
         : cashBalance;
+    const isFundCategory = category === 'FON';
     const selectedCategoryLabel = category === 'DIGER' ? (customCategoryName || 'Özel Varlık') : category;
     const selectionTitle = category === 'DIGER'
         ? 'Özel varlığını tanımla'
@@ -323,6 +324,13 @@ export const AddInstrumentScreen = () => {
     const selectionSubtitle = category === 'DIGER'
         ? 'İsim ve kategori gir, sonra işlem detayını tamamla.'
         : 'Önce varlığı bul, sonra sade bir işlem formuyla portföye ekle.';
+    const amountLabel = isFundCategory ? 'Pay Adedi' : 'Miktar';
+    const amountPlaceholder = isFundCategory ? '1000' : '0';
+    const costLabel = isFundCategory ? 'Fon Birim Fiyatı' : 'Birim Maliyet';
+    const costPlaceholder = isFundCategory ? '0.0000' : '0.00';
+    const baseInfoSubtitle = isFundCategory
+        ? 'Fonlarda pay adedi ve fonun birim fiyatini gir. Toplam alim tutari otomatik hesaplanir.'
+        : 'Miktar, tarih ve maliyeti gir. Uygun alanlar otomatik doldurulur.';
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -634,15 +642,15 @@ export const AddInstrumentScreen = () => {
                         <>
                             <View style={[styles.formSectionCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                 <Text style={[styles.cardTitle, { color: colors.text }]}>Temel Bilgiler</Text>
-                                <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Miktar, tarih ve maliyeti gir. Uygun alanlar otomatik doldurulur.</Text>
+                                <Text style={[styles.cardSubtitle, { color: colors.subText }]}>{baseInfoSubtitle}</Text>
 
-                                <Text style={[styles.label, { color: colors.subText }]}>Miktar</Text>
+                                <Text style={[styles.label, { color: colors.subText }]}>{amountLabel}</Text>
                                 <TextInput
                                     style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
                                     keyboardType="numeric"
                                     value={amount}
                                     onChangeText={setAmount}
-                                    placeholder="0"
+                                    placeholder={amountPlaceholder}
                                     placeholderTextColor={colors.subText}
                                 />
 
@@ -678,14 +686,14 @@ export const AddInstrumentScreen = () => {
                                     </>
                                 )}
 
-                                <Text style={[styles.label, { color: colors.subText }]}>Birim Maliyet</Text>
+                                <Text style={[styles.label, { color: colors.subText }]}>{costLabel}</Text>
                                 <View style={[styles.row, isCompactMobile && styles.rowCompact]}>
                                     <TextInput
                                         style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }, isCompactMobile && styles.rowInputCompact]}
                                         keyboardType="numeric"
                                         value={cost}
                                         onChangeText={setCost}
-                                        placeholder="0.00"
+                                        placeholder={costPlaceholder}
                                         placeholderTextColor={colors.subText}
                                     />
                                     <View style={[styles.currencyToggle, { backgroundColor: colors.cardBackground, borderColor: colors.border }, isCompactMobile && styles.currencyToggleCompact]}>
@@ -804,7 +812,7 @@ export const AddInstrumentScreen = () => {
                             {(amount || cost) && (
                                 <View style={[styles.summaryCard, isCompactMobile && styles.compactCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                                     <View style={styles.summaryRow}>
-                                        <Text style={{ color: colors.subText, fontSize: 12 }}>Toplam alış tutarı</Text>
+                                        <Text style={{ color: colors.subText, fontSize: 12 }}>{isFundCategory ? 'Toplam fon alış tutarı' : 'Toplam alış tutarı'}</Text>
                                         <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>
                                             {formatNumberCurrency(totalPurchaseAmount, currency)}
                                         </Text>
@@ -818,7 +826,7 @@ export const AddInstrumentScreen = () => {
                                         </View>
                                     )}
                                     <View style={styles.summaryRow}>
-                                        <Text style={{ color: colors.subText, fontSize: 12 }}>Yeni birim maliyet</Text>
+                                        <Text style={{ color: colors.subText, fontSize: 12 }}>{isFundCategory ? 'Kaydedilecek fon birim fiyatı' : 'Yeni birim maliyet'}</Text>
                                         <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '800' }}>
                                             {effectiveUnitCost > 0 ? `${effectiveUnitCost.toFixed(4)} ${currency}` : '-'}
                                         </Text>

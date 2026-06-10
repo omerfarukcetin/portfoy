@@ -36,11 +36,19 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
 
     useEffect(() => {
         if (visible && item) {
-            setAmount(item.amount.toString());
+            setAmount('');
             const today = new Date();
             setSellDate(today.toISOString().split('T')[0]);
+            setPrice('');
+            setHistoricalRate('');
+            setDestinationCashId('default');
+            setIsTaxEnabled(false);
+            setTaxRate('17.5');
+            setIsCommissionEnabled(false);
+            setCommissionRate('0.2');
             fetchCurrentPrice();
         } else {
+            setAmount('');
             setPrice('');
             setSellDate('');
             setHistoricalRate('');
@@ -50,7 +58,7 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
             setIsCommissionEnabled(false);
             setCommissionRate('0.2');
         }
-    }, [visible, item]);
+    }, [visible, item?.id]);
 
     useEffect(() => {
         const fetchRate = async () => {
@@ -165,8 +173,15 @@ export const SellAssetModal: React.FC<SellAssetModalProps> = ({ visible, onClose
                                 keyboardType="numeric"
                                 value={amount}
                                 onChangeText={setAmount}
+                                placeholder="0"
                                 placeholderTextColor={colors.subText}
                             />
+                            <TouchableOpacity
+                                style={[styles.fillAmountButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+                                onPress={() => setAmount(item.amount.toString())}
+                            >
+                                <Text style={[styles.fillAmountButtonText, { color: colors.primary }]}>Tumunu Sat</Text>
+                            </TouchableOpacity>
 
                             <Text style={[styles.label, { color: colors.subText }]}>{t('sellAsset.sellPrice') || 'Satış Fiyatı'}</Text>
                             <View style={styles.row}>
@@ -472,6 +487,19 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    fillAmountButton: {
+        alignSelf: 'flex-start',
+        borderRadius: 10,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginTop: -4,
+        marginBottom: 12,
+    },
+    fillAmountButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     previewCard: {
         padding: 12,

@@ -32,27 +32,34 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
 
     useEffect(() => {
         if (visible && item && item.units) {
-            setAmount(item.units.toString());
+            setAmount('');
             const today = new Date();
             setSellDate(today.toISOString().split('T')[0]);
+            setHistoricalRate('');
+            setTaxRate('17.5');
 
-            // Set price from prop or fetch
             if (propCurrentPrice) {
                 setPrice(propCurrentPrice.toString());
             } else {
+                setPrice('');
                 fetchCurrentPrice();
             }
 
-            // Fetch current USD rate
             fetchCurrentUsdRate();
         } else {
-            // Reset state when closing
+            setAmount('');
             setPrice('');
             setSellDate('');
             setHistoricalRate('');
             setTaxRate('17.5');
         }
-    }, [visible, item, propCurrentPrice]);
+    }, [visible, item?.id]);
+
+    useEffect(() => {
+        if (visible && propCurrentPrice) {
+            setPrice(propCurrentPrice.toString());
+        }
+    }, [visible, propCurrentPrice]);
 
     useEffect(() => {
         const fetchRate = async () => {
@@ -181,8 +188,15 @@ export const SellCashFundModal: React.FC<SellCashFundModalProps> = ({ visible, o
                                 keyboardType="numeric"
                                 value={amount}
                                 onChangeText={setAmount}
+                                placeholder="0"
                                 placeholderTextColor={colors.subText}
                             />
+                            <TouchableOpacity
+                                style={[styles.fillAmountButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+                                onPress={() => setAmount((item.units || 0).toString())}
+                            >
+                                <Text style={[styles.fillAmountButtonText, { color: colors.primary }]}>Tumunu Sat</Text>
+                            </TouchableOpacity>
 
                             <Text style={[styles.label, { color: colors.subText }]}>Satış Fiyatı (Birim)</Text>
                             <View style={styles.row}>
@@ -357,6 +371,19 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    fillAmountButton: {
+        alignSelf: 'flex-start',
+        borderRadius: 10,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginTop: -4,
+        marginBottom: 12,
+    },
+    fillAmountButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     previewCard: {
         padding: 12,

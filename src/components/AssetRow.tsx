@@ -85,31 +85,34 @@ export const AssetRow: React.FC<AssetRowProps> = ({
             activeOpacity={0.7}
         >
             <View style={styles.leftContainer}>
-                {Platform.OS === 'web' && (
-                    <TickerIcon symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)} color={color || colors.primary} />
-                )}
+                <TickerIcon
+                    symbol={item.customName ? item.customName.substring(0, 3).toUpperCase() : formatSymbol(item.instrumentId)}
+                    color={color || colors.primary}
+                    size={Platform.OS === 'web' ? 42 : 38}
+                />
                 <View style={styles.textContainer}>
-                    <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>{displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}</Text>
+                    <View style={styles.titleRow}>
+                        <Text style={[styles.symbol, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>
+                            {displayName.startsWith('custom_') ? (item.customName || 'Varlık') : formatSymbol(displayName)}
+                        </Text>
+                        {changePercent !== 0 && (
+                            <View style={[styles.changeBadge, { backgroundColor: changePercent >= 0 ? colors.success + '14' : colors.danger + '14' }]}>
+                                <Text style={[styles.changeBadgeText, { color: changePercent >= 0 ? colors.success : colors.danger }]}>
+                                    {changePercent >= 0 ? '+' : '-'}{Math.abs(changePercent).toFixed(2)}%
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={[styles.amount, { color: colors.subText }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit>
                         {formatCurrency(displayPrice, displayCurrency)} × {item.amount.toLocaleString('tr-TR')}
                     </Text>
-                    {changePercent !== 0 ? (
-                        <Text style={[styles.dailyChange, { color: changePercent >= 0 ? colors.success : colors.danger }]} numberOfLines={1}>
-                            {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
-                        </Text>
-                    ) : Platform.OS === 'web' ? (
-                        <Text style={[styles.dailyChange, { color: colors.subText }]} numberOfLines={1}>-</Text>
-                    ) : null}
+                    <Text style={[styles.detailLine, { color: colors.subText }]} numberOfLines={1}>
+                        {item.currency === 'USD' ? 'ABD varligi' : 'Portfoy varligi'}
+                    </Text>
                 </View>
             </View>
 
             <View style={styles.rightContainer}>
-                {/* Hide cost label on mobile */}
-                {Platform.OS === 'web' && (
-                    <Text style={[styles.costLabel, { color: colors.subText }]}>
-                        Maliyet: {formatCurrency(item.averageCost, item.currency === 'USD' ? 'USD' : 'TRY')}
-                    </Text>
-                )}
                 <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(displayValue, displayCurrency)}</Text>
                 <View style={[styles.plContainer, { backgroundColor: isProfit ? colors.success + '15' : colors.danger + '15' }]}>
                     <Text style={[styles.plText, { color: isProfit ? colors.success : colors.danger }]} numberOfLines={1} adjustsFontSizeToFit>
@@ -127,24 +130,30 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: Platform.OS === 'web' ? 10 : 12,
-        paddingHorizontal: Platform.OS === 'web' ? 16 : 16,
+        paddingVertical: Platform.OS === 'web' ? 14 : 14,
+        paddingHorizontal: Platform.OS === 'web' ? 18 : 16,
     },
     leftContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Platform.OS === 'web' ? 14 : 10,
-        flex: 1.5,
+        gap: Platform.OS === 'web' ? 14 : 12,
+        flex: 1.45,
     },
     textContainer: {
         justifyContent: 'center',
         flex: 1,
     },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 3,
+    },
     symbol: {
         fontSize: Platform.OS === 'web' ? 15 : 14,
-        fontWeight: '700',
-        marginBottom: 2,
-        letterSpacing: 0.3,
+        fontWeight: '800',
+        letterSpacing: 0.2,
+        flexShrink: 1,
     },
     cryptoName: {
         fontSize: 12,
@@ -153,23 +162,23 @@ const styles = StyleSheet.create({
     },
     amount: {
         fontSize: Platform.OS === 'web' ? 12 : 11,
-        opacity: 0.7,
+        opacity: 0.8,
+    },
+    detailLine: {
+        fontSize: 10,
+        fontWeight: '600',
+        marginTop: 4,
+        opacity: 0.75,
     },
     rightContainer: {
         alignItems: 'flex-end',
         flex: 1,
-        marginLeft: 8,
-    },
-    costLabel: {
-        fontSize: 9,
-        fontWeight: '500',
-        marginBottom: 3,
-        opacity: 0.6,
+        marginLeft: 12,
     },
     value: {
-        fontSize: Platform.OS === 'web' ? 15 : 14,
-        fontWeight: '700',
-        marginBottom: 4,
+        fontSize: Platform.OS === 'web' ? 16 : 15,
+        fontWeight: '800',
+        marginBottom: 6,
         letterSpacing: 0.2,
     },
     header: {
@@ -179,18 +188,21 @@ const styles = StyleSheet.create({
     },
     plText: {
         fontSize: Platform.OS === 'web' ? 10 : 11,
-        fontWeight: '600',
+        fontWeight: '700',
         letterSpacing: 0.2,
     },
     plContainer: {
-        paddingHorizontal: Platform.OS === 'web' ? 8 : 6,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingHorizontal: Platform.OS === 'web' ? 9 : 8,
+        paddingVertical: 5,
+        borderRadius: 999,
     },
-    dailyChange: {
+    changeBadge: {
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    changeBadgeText: {
         fontSize: 10,
-        fontWeight: '600',
-        marginTop: 3,
-        opacity: 0.8,
+        fontWeight: '800',
     },
 });

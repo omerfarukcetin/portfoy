@@ -7,6 +7,7 @@ interface PortfolioCategoryTabsProps {
     colors: {
         primary: string;
         background: string;
+        cardBackground: string;
         border: string;
         text: string;
     };
@@ -14,30 +15,38 @@ interface PortfolioCategoryTabsProps {
 }
 
 export const PortfolioCategoryTabs = ({ categories, selectedCategory, colors, onSelect }: PortfolioCategoryTabsProps) => {
+    const allOptions = ['Tumu', ...categories];
+
     return (
-        <View style={{ height: 50, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ backgroundColor: colors.background, paddingBottom: 8 }}>
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, alignItems: 'center', paddingHorizontal: 16 }}
+                contentContainerStyle={{ gap: 10, alignItems: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 }}
             >
-                {categories.map((category) => {
-                    const isActive = selectedCategory === category;
+                {allOptions.map((category) => {
+                    const isAll = category === 'Tumu';
+                    const isActive = isAll ? selectedCategory === null : selectedCategory === category;
                     return (
                         <TouchableOpacity
                             key={category}
-                            onPress={() => onSelect(isActive ? null : category)}
+                            onPress={() => onSelect(isAll ? null : (isActive ? null : category))}
                             style={{
                                 paddingHorizontal: 14,
-                                paddingVertical: 8,
-                                borderRadius: 14,
+                                paddingVertical: 9,
+                                borderRadius: 999,
                                 borderWidth: 1,
                                 borderColor: isActive ? colors.primary : colors.border,
-                                backgroundColor: isActive ? colors.primary : colors.background,
+                                backgroundColor: isActive ? colors.primary : colors.cardBackground || colors.background,
+                                shadowColor: isActive ? colors.primary : '#000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: isActive ? 0.16 : 0.04,
+                                shadowRadius: 12,
+                                elevation: isActive ? 2 : 0,
                             }}
                         >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : colors.text }}>
-                                {category.replace(' (BIST)', '')}
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: isActive ? '#fff' : colors.text }}>
+                                {isAll ? 'Tümü' : category.replace(' (BIST)', '')}
                             </Text>
                         </TouchableOpacity>
                     );

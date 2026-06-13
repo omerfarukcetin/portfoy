@@ -317,6 +317,7 @@ export const PortfolioScreen = () => {
     const lastUpdatedText = lastPricesUpdate
         ? new Date(lastPricesUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
         : 'Bekleniyor';
+    const positiveTargetGap = Math.max(targetValue - currentTotal, 0);
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -324,22 +325,43 @@ export const PortfolioScreen = () => {
             <View style={[styles.header, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? 20 : 10 }]}>
                 <View style={styles.headerTopRow}>
                     <View style={styles.headerInfo}>
+                        <View style={styles.headerBadgeRow}>
+                            <View style={[styles.headerStatusPill, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '22' }]}>
+                                <Text style={[styles.headerStatusText, { color: colors.primary }]}>Canli Takip</Text>
+                            </View>
+                            <View style={[styles.headerMetaPill, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.headerMetaPillText, { color: colors.subText }]}>
+                                    {itemCount} kayit
+                                </Text>
+                            </View>
+                        </View>
                         <Text style={[styles.headerLabel, { color: colors.subText }]}>PORTFÖY</Text>
                         <Text style={[styles.headerTitle, { color: colors.text }]}>
                             {activePortfolio?.name || 'Portföyüm'}
                         </Text>
-                        <Text style={[styles.headerMeta, { color: colors.subText }]}>
-                            Son fiyat güncellemesi: {lastUpdatedText}
-                        </Text>
+                        <View style={styles.headerMetaRow}>
+                            <Text style={[styles.headerMeta, { color: colors.subText }]}>
+                                Son fiyat: {lastUpdatedText}
+                            </Text>
+                            <Text style={[styles.headerMetaDot, { color: colors.subText }]}>•</Text>
+                            <Text style={[styles.headerMeta, { color: colors.subText }]}>
+                                Görünüm: {displayCurrency}
+                            </Text>
+                        </View>
                     </View>
                     <View style={styles.headerRight}>
-                        <TouchableOpacity onPress={onRefresh} disabled={refreshing} style={[styles.headerIconButton, { backgroundColor: colors.cardBackground }]}>
-                            <Text style={{ fontSize: 16 }}>{refreshing ? '⏳' : '🔄'}</Text>
+                        <TouchableOpacity
+                            onPress={onRefresh}
+                            disabled={refreshing}
+                            style={[styles.headerIconButton, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                        >
+                            <Text style={{ fontSize: 16 }}>{refreshing ? '⏳' : '↻'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => setDisplayCurrency(prev => prev === 'TRY' ? 'USD' : 'TRY')}
                             style={[styles.currencyButton, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
                         >
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.subText }}>Kur</Text>
                             <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>{displayCurrency}</Text>
                         </TouchableOpacity>
                     </View>
@@ -367,14 +389,18 @@ export const PortfolioScreen = () => {
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
                 <View style={[styles.heroCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                    <View style={[styles.heroAccent, { backgroundColor: colors.primary }]} />
                     <View style={styles.heroTop}>
                         <View>
                             <Text style={[styles.heroLabel, { color: colors.subText }]}>TOPLAM DEĞER</Text>
                             <Text style={[styles.heroValue, { color: colors.text }]}>{formatCurrency(currentTotal, displayCurrency)}</Text>
+                            <Text style={[styles.heroSubValue, { color: colors.subText }]}>
+                                Yedek akçe dahil toplam portföy görünümü
+                            </Text>
                         </View>
                         <TouchableOpacity
                             onPress={() => setTargetModalVisible(true)}
-                            style={[styles.heroAction, { backgroundColor: colors.primary + '12' }]}
+                            style={[styles.heroAction, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '18' }]}
                         >
                             <Target size={16} color={colors.primary} />
                             <Text style={[styles.heroActionText, { color: colors.primary }]}>
@@ -401,6 +427,15 @@ export const PortfolioScreen = () => {
                         </View>
                     </View>
 
+                    <View style={[styles.heroInsightBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Text style={[styles.heroInsightLabel, { color: colors.subText }]}>Kısa Özet</Text>
+                        <Text style={[styles.heroInsightText, { color: colors.text }]}>
+                            {targetValue > 0
+                                ? `Hedefe kalan ${formatCurrency(positiveTargetGap, displayCurrency)}`
+                                : `${allCategories.length} kategori içinde ${itemCount} kayıt takip ediliyor`}
+                        </Text>
+                    </View>
+
                     {targetValue > 0 ? (
                         <View style={styles.targetInlineBlock}>
                             <View style={styles.targetHeader}>
@@ -422,7 +457,7 @@ export const PortfolioScreen = () => {
                             </View>
                             <View style={styles.targetFooter}>
                                 <Text style={[styles.targetPercent, { color: colors.primary }]}>{targetPercent.toFixed(1)}%</Text>
-                                <Text style={[styles.targetHint, { color: colors.subText }]}>Hedefe kalan: {formatCurrency(Math.max(targetValue - currentTotal, 0), displayCurrency)}</Text>
+                                <Text style={[styles.targetHint, { color: colors.subText }]}>Hedefe kalan: {formatCurrency(positiveTargetGap, displayCurrency)}</Text>
                             </View>
                         </View>
                     ) : (
@@ -443,6 +478,7 @@ export const PortfolioScreen = () => {
                         const currentCategoryPL = categoryPL[category]?.pl || 0;
                         const currentCategoryCost = categoryPL[category]?.cost || 0;
                         const categoryPLPercent = currentCategoryCost > 0 ? (currentCategoryPL / currentCategoryCost) * 100 : 0;
+                        const categorySharePercent = currentTotal > 0 ? (categoryValues[category] / currentTotal) * 100 : 0;
                         const isProfitable = currentCategoryPL >= 0;
 
                         return (
@@ -452,9 +488,9 @@ export const PortfolioScreen = () => {
                                     <View style={styles.categoryHeaderMain}>
                                         {getCategoryIcon(category)}
                                         <View style={{ flex: 1 }}>
-                                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{category}</Text>
+                                            <Text style={[styles.categoryTitle, { color: colors.text }]}>{category}</Text>
                                             <Text style={[styles.categoryMeta, { color: colors.subText }]}>
-                                                {category === 'Yedek Akçe' ? `${cashItems.length} kayıt` : `${items.length} varlık`}
+                                                {category === 'Yedek Akçe' ? `${cashItems.length} kayıt` : `${items.length} varlık`} • Portföyün %{categorySharePercent.toFixed(1)}
                                             </Text>
                                         </View>
                                     </View>
@@ -465,7 +501,7 @@ export const PortfolioScreen = () => {
                                         {currentCategoryCost > 0 && (
                                             <View style={[styles.categoryChangeBadge, { backgroundColor: isProfitable ? colors.success + '12' : colors.danger + '12' }]}>
                                                 <Text style={{ color: isProfitable ? colors.success : colors.danger, fontSize: 12, fontWeight: '700' }}>
-                                                    {isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}%
+                                                    {isProfitable ? '+' : ''}{categoryPLPercent.toFixed(1)}% getiri
                                                 </Text>
                                             </View>
                                         )}
@@ -474,7 +510,7 @@ export const PortfolioScreen = () => {
 
                                 {/* Asset Grid */}
                                 {category === 'Yedek Akçe' ? (
-                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                         {cashItems.map((cashItem, index) => {
                                             // Calculate values for each cash item
                                             let itemCost = cashItem.amount;
@@ -584,7 +620,7 @@ export const PortfolioScreen = () => {
                                         )}
                                     </View>
                                 ) : !isMobileLayout ? (
-                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground }]}>
+                                    <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                         {items.map((item) => (
                                             <AssetRow
                                                 key={item.id}
@@ -603,7 +639,7 @@ export const PortfolioScreen = () => {
                                     <SwipeListView
                                         data={items}
                                         renderItem={(data) => (
-                                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, marginBottom: 6 }]}>
+                                            <View style={[styles.cardContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, marginBottom: 8 }]}>
                                                 <AssetRow
                                                     item={data.item}
                                                     currentPrice={contextPrices[data.item.instrumentId] || 0}
@@ -785,38 +821,38 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     header: {
         paddingTop: Platform.OS === 'ios' ? 44 : 24,
-        paddingBottom: 12,
+        paddingBottom: 10,
         paddingHorizontal: 16,
     },
     headerTopRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        marginBottom: 14,
+        marginBottom: 16,
         gap: 12,
     },
-    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerIconButton: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
+        width: 42,
+        height: 42,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
     },
-    scrollContent: { paddingBottom: 100, paddingHorizontal: Platform.OS === 'web' ? 16 : 12, paddingTop: 10 },
+    scrollContent: { paddingBottom: 110, paddingHorizontal: Platform.OS === 'web' ? 16 : 12, paddingTop: 8 },
     sectionTitle: { fontSize: Platform.OS === 'web' ? 13 : 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
     sectionTotal: { fontSize: Platform.OS === 'web' ? 14 : 12, fontWeight: '700' },
 
-    // New Card Container Style (Modern look with border and shadow)
     cardContainer: {
-        borderRadius: 20,
+        borderRadius: 24,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(15,23,42,0.06)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 24,
+        shadowOpacity: 0.06,
+        shadowRadius: 26,
         elevation: 3,
     },
 
@@ -851,13 +887,22 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: 4,
     },
-    currencyButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+    currencyButton: {
+        minWidth: 64,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 14,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+    },
     itemRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 14,
+        paddingVertical: 15,
+        paddingHorizontal: 16,
     },
     leftContainer: {
         flexDirection: 'row',
@@ -888,7 +933,7 @@ const styles = StyleSheet.create({
     },
     // Category Section
     categorySection: {
-        marginTop: 18,
+        marginTop: 20,
         paddingHorizontal: 2,
     },
     categoryHeaderCard: {
@@ -897,9 +942,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
         borderWidth: 1,
-        borderRadius: 18,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
     },
     categoryHeaderMain: {
         flexDirection: 'row',
@@ -907,24 +952,55 @@ const styles = StyleSheet.create({
         gap: 12,
         flex: 1,
     },
+    categoryTitle: {
+        fontSize: Platform.OS === 'web' ? 16 : 15,
+        fontWeight: '800',
+        letterSpacing: -0.2,
+    },
     categoryHeaderRight: {
         alignItems: 'flex-end',
         marginLeft: 12,
     },
     categoryMeta: {
         fontSize: 12,
-        fontWeight: '500',
-        marginTop: 2,
+        fontWeight: '600',
+        marginTop: 4,
     },
     categoryChangeBadge: {
         borderRadius: 999,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        marginTop: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        marginTop: 8,
     },
 
     headerInfo: {
         flex: 1,
+    },
+    headerBadgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 10,
+    },
+    headerStatusPill: {
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderWidth: 1,
+    },
+    headerStatusText: {
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    headerMetaPill: {
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderWidth: 1,
+    },
+    headerMetaPillText: {
+        fontSize: 11,
+        fontWeight: '700',
     },
     headerLabel: {
         fontSize: 11,
@@ -939,22 +1015,42 @@ const styles = StyleSheet.create({
     },
     headerMeta: {
         fontSize: 12,
-        fontWeight: '500',
+        fontWeight: '600',
         opacity: 0.8,
-        marginTop: 4,
+    },
+    headerMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+        gap: 6,
+        flexWrap: 'wrap',
+    },
+    headerMetaDot: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     heroCard: {
         borderWidth: 1,
-        borderRadius: 24,
-        padding: 18,
+        borderRadius: 28,
+        padding: 20,
         marginBottom: 18,
+        overflow: 'hidden',
+    },
+    heroAccent: {
+        position: 'absolute',
+        top: 0,
+        left: 18,
+        right: 18,
+        height: 4,
+        borderBottomLeftRadius: 999,
+        borderBottomRightRadius: 999,
     },
     heroTop: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         gap: 12,
-        marginBottom: 16,
+        marginBottom: 18,
     },
     heroLabel: {
         fontSize: 11,
@@ -967,13 +1063,20 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         letterSpacing: -1,
     },
+    heroSubValue: {
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 6,
+        lineHeight: 18,
+    },
     heroAction: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
         paddingHorizontal: 12,
         paddingVertical: 10,
-        borderRadius: 14,
+        borderRadius: 16,
+        borderWidth: 1,
     },
     heroActionText: {
         fontSize: 12,
@@ -982,12 +1085,12 @@ const styles = StyleSheet.create({
     heroStatsRow: {
         flexDirection: 'row',
         gap: 10,
-        marginBottom: 16,
+        marginBottom: 14,
     },
     heroStat: {
         flex: 1,
-        minHeight: 78,
-        borderRadius: 16,
+        minHeight: 84,
+        borderRadius: 18,
         padding: 12,
         justifyContent: 'space-between',
     },
@@ -998,6 +1101,25 @@ const styles = StyleSheet.create({
     heroStatLabel: {
         fontSize: 11,
         fontWeight: '600',
+    },
+    heroInsightBar: {
+        borderWidth: 1,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 16,
+        gap: 4,
+    },
+    heroInsightLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+    },
+    heroInsightText: {
+        fontSize: 13,
+        fontWeight: '700',
+        lineHeight: 18,
     },
     heroHint: {
         fontSize: 12,

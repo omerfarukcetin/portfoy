@@ -198,6 +198,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
     };
 
+    const adoptAuthoritativeRevision = async (revision: number) => {
+        await writeSyncMeta({
+            dirty: false,
+            lastLocalRevision: revision,
+            lastSuccessfulSyncRevision: revision,
+        });
+    };
+
     const calculatePortfolioSnapshot = (portfolioToValue: Portfolio) => {
         let totalTry = 0;
         let totalUsd = 0;
@@ -393,12 +401,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await AsyncStorage.setItem('activePortfolioId', nextActiveId);
     };
 
-    const applyLoadedState = async (nextPortfolios: Portfolio[], nextActiveId: string, options?: { markSynced?: boolean }) => {
+    const applyLoadedState = async (
+        nextPortfolios: Portfolio[],
+        nextActiveId: string,
+        options?: { markSynced?: boolean; authoritativeCloud?: boolean }
+    ) => {
         setPortfolios(nextPortfolios);
         setActivePortfolioId(nextActiveId);
         await persistLocalState(nextPortfolios, nextActiveId);
-        if (options?.markSynced) {
-            await markSyncSuccessful(getPortfoliosRevision(nextPortfolios));
+        const revision = getPortfoliosRevision(nextPortfolios);
+        if (options?.authoritativeCloud) {
+            await adoptAuthoritativeRevision(revision);
+        } else if (options?.markSynced) {
+            await markSyncSuccessful(revision);
         }
         setLastSyncAt(Date.now());
     };
@@ -437,7 +452,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (pendingSyncData.current) {
                 setTimeout(() => {
                     flushPendingSync();
-                }, 300);
+                }, 25);
             } else {
                 setIsSyncing(false);
             }
@@ -524,7 +539,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 console.error('❌ Failed to update sync meta:', e);
             });
 
-            scheduleSync({ portfolios: updated, activeId });
+            scheduleSync({ portfolios: updated, activeId }, true);
 
             return updated;
         });
@@ -578,15 +593,25 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const handleVisibilityChange = () => {
                 if (document.visibilityState === 'hidden') {
                     triggerImmediateSync();
+                } else if (!pendingSyncData.current && !syncInFlightRef.current) {
+                    debouncedLoadData();
+                }
+            };
+
+            const handleWindowFocus = () => {
+                if (!pendingSyncData.current && !syncInFlightRef.current) {
+                    debouncedLoadData();
                 }
             };
 
             window.addEventListener('beforeunload', handleBeforeUnload);
             document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('focus', handleWindowFocus);
 
             return () => {
                 window.removeEventListener('beforeunload', handleBeforeUnload);
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('focus', handleWindowFocus);
             };
         }
     }, [user?.id]);
@@ -598,7 +623,6 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const storedActiveId = await AsyncStorage.getItem('activePortfolioId');
             const localPortfolios: Portfolio[] = storedPortfolios ? JSON.parse(storedPortfolios) : [];
             const localActiveId = storedActiveId || localPortfolios[0]?.id || '';
-            const localRevision = getPortfoliosRevision(localPortfolios);
             const syncMeta = await readSyncMeta();
 
             if (user?.id) {
@@ -606,32 +630,23 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 try {
                     const supabaseData = await loadUserPortfolios(user.id);
                     const cloudPortfolios = supabaseData.portfolios;
-                    const cloudRevision = getPortfoliosRevision(cloudPortfolios);
-
-                    if (syncMeta.dirty && localPortfolios.length > 0) {
-                        console.log('🛡️ loadData: Unsynced local changes detected, preferring local data and forcing sync...');
-                        await applyLoadedState(localPortfolios, localActiveId);
-                        scheduleSync({ portfolios: localPortfolios, activeId: localActiveId }, true);
-                        isInitialized.current = true;
-                        return;
-                    }
 
                     if (cloudPortfolios.length > 0) {
-                        const preferLocal = localPortfolios.length > 0 && localRevision > cloudRevision;
-
-                        if (preferLocal) {
-                            console.log('🛡️ loadData: Local revision is newer than cloud, restoring local and re-syncing...');
-                            await applyLoadedState(localPortfolios, localActiveId);
-                            scheduleSync({ portfolios: localPortfolios, activeId: localActiveId }, true);
-                        } else {
-                            let finalActiveId = supabaseData.activePortfolioId || localActiveId;
-                            if (!cloudPortfolios.some(p => p.id === finalActiveId)) {
-                                finalActiveId = cloudPortfolios[0].id;
-                            }
-
-                            await applyLoadedState(cloudPortfolios, finalActiveId, { markSynced: true });
+                        let finalActiveId = supabaseData.activePortfolioId || localActiveId;
+                        if (!cloudPortfolios.some(p => p.id === finalActiveId)) {
+                            finalActiveId = cloudPortfolios[0].id;
                         }
+
+                        if (syncMeta.dirty && localPortfolios.length > 0) {
+                            console.warn('☁️ loadData: Cloud data exists; ignoring stale local dirty state and adopting server truth.');
+                        }
+
+                        console.log('☁️ loadData: Using cloud as authoritative source for this device session.');
+                        await applyLoadedState(cloudPortfolios, finalActiveId, { authoritativeCloud: true });
                     } else if (localPortfolios.length > 0) {
+                        if (syncMeta.dirty) {
+                            console.log('🛡️ loadData: Unsynced local changes detected with empty cloud, restoring local and forcing sync...');
+                        }
                         console.log('📤 loadData: Cloud empty, migrating existing local data to Supabase...');
                         await migrateToSupabase(user.id, localPortfolios, localActiveId);
                         await applyLoadedState(localPortfolios, localActiveId);
